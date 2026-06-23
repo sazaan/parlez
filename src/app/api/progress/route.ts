@@ -1,8 +1,8 @@
-// Progress tracking API - syncs to Prisma, scoped to the authenticated user
+// Progress API — uses Supabase instead of Prisma
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth/config';
-import { db } from '@/lib/db';
+import { getDB } from '@/lib/db';
 
 export const runtime = 'nodejs';
 
@@ -15,22 +15,29 @@ async function getUserId(): Promise<string | null> {
 export async function GET() {
   try {
     const userId = await getUserId();
-    if (!userId) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    }
-    const lessons = await db.lessonProgress.findMany({ where: { userId } });
-    const tests = await db.testResult.findMany({
-      where: { userId },
-      orderBy: { takenAt: 'desc' },
-      take: 100,
-    });
-    const user = await db.user.findUnique({ where: { id: userId } });
+    if (!userId) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
-    return NextResponse.json({
-      user: user ? { id: user.id, email: user.email, name: user.name } : null,
-      lessons,
-      tests,
-    });
+    const supabase = getDB();
+
+    const { data: lessons } = await supabase
+      .from('lesson_progress')
+      .select('*')
+      .eq('user_id', userId);
+
+    const { data: tests } = await supabase
+      .from('test_results')
+      .select('*')
+      .eq('user_id', userId)
+      .order('taken_at', { ascending: false })
+      .limit(100);
+
+    const { data: user } = await supabase
+      .from('users')
+      .select('id, email, name')
+      .eq('id', userId)
+      .maybeSingle();
+
+    return NextResponse.json({ user, lessons: lessons || [], tests: tests || [] });
   } catch (error) {
     console.error('Error fetching progress:', error);
     return NextResponse.json({ user: null, lessons: [], tests: [] });
@@ -40,89 +47,111 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const userId = await getUserId();
-    if (!userId) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    }
+    if (!userId) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+
     const body = await req.json();
     const { type, data } = body;
+    const supabase = getDB();
 
     if (type === 'lesson-complete') {
       const { courseLevel, unitId, lessonId, score } = data;
-      const existing = await db.lessonProgress.findUnique({
-        where: {
-          userId_courseLevel_unitId_lessonId: {
-            userId,
-            courseLevel,
-            unitId,
-            lessonId,
-          },
-        },
-      });
+
+      // Check if exists
+      const { data: existing } = await supabase
+        .from('lesson_progress')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('course_level', courseLevel)
+        .eq('unit_id', unitId)
+        .eq('lesson_id', lessonId)
+        .maybeSingle();
 
       if (existing) {
-        const updated = await db.lessonProgress.update({
-          where: { id: existing.id },
-          data: {
+        const { data: updated } = await supabase
+          .from('lesson_progress')
+          .update({
             status: 'completed',
             score: Math.max(existing.score, score),
             attempts: existing.attempts + 1,
-            completedAt: new Date(),
-            lastOpenedAt: new Date(),
-          },
-        });
+            completed_at: new Date().toISOString(),
+            last_opened_at: new Date().toISOString(),
+          })
+          .eq('id', existing.id)
+          .select()
+          .single();
         return NextResponse.json(updated);
       } else {
-        const created = await db.lessonProgress.create({
-          data: {
-            userId,
-            courseLevel,
-            unitId,
-            lessonId,
+        const { data: created } = await supabase
+          .from('lesson_progress')
+          .insert({
+            user_id: userId,
+            course_level: courseLevel,
+            unit_id: unitId,
+            lesson_id: lessonId,
             status: 'completed',
             score,
             attempts: 1,
-            completedAt: new Date(),
-          },
-        });
+            completed_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
         return NextResponse.json(created);
       }
     }
 
     if (type === 'lesson-open') {
       const { courseLevel, unitId, lessonId } = data;
-      const existing = await db.lessonProgress.findUnique({
-        where: {
-          userId_courseLevel_unitId_lessonId: {
-            userId, courseLevel, unitId, lessonId,
-          },
-        },
-      });
+      const { data: existing } = await supabase
+        .from('lesson_progress')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('course_level', courseLevel)
+        .eq('unit_id', unitId)
+        .eq('lesson_id', lessonId)
+        .maybeSingle();
+
       if (existing) {
-        const updated = await db.lessonProgress.update({
-          where: { id: existing.id },
-          data: { lastOpenedAt: new Date(), status: existing.status === 'not_started' ? 'in_progress' : existing.status },
-        });
+        const { data: updated } = await supabase
+          .from('lesson_progress')
+          .update({
+            last_opened_at: new Date().toISOString(),
+            status: existing.status === 'not_started' ? 'in_progress' : existing.status,
+          })
+          .eq('id', existing.id)
+          .select()
+          .single();
         return NextResponse.json(updated);
+      } else {
+        const { data: created } = await supabase
+          .from('lesson_progress')
+          .insert({
+            user_id: userId,
+            course_level: courseLevel,
+            unit_id: unitId,
+            lesson_id: lessonId,
+            status: 'in_progress',
+          })
+          .select()
+          .single();
+        return NextResponse.json(created);
       }
-      const created = await db.lessonProgress.create({
-        data: { userId, courseLevel, unitId, lessonId, status: 'in_progress' },
-      });
-      return NextResponse.json(created);
     }
 
     if (type === 'test-result') {
-      const created = await db.testResult.create({
-        data: {
-          userId,
-          testType: data.testType,
+      const { data: created } = await supabase
+        .from('test_results')
+        .insert({
+          user_id: userId,
+          test_type: data.testType,
           section: data.section,
           score: data.score,
-          totalQuestions: data.totalQuestions,
-          correctCount: data.correctCount,
-          durationSec: data.durationSec,
+          total_questions: data.totalQuestions,
+          correct_count: data.correctCount,
+          duration_sec: data.durationSec,
           details: data.details || null,
-        },
-      });
+        })
+        .select()
+        .single();
       return NextResponse.json(created);
     }
 

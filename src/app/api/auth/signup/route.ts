@@ -1,7 +1,7 @@
-// Signup API: creates a new user with email + bcrypt-hashed password
+// Signup API — uses Supabase instead of Prisma
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { db } from '@/lib/db';
+import { getDB } from '@/lib/db';
 
 export const runtime = 'nodejs';
 
@@ -13,27 +13,36 @@ export async function POST(req: NextRequest) {
     if (!email || !password) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
     }
-    if (typeof email !== 'string' || typeof password !== 'string') {
-      return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
-    }
     if (password.length < 6) {
       return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 });
     }
 
     const normalizedEmail = email.toLowerCase().trim();
-    const existing = await db.user.findUnique({ where: { email: normalizedEmail } });
+    const supabase = getDB();
+
+    // Check if user exists
+    const { data: existing } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', normalizedEmail)
+      .maybeSingle();
+
     if (existing) {
-      return NextResponse.json({ error: 'An account with this email already exists. Please log in.' }, { status: 409 });
+      return NextResponse.json({ error: 'An account with this email already exists.' }, { status: 409 });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const user = await db.user.create({
-      data: {
+    const { data: user, error } = await supabase
+      .from('users')
+      .insert({
         email: normalizedEmail,
-        passwordHash,
+        password_hash: passwordHash,
         name: typeof name === 'string' && name.trim() ? name.trim() : null,
-      },
-    });
+      })
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
 
     return NextResponse.json({
       ok: true,
@@ -41,6 +50,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error('Signup error:', error);
-    return NextResponse.json({ error: 'Could not create account. Please try again.' }, { status: 500 });
+    return NextResponse.json({ error: 'Could not create account.' }, { status: 500 });
   }
 }

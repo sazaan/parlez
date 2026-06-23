@@ -1,14 +1,15 @@
 // Reusable auth helpers for server-side use
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from './config';
-import { db } from '@/lib/db';
+import { getDB } from '@/lib/db';
 
 export async function getCurrentUser() {
   const session = await getServerSession(authOptions);
   if (!session?.user) return null;
   const userId = (session.user as { id?: string }).id;
   if (!userId) return null;
-  const user = await db.user.findUnique({ where: { id: userId } });
+  const supabase = getDB();
+  const { data: user } = await supabase.from('users').select('*').eq('id', userId).maybeSingle();
   return user;
 }
 

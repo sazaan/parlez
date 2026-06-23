@@ -1,39 +1,49 @@
-// Returns the authenticated user's profile + summary of progress
+// /api/me — returns current user info using Supabase
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth/config';
-import { db } from '@/lib/db';
+import { getDB } from '@/lib/db';
 
 export const runtime = 'nodejs';
 
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ user: null });
-    }
-    const userId = (session.user as { id?: string }).id;
-    if (!userId) {
-      return NextResponse.json({ user: null });
-    }
-    const user = await db.user.findUnique({ where: { id: userId } });
-    if (!user) {
-      return NextResponse.json({ user: null });
-    }
+    if (!session?.user) return NextResponse.json({ user: null });
 
-    const lessonCount = await db.lessonProgress.count({ where: { userId, status: 'completed' } });
-    const testCount = await db.testResult.count({ where: { userId } });
+    const userId = (session.user as { id?: string }).id;
+    if (!userId) return NextResponse.json({ user: null });
+
+    const supabase = getDB();
+    const { data: user } = await supabase
+      .from('users')
+      .select('id, email, name, created_at')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (!user) return NextResponse.json({ user: null });
+
+    const { count: lessonCount } = await supabase
+      .from('lesson_progress')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('status', 'completed');
+
+    const { count: testCount } = await supabase
+      .from('test_results')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
 
     return NextResponse.json({
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
-        createdAt: user.createdAt,
+        createdAt: user.created_at,
       },
       stats: {
-        lessonsCompleted: lessonCount,
-        testsTaken: testCount,
+        lessonsCompleted: lessonCount || 0,
+        testsTaken: testCount || 0,
       },
     });
   } catch (error) {
