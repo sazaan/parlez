@@ -1,7 +1,7 @@
 // Prisma schema for Parlez — French Language Training App
 //
 // FOR LOCAL DEV (SQLite):
-//   Keep provider = "sqlite" and DATABASE_URL="file:./dev.db"
+//   Keep provider = "postgresql" and DATABASE_URL="file:./dev.db"
 //
 // FOR VERCEL DEPLOYMENT (Supabase PostgreSQL):
 //   Change to provider = "postgresql"
@@ -13,7 +13,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
