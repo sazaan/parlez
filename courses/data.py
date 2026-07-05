@@ -253,14 +253,12 @@ conversation_scenarios = [
 # Course registry
 # ============================================================
 
-courses = [a1_course, a2_course, b1_course, b2_course, c1_course]
+# Only A1 is enabled for now. A2-C1 courses are kept imported below for gradual
+# re-enabling once their content is restructured.
+courses = [a1_course]
 
 course_levels = [
     {'level': 'A1', 'color': '#2D6A4F', 'book': 'Parlez A1', 'title': 'Débutant', 'description': 'Complete beginner — greetings, basics, daily life'},
-    {'level': 'A2', 'color': '#C19A4B', 'book': 'Parlez A2', 'title': 'Élémentaire', 'description': 'Elementary — past tenses, opinions, social life'},
-    {'level': 'B1', 'color': '#B45309', 'book': 'Parlez B1', 'title': 'Intermédiaire', 'description': 'Intermediate — arguments, subjunctive, media'},
-    {'level': 'B2', 'color': '#7C2D3F', 'book': 'Parlez B2', 'title': 'Avancé', 'description': 'Upper-intermediate — debate, nuance, literature'},
-    {'level': 'C1', 'color': '#4A1942', 'book': 'Parlez C1', 'title': 'Avancé supérieur', 'description': 'Advanced — rhetoric, journalism, academic writing'},
 ]
 
 def get_course(level):

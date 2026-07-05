@@ -162,7 +162,7 @@ let isGenerating = false;
 let recognition = null;
 let isRecording = false;
 
-const LEVEL_NAMES = { 'A1': 'Débutant', 'A2': 'Élémentaire', 'B1': 'Intermédiaire', 'B2': 'Avancé' };
+const LEVEL_NAMES = { 'A1': 'Débutant' };
 
 // ============================================================
 // TTS
