@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parlez — French AI Tutor</title>
+    <link rel="stylesheet" href="/static/landing.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%237C2D3F'/%3E%3Ctext x='50' y='68' font-size='58' font-family='Georgia,serif' fill='%23C19A4B' text-anchor='middle' font-style='italic'%3EP%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+    <nav class="navbar" id="navbar">
+        <div class="nav-brand">
+            <span class="logo-mark">P</span>
+            <span class="logo-text">Parlez</span>
+        </div>
+        <div class="nav-links" id="navLinks">
+            <a href="#features">Features</a>
+            <a href="#about">About</a>
+            <div class="nav-links-actions">
+                <a href="/login" class="btn btn-ghost">Log In</a>
+                <a href="/login?mode=signup" class="btn btn-primary">Get Started</a>
+            </div>
+        </div>
+        <div class="nav-actions">
+            <a href="/login" class="btn btn-ghost">Log In</a>
+            <a href="/login?mode=signup" class="btn btn-primary">Get Started</a>
+        </div>
+        <button class="nav-toggle" id="navToggle" aria-label="Toggle menu">
+            <span></span><span></span><span></span>
+        </button>
+    </nav>
+
+    <header class="hero">
+        <div class="hero-bg" aria-hidden="true">
+            <div class="hero-gradient"></div>
+            <div class="hero-light"></div>
+            <div class="hero-watermark">Parlez</div>
+        </div>
+
+        <div class="hero-content">
+            <div class="hero-copy">
+                <div class="hero-tag">
+                    <span class="tag-icon">✨</span>
+                    <span>AI-Powered French Tutor</span>
+                </div>
+                <h1 class="hero-title">
+                    Speak French with <span class="accent">confidence.</span>
+                </h1>
+                <p class="hero-subtitle">
+                    Personalized conversations, adaptive lessons, flashcards, and TEF/TCF mock tests — all guided by your own AI tutor.
+                </p>
+                <div class="hero-actions">
+                    <a href="/login?mode=signup" class="btn btn-cta">Start Learning Free</a>
+                    <a href="#features" class="btn btn-secondary">See How It Works</a>
+                </div>
+
+            </div>
+
+            <div class="hero-visual">
+                <div class="phone-mockup" aria-hidden="true">
+                    <div class="phone-frame">
+                        <div class="phone-notch"></div>
+                        <div class="phone-screen">
+                            <div class="phone-header">
+                                <span class="phone-title">Parlez</span>
+                            </div>
+                            <div class="chat-preview">
+                                <div class="message user">Comment dit-on "hello"?</div>
+                                <div class="message ai">On dit "Bonjour" en français.</div>
+                                <div class="message user">Merci beaucoup!</div>
+                                <div class="message ai">Avec plaisir! Prêt pour la suite? 🎉</div>
+                            </div>
+                            <div class="phone-input">
+                                <span>Type a message...</span>
+                                <span class="send-icon">➤</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="phone-glow"></div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <section class="features" id="features">
+        <div class="container">
+            <span class="section-label">Why Parlez</span>
+            <h2 class="section-title">Everything you need to master French</h2>
+
+            <div class="features-grid">
+                <article class="feature-card">
+                    <div class="feature-icon">💬</div>
+                    <h3>AI Conversations</h3>
+                    <p>Practice real dialogue in any scenario, from café orders to job interviews.</p>
+                </article>
+
+                <article class="feature-card">
+                    <div class="feature-icon">📝</div>
+                    <h3>Adaptive Lessons</h3>
+                    <p>Lessons and exercises that adjust to your level and weak areas.</p>
+                </article>
+
+                <article class="feature-card">
+                    <div class="feature-icon">🧪</div>
+                    <h3>Mock Exams</h3>
+                    <p>TEF and TCF practice tests with timed sections and detailed results.</p>
+                </article>
+
+                <article class="feature-card">
+                    <div class="feature-icon">🃏</div>
+                    <h3>Smart Flashcards</h3>
+                    <p>Spaced-repetition flashcards built from your own vocabulary.</p>
+                </article>
+
+                <article class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Progress Tracking</h3>
+                    <p>XP, streaks, accuracy, and personalized weak-area analysis.</p>
+                </article>
+
+                <article class="feature-card">
+                    <div class="feature-icon">🎧</div>
+                    <h3>Native Audio</h3>
+                    <p>Listen to French pronunciations and train your ear naturally.</p>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section class="about" id="about">
+        <div class="container">
+            <div class="about-grid">
+                <div class="about-copy">
+                    <span class="section-label">About Parlez</span>
+                    <h2 class="section-title">Your personal path to French fluency</h2>
+                    <p>
+                        Parlez is an AI-powered French tutor that adapts to your level, learns from your mistakes, and keeps you motivated with streaks, XP, and personalized practice. Whether you're preparing for TEF or TCF, building vocabulary, or just want to hold a real conversation, Parlez meets you where you are and helps you progress every day.
+                    </p>
+                </div>
+                <div class="about-stats">
+                    <div class="stat">
+                        <span class="stat-value">A1–C2</span>
+                        <span class="stat-label">Adaptive levels</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value">24/7</span>
+                        <span class="stat-label">AI tutor access</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value">TEF/TCF</span>
+                        <span class="stat-label">Mock exams</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="cta-strip">
+        <div class="container">
+            <h2>Start your French journey today</h2>
+            <p>Speak French with confidence, one conversation at a time.</p>
+            <a href="/login?mode=signup" class="btn btn-cta">Create Free Account</a>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="footer-brand">
+            <span class="footer-logo">P</span>
+            <span>© 2026 Parlez. All rights reserved.</span>
+        </div>
+        <div class="footer-links">
+            <a href="#">Privacy</a>
+            <a href="#">Terms</a>
+            <a href="#">Contact</a>
+        </div>
+    </footer>
+
+    <script>
+        // Mobile nav toggle
+        const navToggle = document.getElementById('navToggle');
+        const navLinks = document.getElementById('navLinks');
+        if (navToggle && navLinks) {
+            navToggle.addEventListener('click', () => {
+                navLinks.classList.toggle('open');
+                navToggle.classList.toggle('open');
+            });
+        }
+
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                const href = this.getAttribute('href');
+                if (href.length > 1) {
+                    e.preventDefault();
+                    const target = document.querySelector(href);
+                    if (target) {
+                        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

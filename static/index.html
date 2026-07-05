@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parlez — French AI Tutor</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%237C2D3F'/%3E%3Ctext x='50' y='68' font-size='58' font-family='Georgia,serif' fill='%23C19A4B' text-anchor='middle' font-style='italic'%3EP%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+    <!-- Auth Screen -->
+    <div class="auth-screen" id="authScreen">
+        <div class="auth-card">
+            <div class="auth-logo">
+                <span class="logo-p">P</span>
+                <span class="logo-text">Parlez</span>
+            </div>
+            <h2 class="auth-title" id="authTitle">Welcome Back</h2>
+            <p class="auth-subtitle" id="authSubtitle">Log in to continue learning French</p>
+            
+            <form id="authForm" class="auth-form">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="authUsername" placeholder="Enter username" required minlength="3">
+                </div>
+                <div class="form-group" id="nameGroup" style="display:none">
+                    <label>Name</label>
+                    <input type="text" id="authName" placeholder="Your name">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="authPassword" placeholder="Enter password" required minlength="4">
+                </div>
+                <button type="submit" class="auth-submit" id="authSubmit">Log In</button>
+                <p class="auth-toggle" id="authToggle">Don't have an account? <a href="#" id="authToggleLink">Sign Up</a></p>
+                <p class="auth-error" id="authError" style="display:none"></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main App (hidden until auth) -->
+    <div class="app-container" id="appContainer" style="display:none">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-p">P</span>
+                    <span class="logo-text">Parlez</span>
+                </div>
+                <button class="btn-new-chat" id="newChat">+ New Chat</button>
+            </div>
+
+            <div class="level-badge" id="levelBadge">
+                <span class="level-dot"></span>
+                <span id="currentLevel">A1</span>
+                <span class="level-name" id="levelName">Débutant</span>
+            </div>
+
+            <div class="sidebar-scroll" id="sidebarScroll">
+                <div class="sidebar-section">
+                    <div class="section-header collapsible" data-target="chatList">
+                        <span>Chats</span><span class="collapse-icon">▼</span>
+                    </div>
+                    <div class="collapsible-content collapsed" id="chatList"></div>
+                </div>
+
+                <div class="sidebar-section">
+                    <div class="section-header collapsible" data-target="courseList">
+                        <span>Courses</span><span class="collapse-icon">▼</span>
+                    </div>
+                    <div class="collapsible-content collapsed" id="courseList"></div>
+                </div>
+
+                <div class="sidebar-section">
+                    <div class="section-header collapsible" data-target="scenarioList">
+                        <span>Practice Scenarios</span><span class="collapse-icon">▼</span>
+                    </div>
+                    <div class="collapsible-content collapsed" id="scenarioList"></div>
+                </div>
+
+                <div class="sidebar-section">
+                    <div class="section-header collapsible" data-target="practiceList">
+                        <span>Quick Practice</span><span class="collapse-icon">▼</span>
+                    </div>
+                    <div class="collapsible-content collapsed" id="practiceList">
+                        <div class="practice-item" onclick="startVocabQuiz()">📝 Vocab Quiz</div>
+                        <div class="practice-item" onclick="startConjQuiz()">🔄 Conjugation Drill</div>
+                        <div class="practice-item" onclick="startFlashcardReview()">🃏 Flashcard Review</div>
+                        <div class="practice-item" onclick="showWordOfDay()">📅 Word of the Day</div>
+                        <div class="practice-item" onclick="showAdaptiveAnalysis()">📊 My Progress</div>
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <div class="section-header collapsible" data-target="ingestList">
+                        <span>Content Tools</span><span class="collapse-icon">▼</span>
+                    </div>
+                    <div class="collapsible-content collapsed" id="ingestList">
+                        <div class="practice-item" onclick="promptContentIngest()">📄 Ingest French Content</div>
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <div class="section-header collapsible" data-target="mockTestList">
+                        <span>Mock Tests</span><span class="collapse-icon">▼</span>
+                    </div>
+                    <div class="collapsible-content collapsed" id="mockTestList">
+                        <div class="practice-item" onclick="startMockTest('TEF')">📝 TEF Practice</div>
+                        <div class="practice-item" onclick="startMockTest('TCF')">📝 TCF Practice</div>
+                        <div class="practice-item" onclick="showTestStats()">📊 Test History</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="progress-mini">
+                    <span class="xp-display">⚡ <span id="xpDisplay">0</span> XP</span>
+                    <span class="streak-display">🔥 <span id="streakDisplay">0</span></span>
+                    <span class="accuracy-display">🎯 <span id="accuracyDisplay">0</span>%</span>
+                </div>
+                <button class="btn-settings" id="clearHistory">Clear All</button>
+            </div>
+        </aside>
+
+        <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+        <main class="main-content">
+            <header class="main-header">
+                <button class="btn-toggle-sidebar" id="toggleSidebar">☰</button>
+                <h1 id="chatTitle">Parlez — French AI Tutor</h1>
+                <div class="header-actions">
+                    <button class="btn-action" id="btnBackToChat" style="display:none" title="Back to Chat">💬</button>
+                    <button class="btn-action" id="btnComments" title="Notes & Comments">📝</button>
+                    <button class="btn-action" id="btnShare" title="Share Chat">🔗</button>
+                    <button class="btn-action" id="btnExport" title="Export Chat">📥</button>
+                    <button class="btn-action" id="btnSettings" title="Settings">⚙️</button>
+                </div>
+            </header>
+
+            <!-- Chat View -->
+            <div id="chatView" class="main-view">
+                <div id="messages" class="messages">
+                    <div class="welcome-message">
+                        <div class="welcome-icon">🇫🇷</div>
+                        <h2>Bonjour! Ready to learn French?</h2>
+                        <p>I'm your personal French tutor. I can teach you vocabulary, grammar, pronunciation, and help you practice conversations.</p>
+                        <div class="quick-actions">
+                            <button class="quick-action" onclick="sendQuickMessage('Teach me French greetings')">👋 Learn Greetings</button>
+                            <button class="quick-action" onclick="sendQuickMessage('Show me numbers 1-20 in French')">🔢 Numbers 1-20</button>
+                            <button class="quick-action" onclick="sendQuickMessage('Practice conversation at a café')">☕ Café Roleplay</button>
+                            <button class="quick-action" onclick="sendQuickMessage('Give me a French quiz')">📝 Take a Quiz</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="input-container">
+                    <div class="input-wrapper">
+                        <button id="attachButton" class="btn-attach" title="Attach files">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+                    </button>
+                    <input type="file" id="fileInput" accept="image/*,.pdf,.txt,.md" hidden>
+                    <button id="voiceButton" class="btn-voice" title="Voice input">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                    </button>
+                    <textarea id="messageInput" placeholder="Ask me anything about French..." rows="1"></textarea>
+                    <button id="sendButton" class="btn-send" disabled>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                    </button>
+                </div>
+                <div class="input-footer">
+                    <span id="voiceStatus" class="voice-status" style="display: none;">Listening...</span>
+                    <span>Parlez can make mistakes. Check important info.</span>
+                </div>
+            </div>
+            </div>
+
+            <!-- Tool View (for quizzes, tests, etc.) -->
+            <div id="toolView" class="main-view" style="display:none">
+                <div id="toolContent" class="tool-content"></div>
+            </div>
+        </main>
+    </div>
+    <div class="modal" id="settingsModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header"><h3>Settings</h3><button class="btn-close" id="closeSettings">×</button></div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Your Level</label>
+                    <div class="level-selector" id="levelSelector">
+                        <button class="level-btn active" data-level="A1">A1<br><small>Débutant</small></button>
+                        <button class="level-btn" data-level="A2">A2<br><small>Élémentaire</small></button>
+                        <button class="level-btn" data-level="B1">B1<br><small>Intermédiaire</small></button>
+                        <button class="level-btn" data-level="B2">B2<br><small>Avancé</small></button>
+                        <button class="level-btn" data-level="C1">C1<br><small>Avancé supérieur</small></button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Your Name</label>
+                    <input type="text" id="userName" placeholder="Enter your name">
+                </div>
+                <div class="form-group" style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border)">
+                    <button class="btn-logout" id="btnLogout">🚪 Log Out</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Comments Modal -->
+    <div class="modal" id="commentsModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header"><h3>📝 Notes & Comments</h3><button class="btn-close" id="closeComments">×</button></div>
+            <div class="modal-body">
+                <div id="commentsList" class="comments-list"></div>
+                <div class="comment-input-row">
+                    <input type="text" id="commentInput" placeholder="Add a note or comment..." class="comment-input">
+                    <button class="comment-submit" id="addComment">Add</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Modal -->
+    <div class="modal" id="shareModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header"><h3>🔗 Share Chat</h3><button class="btn-close" id="closeShare">×</button></div>
+            <div class="modal-body">
+                <div id="shareContent">
+                    <p class="share-desc">Generate a shareable link for this conversation.</p>
+                    <button class="share-generate-btn" id="generateShareLink">Generate Link</button>
+                    <div id="shareLinkContainer" style="display: none;">
+                        <input type="text" id="shareLink" readonly class="share-link-input">
+                        <button class="share-copy-btn" id="copyShareLink">Copy</button>
+                    </div>
+                </div>
+                <div id="sharedList" class="shared-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Modal -->
+    <div class="modal" id="exportModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header"><h3>📥 Export Chat</h3><button class="btn-close" id="closeExport">×</button></div>
+            <div class="modal-body">
+                <div class="export-options">
+                    <button class="export-btn" id="exportMarkdown">📄 Export as Markdown</button>
+                    <button class="export-btn" id="exportJson">📋 Export as JSON</button>
+                </div>
+                <div id="exportPreview" style="display: none;">
+                    <textarea id="exportPreviewText" readonly class="export-preview"></textarea>
+                    <button class="export-download-btn" id="downloadExport">Download</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js?v=2"></script>
+</body>
+</html>

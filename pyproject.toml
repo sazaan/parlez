@@ -1,0 +1,9 @@
+[tool.ruff]
+# Match the existing codebase style for rules that do not affect correctness.
+# E402: imports after `load_dotenv()` calls are intentional.
+# E701: multiple simple statements on one line is a project style choice.
+# E741: ambiguous variable names (`l`, `O`) are used in existing list comprehensions.
+# F541: f-strings without placeholders are used for consistent string formatting.
+# F841: unused local variables are often kept for clarity; enable in the future.
+ignore = ["E402", "E701", "E741", "F541", "F841"]
+line-length = 120

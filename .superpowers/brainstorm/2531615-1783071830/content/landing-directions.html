@@ -1,0 +1,200 @@
+<style>
+  .direction-mockups {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    margin-top: 1rem;
+  }
+  .mock-frame {
+    border: 2px solid rgba(124, 45, 63, 0.12);
+    border-radius: 16px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+    min-height: 420px;
+    display: flex;
+    flex-direction: column;
+  }
+  .mock-header {
+    height: 34px;
+    background: #f8f7f4;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 6px;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #ddd; }
+  .mock-body {
+    flex: 1;
+    position: relative;
+    padding: 1.25rem;
+  }
+  /* Direction A: Elegant Editorial */
+  .dir-a .mock-body {
+    background: linear-gradient(135deg, #f8f7f4 0%, #f0ede8 100%);
+  }
+  .dir-a .nav {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 1.5rem;
+  }
+  .dir-a .logo { font-family: Georgia, serif; font-style: italic; font-weight: 600; color: #7c2d3f; }
+  .dir-a .hero-title {
+    font-family: Georgia, serif;
+    font-size: 1.6rem;
+    color: #18181b;
+    line-height: 1.2;
+    margin-bottom: 0.75rem;
+  }
+  .dir-a .hero-sub { font-size: 0.75rem; color: #71717a; margin-bottom: 1rem; }
+  .dir-a .cta { background: #7c2d3f; color: #fff; padding: 0.45rem 1rem; border-radius: 8px; font-size: 0.7rem; display: inline-block; }
+  .dir-a .preview-card {
+    background: rgba(255,255,255,0.85);
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 12px;
+    padding: 0.75rem;
+    margin-top: 1rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+  }
+  .dir-a .feature-row { display: flex; gap: 0.5rem; margin-top: 1rem; }
+  .dir-a .feat { flex: 1; background: #fff; border-radius: 8px; padding: 0.5rem; font-size: 0.6rem; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.03); }
+
+  /* Direction B: Glassmorphism */
+  .dir-b .mock-body {
+    background: linear-gradient(135deg, #7c2d3f 0%, #a8455c 50%, #c9a35c 100%);
+  }
+  .dir-b .glass-card {
+    background: rgba(255,255,255,0.18);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 18px;
+    padding: 1.25rem;
+    color: #fff;
+    text-align: center;
+  }
+  .dir-b .hero-title {
+    font-family: Georgia, serif;
+    font-size: 1.4rem;
+    margin-bottom: 0.6rem;
+  }
+  .dir-b .hero-sub { font-size: 0.7rem; opacity: 0.9; margin-bottom: 1rem; }
+  .dir-b .cta { background: #fff; color: #7c2d3f; padding: 0.45rem 1rem; border-radius: 999px; font-size: 0.7rem; display: inline-block; font-weight: 600; }
+  .dir-b .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 1rem; }
+  .dir-b .feat {
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 12px;
+    padding: 0.6rem;
+    font-size: 0.6rem;
+    color: #fff;
+    text-align: center;
+  }
+
+  /* Direction C: Split Layout */
+  .dir-c .mock-body {
+    background: #f8f7f4;
+    display: flex;
+    gap: 1rem;
+  }
+  .dir-c .left { flex: 1.1; }
+  .dir-c .right { flex: 0.9; background: linear-gradient(135deg, #7c2d3f, #a8455c); border-radius: 14px; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.8); font-size: 0.7rem; }
+  .dir-c .nav { display: flex; justify-content: space-between; font-size: 0.65rem; color: #71717a; margin-bottom: 1.25rem; }
+  .dir-c .hero-title {
+    font-family: Georgia, serif;
+    font-size: 1.5rem;
+    color: #18181b;
+    line-height: 1.2;
+    margin-bottom: 0.6rem;
+  }
+  .dir-c .hero-sub { font-size: 0.7rem; color: #71717a; margin-bottom: 1rem; }
+  .dir-c .cta { background: #7c2d3f; color: #fff; padding: 0.45rem 1rem; border-radius: 8px; font-size: 0.7rem; display: inline-block; }
+  .dir-c .features { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem; }
+  .dir-c .feat { background: #fff; border-radius: 8px; padding: 0.5rem; font-size: 0.6rem; box-shadow: 0 2px 6px rgba(0,0,0,0.03); }
+
+  .label {
+    margin-top: 0.75rem;
+    font-weight: 600;
+    color: #7c2d3f;
+    font-size: 0.9rem;
+  }
+  .desc { font-size: 0.8rem; color: #71717a; }
+</style>
+
+<h2>Choose a landing page direction</h2>
+<p class="subtitle">Three visual approaches using the existing Parlez palette (burgundy, gold, warm cream).</p>
+
+<div class="options">
+  <div class="option" data-choice="editorial" onclick="toggleSelect(this)">
+    <div class="direction-mockups">
+      <div class="mock-frame dir-a">
+        <div class="mock-header"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+        <div class="mock-body">
+          <div class="nav"><span class="logo">Parlez</span><span style="font-size:0.6rem;color:#71717a">Log in</span></div>
+          <div class="hero-title">Master French with your AI tutor</div>
+          <div class="hero-sub">Personalized lessons, conversations, and mock tests.</div>
+          <span class="cta">Start Learning</span>
+          <div class="preview-card">
+            <div style="height:40px;background:linear-gradient(90deg,#7c2d3f,#a8455c);border-radius:6px;margin-bottom:0.5rem"></div>
+            <div style="height:8px;background:#eee;border-radius:4px;width:80%"></div>
+          </div>
+          <div class="feature-row">
+            <div class="feat">🗣️ Conversations</div>
+            <div class="feat">📝 Exercises</div>
+            <div class="feat">🃏 Flashcards</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="label">A. Elegant Editorial</div>
+    <div class="desc">Classic serif headlines, warm gradient background, floating app preview card. Feels like a high-end language magazine.</div>
+  </div>
+
+  <div class="option" data-choice="glass" onclick="toggleSelect(this)">
+    <div class="direction-mockups">
+      <div class="mock-frame dir-b">
+        <div class="mock-header"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+        <div class="mock-body">
+          <div class="glass-card">
+            <div class="hero-title">Parlez</div>
+            <div class="hero-sub">Your personal French AI tutor. Speak, practice, and improve every day.</div>
+            <span class="cta">Get Started</span>
+          </div>
+          <div class="feature-grid">
+            <div class="feat">💬 AI Chat</div>
+            <div class="feat">📚 Lessons</div>
+            <div class="feat">🧪 Mock Tests</div>
+            <div class="feat">📊 Progress</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="label">B. Glassmorphism Hero</div>
+    <div class="desc">Bold burgundy-to-gold gradient with a frosted glass hero card. Modern, immersive, premium SaaS feel.</div>
+  </div>
+
+  <div class="option" data-choice="split" onclick="toggleSelect(this)">
+    <div class="direction-mockups">
+      <div class="mock-frame dir-c">
+        <div class="mock-header"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+        <div class="mock-body">
+          <div class="left">
+            <div class="nav"><span>Parlez</span><span>Log in</span></div>
+            <div class="hero-title">Learn French, naturally.</div>
+            <div class="hero-sub">Conversations, exercises, flashcards, and mock exams tailored to your level.</div>
+            <span class="cta">Try for Free</span>
+            <div class="features">
+              <div class="feat">🎯 Adaptive AI lessons</div>
+              <div class="feat">🗣️ Real conversation practice</div>
+              <div class="feat">🏆 TEF/TCF mock tests</div>
+            </div>
+          </div>
+          <div class="right">App Preview</div>
+        </div>
+      </div>
+    </div>
+    <div class="label">C. Split Layout</div>
+    <div class="desc">Clean two-column hero: copy on the left, rich visual/app preview on the right. Strong conversion focus.</div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:1.5rem">Click the direction you prefer, then tell me in the terminal.</p>

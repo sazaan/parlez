@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Lint with ruff
+        run: |
+          ruff check main.py db.py migrate_to_sqlite.py
+
+      - name: Syntax check
+        run: |
+          python -m py_compile main.py db.py migrate_to_sqlite.py
+
+      - name: Run tests
+        env:
+          JWT_SECRET: ${{ secrets.JWT_SECRET || 'this-is-a-test-secret-that-is-32-chars-long' }}
+          NVIDIA_API_KEY: dummy
+        run: |
+          pytest tests/ -q
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: TruffleHog secret scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+          extra_args: --debug --only-verified

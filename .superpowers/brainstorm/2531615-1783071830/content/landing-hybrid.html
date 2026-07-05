@@ -1,0 +1,402 @@
+<style>
+  .stage {
+    max-width: 1100px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.08);
+    border: 2px solid rgba(124,45,63,0.08);
+  }
+  .stage-header {
+    height: 36px;
+    background: #f8f7f4;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    gap: 8px;
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #ddd; }
+
+  /* NAV */
+  .nav {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+    z-index: 10;
+  }
+  .nav-logo {
+    display: flex; align-items: center; gap: 0.5rem;
+    font-family: Georgia, serif; font-style: italic; font-weight: 600;
+    font-size: 1.2rem; color: #fff;
+  }
+  .nav-logo .logo-mark {
+    width: 32px; height: 32px;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: Georgia, serif; font-style: italic;
+  }
+  .nav-links { display: flex; gap: 1.5rem; font-size: 0.75rem; color: rgba(255,255,255,0.85); }
+  .nav-cta {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: #fff;
+    padding: 0.4rem 0.9rem;
+    border-radius: 999px;
+    font-size: 0.7rem; font-weight: 600;
+  }
+
+  /* HERO */
+  .hero {
+    position: relative;
+    min-height: 360px;
+    background: linear-gradient(135deg, #7c2d3f 0%, #5c1f2d 45%, #c9a35c 100%);
+    display: flex;
+    align-items: center;
+    padding: 4rem 2rem 2rem;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 70% 20%, rgba(255,255,255,0.12) 0%, transparent 40%),
+                radial-gradient(circle at 20% 80%, rgba(0,0,0,0.12) 0%, transparent 35%);
+    pointer-events: none;
+  }
+  .hero::after {
+    content: "Parlez";
+    position: absolute;
+    right: -2rem; top: 50%;
+    transform: translateY(-50%) rotate(-90deg);
+    font-family: Georgia, serif;
+    font-size: 6rem;
+    font-style: italic;
+    color: rgba(255,255,255,0.04);
+    letter-spacing: 0.1em;
+    pointer-events: none;
+  }
+  .hero-inner {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+  }
+  .hero-copy { flex: 1; }
+  .hero-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #f0e6c8;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+  }
+  .hero-title {
+    font-family: Georgia, serif;
+    font-size: 2.2rem;
+    color: #fff;
+    line-height: 1.1;
+    margin-bottom: 0.75rem;
+  }
+  .hero-title span { color: #e0be7a; }
+  .hero-sub {
+    font-size: 0.85rem;
+    color: rgba(255,255,255,0.82);
+    line-height: 1.6;
+    max-width: 420px;
+    margin-bottom: 1.25rem;
+  }
+  .hero-actions { display: flex; gap: 0.75rem; align-items: center; }
+  .btn-primary {
+    background: #fff;
+    color: #7c2d3f;
+    padding: 0.55rem 1.1rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+  }
+  .btn-secondary {
+    background: transparent;
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.3);
+    padding: 0.55rem 1.1rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .hero-trust {
+    margin-top: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.65rem;
+    color: rgba(255,255,255,0.7);
+  }
+  .avatars {
+    display: flex;
+  }
+  .avatars span {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: #c9a35c;
+    border: 2px solid #7c2d3f;
+    margin-left: -6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.55rem; color: #fff;
+  }
+  .hero-visual { flex: 0.9; }
+  .phone {
+    width: 220px;
+    height: 280px;
+    background: rgba(255,255,255,0.1);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 24px;
+    padding: 0.6rem;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.2);
+    transform: rotate(-3deg);
+  }
+  .phone-screen {
+    height: 100%;
+    background: #fff;
+    border-radius: 18px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .phone-top {
+    background: #f8f7f4;
+    padding: 0.5rem;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    font-size: 0.55rem; color: #71717a; text-align: center;
+  }
+  .chat-row {
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .bubble { border-radius: 8px; padding: 0.4rem; font-size: 0.55rem; max-width: 80%; }
+  .bubble.user { background: #7c2d3f; color: #fff; align-self: flex-end; }
+  .bubble.ai { background: #f4f4f5; color: #18181b; align-self: flex-start; }
+
+  /* FEATURES */
+  .features {
+    background: #f8f7f4;
+    padding: 2rem;
+  }
+  .section-label {
+    text-align: center;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #7c2d3f;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.35rem;
+  }
+  .section-title {
+    text-align: center;
+    font-family: Georgia, serif;
+    font-size: 1.4rem;
+    color: #18181b;
+    margin-bottom: 1.25rem;
+  }
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+  .feature-card {
+    background: #fff;
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 16px;
+    padding: 1.1rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+  }
+  .feature-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: rgba(124,45,63,0.08);
+    color: #7c2d3f;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+    margin-bottom: 0.7rem;
+  }
+  .feature-card h4 { font-size: 0.85rem; color: #18181b; margin-bottom: 0.35rem; }
+  .feature-card p { font-size: 0.7rem; color: #71717a; line-height: 1.5; }
+
+  /* CTA STRIP */
+  .cta-strip {
+    background: #fff;
+    padding: 1.75rem 2rem;
+    text-align: center;
+    border-top: 1px solid rgba(0,0,0,0.04);
+  }
+  .cta-strip h3 {
+    font-family: Georgia, serif;
+    font-size: 1.2rem;
+    color: #18181b;
+    margin-bottom: 0.4rem;
+  }
+  .cta-strip p { font-size: 0.75rem; color: #71717a; margin-bottom: 1rem; }
+  .cta-strip .btn-primary { background: #7c2d3f; color: #fff; }
+
+  /* FOOTER */
+  .footer {
+    background: #18181b;
+    color: rgba(255,255,255,0.7);
+    padding: 1.5rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.7rem;
+  }
+  .footer-left { display: flex; align-items: center; gap: 0.6rem; }
+  .footer-logo {
+    width: 28px; height: 28px;
+    background: #7c2d3f;
+    border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: Georgia, serif; font-style: italic; color: #c9a35c; font-size: 0.9rem;
+  }
+  .footer-links { display: flex; gap: 1.25rem; }
+
+  .hybrid-label {
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+  .hybrid-label h3 {
+    font-family: Georgia, serif;
+    font-size: 1.3rem;
+    color: #7c2d3f;
+    margin-bottom: 0.25rem;
+  }
+  .hybrid-label p { font-size: 0.8rem; color: #71717a; }
+</style>
+
+<div class="hybrid-label">
+  <h3>D. The Atelier — Hybrid Direction</h3>
+  <p>Combines the editorial serif elegance, glassmorphism premium feel, and split-layout conversion focus with unique French atelier touches.</p>
+</div>
+
+<div class="stage">
+  <div class="stage-header"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+
+  <div style="position:relative">
+    <div class="nav">
+      <div class="nav-logo"><span class="logo-mark">P</span> Parlez</div>
+      <div class="nav-links">
+        <span>Features</span>
+        <span>Pricing</span>
+        <span>About</span>
+      </div>
+      <div class="nav-cta">Log In</div>
+    </div>
+
+    <div class="hero">
+      <div class="hero-inner">
+        <div class="hero-copy">
+          <div class="hero-tag">✨ AI-Powered French Tutor</div>
+          <div class="hero-title">Speak French with <span>confidence.</span></div>
+          <div class="hero-sub">
+            Personalized conversations, adaptive lessons, flashcards, and TEF/TCF mock tests — all guided by your own AI tutor.
+          </div>
+          <div class="hero-actions">
+            <span class="btn-primary">Start Learning Free</span>
+            <span class="btn-secondary">See How It Works</span>
+          </div>
+          <div class="hero-trust">
+            <div class="avatars"><span>A</span><span>B</span><span>C</span></div>
+            <span>Trusted by 10,000+ learners</span>
+          </div>
+        </div>
+        <div class="hero-visual">
+          <div class="phone">
+            <div class="phone-screen">
+              <div class="phone-top">Parlez</div>
+              <div class="chat-row">
+                <div class="bubble user">Comment dit-on "hello"?</div>
+                <div class="bubble ai">On dit "Bonjour" en français.</div>
+                <div class="bubble user">Merci!</div>
+                <div class="bubble ai">Avec plaisir! 🎉</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="features">
+    <div class="section-label">Why Parlez</div>
+    <div class="section-title">Everything you need to master French</div>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon">💬</div>
+        <h4>AI Conversations</h4>
+        <p>Practice real dialogue in any scenario, from café orders to job interviews.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📝</div>
+        <h4>Adaptive Lessons</h4>
+        <p>Lessons and exercises that adjust to your level and weak areas.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🧪</div>
+        <h4>Mock Exams</h4>
+        <p>TEF and TCF practice tests with timed sections and detailed results.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🃏</div>
+        <h4>Smart Flashcards</h4>
+        <p>Spaced-repetition flashcards built from your own vocabulary.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <h4>Progress Tracking</h4>
+        <p>XP, streaks, accuracy, and personalized weak-area analysis.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🎧</div>
+        <h4>Native Audio</h4>
+        <p>Listen to French pronunciations and train your ear naturally.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="cta-strip">
+    <h3>Start your French journey today</h3>
+    <p>Join thousands of learners and speak French with confidence.</p>
+    <span class="btn-primary">Create Free Account</span>
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <div class="footer-logo">P</div>
+      <span>© 2026 Parlez. All rights reserved.</span>
+    </div>
+    <div class="footer-links">
+      <span>Privacy</span>
+      <span>Terms</span>
+      <span>Contact</span>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="text-align:center;margin-top:1.25rem">
+  This direction combines: <strong>A's</strong> serif editorial type, <strong>B's</strong> glassmorphism phone + gradient drama, and <strong>C's</strong> split hero conversion layout. Tell me what to tweak or if this is the one.
+</p>

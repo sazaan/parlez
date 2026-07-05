@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  chatbot:
+    build: .
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ./static:/app/static
+    restart: unless-stopped
+    networks:
+      - parlez
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      - PARLEZ_HOST=${PARLEZ_HOST:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - parlez
+    restart: unless-stopped
+    depends_on:
+      - chatbot
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  parlez:
+    driver: bridge

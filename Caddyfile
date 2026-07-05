@@ -1,0 +1,8 @@
+# Parlez production reverse proxy
+# Set PARLEZ_HOST to your public domain, e.g. parlez.example.com
+# For local HTTPS dev, set PARLEZ_HOST=localhost
+{$PARLEZ_HOST:localhost} {
+    encode gzip
+
+    reverse_proxy chatbot:8000
+}
