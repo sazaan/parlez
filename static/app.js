@@ -897,13 +897,7 @@ function resetChatToWelcome() {
 
 // ============================================================
 // Session Management
-// ============================================================
-async function startActivitySession(title) {
-    currentConvId = null;
-    await createConversation();
-}
-
-// ============================================================
+// ============================================================// ============================================================
 // Chat
 // ============================================================
 async function sendMessage(text) {
@@ -1083,7 +1077,7 @@ async function loadCourses() {
 // Lesson View — read content (vocab, grammar, conjugation, dialogue, cultural)
 // ============================================================
 window.startLessonView = async function(level, lessonId) {
-    showToolView('📖 Lesson', '<div style="text-align:center;padding:2rem"><div class="typing-dots"><div class="progress-status"><span class="progress-text">Loading lesson…</span></div></div></div>');
+    showToolView('📖 Lesson', spinnerHTML('Loading lesson…', false));
     try {
         const r = await apiFetch(`/api/courses/${level}/lessons/${lessonId}`);
         const lesson = await r.json();
@@ -1101,6 +1095,26 @@ function escapeHtml(s) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+}
+
+// Task 5.4 (F8 dedup): spinnerHTML centralizes the 14+ near-duplicate
+// 'text-align:center;padding:2rem' + typing-dots wrappers that were
+// copy-pasted across showToolView callers.
+function spinnerHTML(msg, withProgressBar) {
+    const bar = withProgressBar
+        ? '<div class="progress-bar"><div class="progress-fill progress-indeterminate"></div></div>'
+        : '';
+    return '<div style="text-align:center;padding:2rem"><div class="typing-dots"><div class="progress-status"><span class="progress-text">'
+        + escapeHtml(msg)
+        + '</span>' + bar + '</div></div></div>';
+}
+
+// Task 5.4 (F8 dedup): feedbackHTML centralizes the 25+ .quiz-feedback /
+// .exercise-feedback class toggling + emoji prefix patterns.
+function feedbackHTML(correct, text) {
+    const cls = correct ? 'correct' : 'incorrect';
+    const emoji = correct ? '✓' : '✗';
+    return '<div class="quiz-feedback ' + cls + '">' + emoji + ' ' + escapeHtml(text) + '</div>';
 }
 
 function renderLessonView(lesson, level) {
@@ -1289,7 +1303,7 @@ function renderLessonView(lesson, level) {
 }
 
 window.startLessonPractice = async function(level, lessonId) {
-    showToolView('📝 Lesson Practice', '<div style="text-align:center;padding:2rem"><div class="typing-dots"><div class="progress-status"><span class="progress-text">Loading lesson exercises...</span></div></div></div>');
+    showToolView('📝 Lesson Practice', spinnerHTML('Loading lesson exercises...', false));
     try {
         const r = await apiFetch(`/api/practice/lesson/${level}/${lessonId}`, { method: 'POST' });
         const d = await r.json();
@@ -1513,7 +1527,7 @@ checkAuth();
 // ============================================================
 
 window.startVocabQuiz = async function() {
-    showToolView('📝 Vocabulary Quiz', '<div style="text-align:center;padding:2rem"><div class="typing-dots"><div class="progress-status"><span class="progress-text">Generating quiz...</span><div class="progress-bar"><div class="progress-fill progress-indeterminate"></div></div></div></div></div>');
+    showToolView('📝 Vocabulary Quiz', spinnerHTML('Generating quiz...', true));
     try {
         const r = await apiFetch('/api/practice/vocab-quiz', {
             method: 'POST',
@@ -1545,7 +1559,7 @@ window.startVocabQuiz = async function() {
 };
 
 window.startConjQuiz = async function() {
-    showToolView('🔄 Conjugation Drill', '<div style="text-align:center;padding:2rem"><div class="typing-dots"><div class="progress-status"><span class="progress-text">Generating drill...</span><div class="progress-bar"><div class="progress-fill progress-indeterminate"></div></div></div></div></div>');
+    showToolView('🔄 Conjugation Drill', spinnerHTML('Generating drill...', true));
     try {
         const r = await apiFetch('/api/practice/conj-quiz', {
             method: 'POST',
@@ -1571,7 +1585,7 @@ window.startConjQuiz = async function() {
 };
 
 window.startFlashcardReview = async function() {
-    showToolView('🃏 Flashcard Review', '<div style="text-align:center;padding:2rem"><div class="typing-dots"><div class="progress-status"><span class="progress-text">Loading flashcards...</span><div class="progress-bar"><div class="progress-fill progress-indeterminate"></div></div></div></div></div>');
+    showToolView('🃏 Flashcard Review', spinnerHTML('Loading flashcards...', true));
     try {
         const [dueRes, statsRes] = await Promise.all([
             apiFetch('/api/flashcards/due').then(r => r.json()),
@@ -1661,7 +1675,7 @@ window.reviewCurrentCard = async function(quality) {
 };
 
 window.showWordOfDay = async function() {
-    showToolView('📅 Word of the Day', '<div style="text-align:center;padding:2rem"><div class="typing-dots"><div class="progress-status"><span class="progress-text">Loading...</span></div></div></div>');
+    showToolView('📅 Word of the Day', spinnerHTML('Loading...', false));
     try {
         const r = await apiFetch('/api/practice/word-of-day');
         const d = await r.json();
@@ -1758,7 +1772,7 @@ window.submitContentIngest = async function() {
 // Adaptive Difficulty Analysis
 // ============================================================
 window.showAdaptiveAnalysis = async function() {
-    showToolView('📊 Learning Analysis', '<div style="text-align:center;padding:2rem"><div class="typing-dots"><div class="progress-status"><span class="progress-text">Analyzing your performance...</span></div></div></div>');
+    showToolView('📊 Learning Analysis', spinnerHTML('Analyzing your performance...', false));
     try {
         const r = await apiFetch('/api/adaptive/analysis');
         const d = await r.json();
@@ -1822,7 +1836,7 @@ window.showAdaptiveAnalysis = async function() {
 window.correctMyWriting = async function(text) {
     if (!text.trim()) return;
     
-    showToolView('✍️ Writing Correction', '<div style="text-align:center;padding:2rem"><div class="typing-dots"><div class="progress-status"><span class="progress-text">Correcting your French writing...</span><div class="progress-bar"><div class="progress-fill progress-indeterminate"></div></div></div></div></div>');
+    showToolView('✍️ Writing Correction', spinnerHTML('Correcting your French writing...', true));
     try {
         const r = await apiFetch('/api/writing/correct', {
             method: 'POST',
@@ -1856,7 +1870,7 @@ window.correctMyWriting = async function(text) {
 let examState = { testType: null, sectionId: null, setNum: null, questions: [], answers: {}, timer: null, timeLeft: 0, startTime: 0, phase: 'idle', paused: false, currentIdx: 0 };
 
 window.startMockTest = async function(testType) {
-    showToolView(`📝 ${testType} Exam`, '<div style="text-align:center;padding:2rem"><div class="typing-dots"><div class="progress-status"><span class="progress-text">Loading exam...</span></div></div></div>');
+    showToolView(`📝 ${testType} Exam`, spinnerHTML('Loading exam...', false));
     try {
         const r = await apiFetch(`/api/exam/sets/${testType}`);
         const exam = await r.json();
@@ -1898,7 +1912,7 @@ window.startMockTest = async function(testType) {
 };
 
 window.startExamSection = async function(testType, sectionId, setNum) {
-    getToolContent().innerHTML = '<div style="text-align:center;padding:2rem"><div class="typing-dots"><div class="progress-status"><span class="progress-text">Loading questions...</span></div></div></div>';
+    getToolContent().innerHTML = spinnerHTML('Loading questions...', false);
     try {
         const r = await apiFetch(`/api/exam/questions/${testType}/${sectionId}/${setNum}`);
         const data = await r.json();
@@ -2077,7 +2091,7 @@ async function submitExam() {
     const durationSec = Math.round((Date.now() - examState.startTime) / 1000);
     
     try {
-        getToolContent().innerHTML = '<div style="text-align:center;padding:2rem"><div class="typing-dots"><div class="progress-status"><span class="progress-text">Grading your test...</span></div></div></div>';
+        getToolContent().innerHTML = spinnerHTML('Grading your test...', false);
         const r = await apiFetch(`/api/exam/submit/${examState.testType}/${examState.sectionId}/${examState.setNum}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2140,7 +2154,7 @@ function renderExamResults(result) {
 }
 
 window.showTestStats = async function() {
-    showToolView('📊 Test History', '<div style="text-align:center;padding:2rem"><div class="typing-dots"><div class="progress-status"><span class="progress-text">Loading test history...</span></div></div></div>');
+    showToolView('📊 Test History', spinnerHTML('Loading test history...', false));
     try {
         const [tefStats, tcfStats] = await Promise.all([
             apiFetch('/api/exam/stats/TEF').then(r => r.json()),
