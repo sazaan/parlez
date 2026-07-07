@@ -675,7 +675,7 @@ async def chat(request: Request, msg: ChatMessage, user=Depends(get_current_user
             detail="The tutor is temporarily unavailable. Please try again.",
         )
     
-    # Save to conversation
+    # Save to conversation (in memory only — single save_user below)
     user_convs = user.get('conversations', {})
     if msg.conv_id and msg.conv_id in user_convs:
         user_convs[msg.conv_id]["messages"].append({"role": "user", "content": message})
@@ -683,8 +683,7 @@ async def chat(request: Request, msg: ChatMessage, user=Depends(get_current_user
         user_convs[msg.conv_id]["updated"] = time.time()
         if not user_convs[msg.conv_id].get("title_set"):
             user_convs[msg.conv_id]["title"] = message[:50]
-        storage.save_user(user)
-    
+
     # Update XP
     progress = user.setdefault('progress', {"xp": 0, "streak": 0, "best_streak": 0, "last_active": None})
     progress['xp'] = progress.get('xp', 0) + 5
@@ -698,6 +697,8 @@ async def chat(request: Request, msg: ChatMessage, user=Depends(get_current_user
     else:
         progress['streak'] = 1
     progress['last_active'] = today
+
+    # Single save_user at the end halves the lost-update race window (Task 3.1).
     storage.save_user(user)
     
     return {
@@ -1131,8 +1132,12 @@ async def submit_test(test_type: str, data: dict, user=Depends(get_current_user)
         'takenAt': datetime.datetime.now().isoformat(),
         'details': details,
     }
-    
+
     user.setdefault('test_results', []).append(result)
+    # Cap test_results (Task 3.1): bounds blast radius of any lost-update, and
+    # keeps the JSON blob size bounded for the whole save.
+    if len(user['test_results']) > 500:
+        user['test_results'] = user['test_results'][-500:]
     progress = user.setdefault('progress', {"xp": 0})
     progress['xp'] = progress.get('xp', 0) + (correct * 5)
     storage.save_user(user)
@@ -1294,8 +1299,12 @@ async def submit_exam(request: Request, test_type: str, section_id: str, set_num
         'takenAt': datetime.datetime.now().isoformat(),
         'details': details,
     }
-    
+
     user.setdefault('test_results', []).append(result)
+    # Cap test_results (Task 3.1): bounds blast radius of any lost-update, and
+    # keeps the JSON blob size bounded for the whole save.
+    if len(user['test_results']) > 500:
+        user['test_results'] = user['test_results'][-500:]
     progress = user.setdefault('progress', {"xp": 0})
     progress['xp'] = progress.get('xp', 0) + (correct * 5)
     storage.save_user(user)
