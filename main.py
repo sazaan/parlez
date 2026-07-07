@@ -127,6 +127,7 @@ async def security_headers_middleware(request, call_next):
     response = await call_next(request)
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
+        "script-src 'self'; "  # Tightened after Tasks 2.1 + 2.2 removed all inline handlers/scripts
         "img-src 'self' data:; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com; "

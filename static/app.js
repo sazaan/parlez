@@ -1,30 +1,30 @@
 // ============================================================
 // Authentication
 // ============================================================
-let authToken = localStorage.getItem('parlez_token');
+// Auth is cookie-only (HttpOnly, set by /api/auth/login on main.py).
+// Storing the JWT in localStorage would defeat the HttpOnly protection
+// and let any XSS payload exfiltrate it (S8). The backend reads the
+// cookie via get_current_user; apiFetch uses credentials: 'same-origin'
+// so the browser sends it automatically.
 let currentUser = null;
 
 async function checkAuth() {
-    if (!authToken) {
-        showAuthScreen();
-        return false;
-    }
     try {
-        const r = await fetch('/api/auth/me', {
-            headers: { 'Authorization': `Bearer ${authToken}` }
-        });
+        const r = await fetch('/api/auth/me', { credentials: 'same-origin' });
         if (r.ok) {
             currentUser = await r.json();
             showApp();
             initApp();
+            if (typeof setupDelegatedHandlers === 'function' && !window.__parlezHandlersInstalled) {
+                setupDelegatedHandlers();
+                window.__parlezHandlersInstalled = true;
+            }
             return true;
         } else {
-            localStorage.removeItem('parlez_token');
             showAuthScreen();
             return false;
         }
     } catch(e) {
-        localStorage.removeItem('parlez_token');
         showAuthScreen();
         return false;
     }
@@ -41,12 +41,12 @@ function showApp() {
 }
 
 function authHeaders() {
-    return { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' };
+    return { 'Content-Type': 'application/json' };
 }
 
 async function apiFetch(url, options = {}) {
     const headers = { ...authHeaders(), ...options.headers };
-    const r = await fetch(url, { ...options, headers });
+    const r = await fetch(url, { ...options, headers, credentials: 'same-origin' });
     if (r.status === 401) {
         logout();
         throw new Error('Session expired');
@@ -113,9 +113,8 @@ authForm?.addEventListener('submit', async (e) => {
             return;
         }
         
-        authToken = data.token;
+        // Backend sets HttpOnly cookie; we just track the user object.
         currentUser = data.user;
-        localStorage.setItem('parlez_token', authToken);
         showApp();
         // Initialize app after auth
         initApp();
@@ -125,13 +124,93 @@ authForm?.addEventListener('submit', async (e) => {
     }
 });
 
+// ============================================================
+// Delegated event handlers (Tasks 2.2)
+// ============================================================
+// All interactive blocks built with innerHTML use data-action / data-*
+// attributes; a single document-level listener dispatches to the existing
+// global functions. This is what makes it safe to interpolate untrusted
+// text into HTML — there is no inline onclick with `${...}` interpolation.
+function setupDelegatedHandlers() {
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-action]');
+        if (!btn) return;
+        const action = btn.dataset.action;
+        switch (action) {
+            case 'speak':
+                if (btn.dataset.text) speakText(btn.dataset.text);
+                break;
+            case 'quiz-answer':
+                if (typeof window.checkQuizAnswer === 'function') window.checkQuizAnswer(btn);
+                break;
+            case 'check-exercise': {
+                const id = btn.dataset.id;
+                const input = btn.previousElementSibling;
+                if (id && typeof window.checkExercise === 'function') window.checkExercise(id, input);
+                break;
+            }
+            case 'check-reorder':
+                if (typeof window.checkReorder === 'function') window.checkReorder(btn.dataset.id);
+                break;
+            case 'check-matching':
+                if (typeof window.checkMatching === 'function') window.checkMatching(btn.dataset.id, parseInt(btn.dataset.count || '0', 10));
+                break;
+            case 'add-reorder':
+                if (typeof window.addReorderWord === 'function') window.addReorderWord(btn.dataset.id, btn);
+                break;
+            case 'start-lesson-view':
+                if (typeof window.startLessonView === 'function') window.startLessonView(btn.dataset.level, btn.dataset.id);
+                break;
+            case 'start-lesson-practice':
+                if (typeof window.startLessonPractice === 'function') window.startLessonPractice(btn.dataset.level, btn.dataset.id);
+                break;
+            case 'review-card':
+                if (typeof window.reviewCurrentCard === 'function') window.reviewCurrentCard(parseInt(btn.dataset.quality || '0', 10));
+                break;
+            case 'toggle-flipped':
+                btn.classList.toggle('flipped');
+                break;
+            case 'start-exam-section':
+                if (typeof window.startExamSection === 'function') window.startExamSection(btn.dataset.type, btn.dataset.section);
+                break;
+            case 'toggle-exam-pause':
+                if (typeof window.toggleExamPause === 'function') window.toggleExamPause();
+                break;
+            case 'go-exam-question': {
+                const idx = parseInt(btn.dataset.idx || '0', 10);
+                if (typeof window.goToExamQuestion === 'function') window.goToExamQuestion(idx);
+                break;
+            }
+            case 'submit-exam':
+                if (typeof window.submitExam === 'function') window.submitExam();
+                break;
+            case 'resume-exam':
+                if (typeof window.resumeExam === 'function') window.resumeExam();
+                break;
+            case 'start-mock-test':
+                if (typeof window.startMockTest === 'function') window.startMockTest(btn.dataset.type);
+                break;
+            case 'send-quick-message':
+                if (typeof window.sendQuickMessage === 'function') window.sendQuickMessage(btn.dataset.text);
+                break;
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        const input = e.target.closest('[data-submit-on-enter]');
+        if (!input) return;
+        e.preventDefault();
+        const id = input.dataset.exerciseId;
+        if (id && typeof window.checkExercise === 'function') window.checkExercise(id, input);
+    });
+}
+
 async function logout() {
     try {
         await fetch('/api/auth/logout', { method: 'POST' });
     } catch(e) {}
-    authToken = null;
     currentUser = null;
-    localStorage.removeItem('parlez_token');
     showAuthScreen();
 }
 
@@ -235,16 +314,19 @@ function toggleVoice() {
 // Exercise Rendering - All 14 Types
 // ============================================================
 function renderExercise(d, rawJson) {
+    // XSS-safe (Tasks 2.1 + 2.2): every interpolated field is escaped; all
+    // handlers are wired via data-action/data-* attributes consumed by the
+    // delegated listener installed in setupDelegatedHandlers().
     const id = 'ex-' + Math.random().toString(36).substr(2, 8);
     const type = d.type || 'fill_blank';
-    
+
     // Store exercise data for grading
     window._exercises = window._exercises || {};
     window._exercises[id] = d;
-    
-    let h = `<div class="exercise-container" id="${id}" data-type="${type}">`;
-    
-    // Type badge
+
+    let h = `<div class="exercise-container" id="${escapeHtml(id)}" data-type="${escapeHtml(type)}">`;
+
+    // Type badge (literal string lookup table — no escaping needed)
     const typeLabels = {
         'multiple_choice': '📝 Multiple Choice', 'fill_blank': '✏️ Fill in the Blank',
         'translate_to_fr': '🇫🇷 Translate to French', 'translate_to_en': '🇬🇧 Translate to English',
@@ -255,113 +337,113 @@ function renderExercise(d, rawJson) {
         'transformation': '⚡ Transformation', 'short_answer': '💬 Short Answer',
     };
     h += `<div class="exercise-type-badge">${typeLabels[type] || '📝 Exercise'}</div>`;
-    h += `<div class="exercise-prompt">${d.prompt}</div>`;
-    if (d.promptFr) h += `<div class="exercise-prompt-fr">${d.promptFr}</div>`;
-    if (d.hint) h += `<div class="exercise-hint">💡 Hint: ${d.hint}</div>`;
-    
+    h += `<div class="exercise-prompt">${escapeHtml(d.prompt)}</div>`;
+    if (d.promptFr) h += `<div class="exercise-prompt-fr">${escapeHtml(d.promptFr)}</div>`;
+    if (d.hint) h += `<div class="exercise-hint">💡 Hint: ${escapeHtml(d.hint)}</div>`;
+
     switch(type) {
         case 'multiple_choice':
         case 'article_choice':
         case 'pronoun_replace':
             h += '<div class="quiz-options">';
             (d.options || []).forEach((o, j) => {
-                h += `<button class="quiz-option" data-correct="${d.answer}" data-selected="${j}" onclick="checkQuizAnswer(this)">${String.fromCharCode(65+j)}. ${o}</button>`;
+                h += `<button class="quiz-option" data-correct="${escapeHtml(d.answer)}" data-selected="${j}" data-action="quiz-answer">${String.fromCharCode(65+j)}. ${escapeHtml(o)}</button>`;
             });
             h += '</div><div class="quiz-feedback" style="display:none"></div>';
             break;
-            
+
         case 'true_false':
             h += '<div class="quiz-options">';
             (d.options || ['True', 'False']).forEach((o, j) => {
-                h += `<button class="quiz-option" data-correct="${d.answer}" data-selected="${j}" onclick="checkQuizAnswer(this)">${o}</button>`;
+                h += `<button class="quiz-option" data-correct="${escapeHtml(d.answer)}" data-selected="${j}" data-action="quiz-answer">${escapeHtml(o)}</button>`;
             });
             h += '</div><div class="quiz-feedback" style="display:none"></div>';
             break;
-            
+
         case 'fill_blank':
         case 'translate_to_fr':
         case 'translate_to_en':
         case 'short_answer':
         case 'transformation':
             h += `<div class="exercise-input-row">`;
-            h += `<input class="exercise-input" placeholder="${type.includes('translate') ? 'Type translation...' : 'Type your answer...'}" onkeydown="if(event.key==='Enter')checkExercise('${id}', this)">`;
-            h += `<button class="exercise-submit" onclick="checkExercise('${id}', this.previousElementSibling)">Check</button>`;
+            h += `<input class="exercise-input" data-submit-on-enter data-exercise-id="${escapeHtml(id)}" placeholder="${type.includes('translate') ? 'Type translation...' : 'Type your answer...'}">`;
+            h += `<button class="exercise-submit" data-action="check-exercise" data-id="${escapeHtml(id)}">Check</button>`;
             h += `</div><div class="exercise-feedback" style="display:none"></div>`;
             break;
-            
+
         case 'conjugation':
             h += `<div class="exercise-input-row">`;
-            h += `<input class="exercise-input" placeholder="Type the conjugated form..." onkeydown="if(event.key==='Enter')checkExercise('${id}', this)">`;
-            h += `<button class="exercise-submit" onclick="checkExercise('${id}', this.previousElementSibling)">Check</button>`;
+            h += `<input class="exercise-input" data-submit-on-enter data-exercise-id="${escapeHtml(id)}" placeholder="Type the conjugated form...">`;
+            h += `<button class="exercise-submit" data-action="check-exercise" data-id="${escapeHtml(id)}">Check</button>`;
             h += `</div><div class="exercise-feedback" style="display:none"></div>`;
             break;
-            
+
         case 'dictation':
             if (d.audioText) {
-                h += `<button class="btn-speak" onclick="speakText('${d.audioText.replace(/'/g, "\\'")}')" style="margin:0.5rem 0">🔊 Listen</button>`;
+                h += `<button class="btn-speak" data-action="speak" data-text="${escapeHtml(d.audioText)}" style="margin:0.5rem 0">🔊 Listen</button>`;
             }
             h += `<div class="exercise-input-row">`;
-            h += `<input class="exercise-input" placeholder="Type what you hear..." onkeydown="if(event.key==='Enter')checkExercise('${id}', this)">`;
-            h += `<button class="exercise-submit" onclick="checkExercise('${id}', this.previousElementSibling)">Check</button>`;
+            h += `<input class="exercise-input" data-submit-on-enter data-exercise-id="${escapeHtml(id)}" placeholder="Type what you hear...">`;
+            h += `<button class="exercise-submit" data-action="check-exercise" data-id="${escapeHtml(id)}">Check</button>`;
             h += `</div><div class="exercise-feedback" style="display:none"></div>`;
             break;
-            
+
         case 'reorder':
             if (d.words && d.words.length) {
                 const shuffled = [...d.words].sort(() => Math.random() - 0.5);
-                h += `<div class="reorder-selected" id="${id}-selected" style="min-height:40px;padding:0.5rem;border:1px dashed var(--border);border-radius:8px;margin-bottom:0.5rem;display:flex;flex-wrap:wrap;gap:0.375rem"></div>`;
-                h += `<div class="reorder-bank" id="${id}-bank">`;
+                h += `<div class="reorder-selected" id="${escapeHtml(id)}-selected" style="min-height:40px;padding:0.5rem;border:1px dashed var(--border);border-radius:8px;margin-bottom:0.5rem;display:flex;flex-wrap:wrap;gap:0.375rem"></div>`;
+                h += `<div class="reorder-bank" id="${escapeHtml(id)}-bank">`;
                 shuffled.forEach(w => {
-                    h += `<span class="word-chip reorder-chip" onclick="addReorderWord('${id}', this)">${w}</span>`;
+                    h += `<span class="word-chip reorder-chip" data-action="add-reorder" data-id="${escapeHtml(id)}">${escapeHtml(w)}</span>`;
                 });
                 h += '</div>';
-                h += `<button class="exercise-submit" onclick="checkReorder('${id}')" style="margin-top:0.5rem">Check</button>`;
+                h += `<button class="exercise-submit" data-action="check-reorder" data-id="${escapeHtml(id)}" style="margin-top:0.5rem">Check</button>`;
                 h += `<div class="exercise-feedback" style="display:none"></div>`;
             }
             break;
-            
+
         case 'word_bank':
             if (d.wordBank && d.wordBank.length) {
                 const shuffled = [...d.wordBank].sort(() => Math.random() - 0.5);
-                h += `<div class="reorder-selected" id="${id}-selected" style="min-height:40px;padding:0.5rem;border:1px dashed var(--border);border-radius:8px;margin-bottom:0.5rem;display:flex;flex-wrap:wrap;gap:0.375rem"></div>`;
-                h += `<div class="reorder-bank" id="${id}-bank">`;
+                h += `<div class="reorder-selected" id="${escapeHtml(id)}-selected" style="min-height:40px;padding:0.5rem;border:1px dashed var(--border);border-radius:8px;margin-bottom:0.5rem;display:flex;flex-wrap:wrap;gap:0.375rem"></div>`;
+                h += `<div class="reorder-bank" id="${escapeHtml(id)}-bank">`;
                 shuffled.forEach(w => {
-                    h += `<span class="word-chip reorder-chip" onclick="addReorderWord('${id}', this)">${w}</span>`;
+                    h += `<span class="word-chip reorder-chip" data-action="add-reorder" data-id="${escapeHtml(id)}">${escapeHtml(w)}</span>`;
                 });
                 h += '</div>';
-                h += `<button class="exercise-submit" onclick="checkReorder('${id}')" style="margin-top:0.5rem">Check</button>`;
+                h += `<button class="exercise-submit" data-action="check-reorder" data-id="${escapeHtml(id)}" style="margin-top:0.5rem">Check</button>`;
                 h += `<div class="exercise-feedback" style="display:none"></div>`;
             }
             break;
-            
+
         case 'matching':
             if (d.pairs && d.pairs.length) {
                 h += '<div class="matching-container">';
                 const shuffledRight = [...d.pairs].sort(() => Math.random() - 0.5);
                 d.pairs.forEach((p, i) => {
                     h += `<div class="matching-row">`;
-                    h += `<span class="matching-left">${p.left}</span>`;
+                    h += `<span class="matching-left">${escapeHtml(p.left)}</span>`;
                     h += `<span class="matching-arrow">→</span>`;
-                    h += `<select class="matching-select" data-correct="${p.right}" id="${id}-match-${i}">`;
+                    h += `<select class="matching-select" data-correct="${escapeHtml(p.right)}" id="${escapeHtml(id)}-match-${i}">`;
                     h += `<option value="">Select...</option>`;
                     shuffledRight.forEach(rp => {
-                        h += `<option value="${rp.right}">${rp.right}</option>`;
+                        h += `<option value="${escapeHtml(rp.right)}">${escapeHtml(rp.right)}</option>`;
                     });
                     h += '</select></div>';
                 });
                 h += '</div>';
-                h += `<button class="exercise-submit" onclick="checkMatching('${id}', ${d.pairs.length})" style="margin-top:0.5rem">Check</button>`;
+                h += `<button class="exercise-submit" data-action="check-matching" data-id="${escapeHtml(id)}" data-count="${d.pairs.length}" style="margin-top:0.5rem">Check</button>`;
                 h += `<div class="exercise-feedback" style="display:none"></div>`;
             }
             break;
-            
+
         default:
             h += `<div class="exercise-input-row">`;
-            h += `<input class="exercise-input" placeholder="Type your answer..." onkeydown="if(event.key==='Enter')checkExercise('${id}', this)">`;
-            h += `<button class="exercise-submit" onclick="checkExercise('${id}', this.previousElementSibling)">Check</button>`;
+            h += `<input class="exercise-input" data-submit-on-enter data-exercise-id="${escapeHtml(id)}" placeholder="Type your answer...">`;
+            h += `<button class="exercise-submit" data-action="check-exercise" data-id="${escapeHtml(id)}">Check</button>`;
             h += `</div><div class="exercise-feedback" style="display:none"></div>`;
     }
-    
+
     h += '</div>';
     return h;
 }
@@ -370,115 +452,52 @@ function renderExercise(d, rawJson) {
 // Markdown & Interactive Block Rendering
 // ============================================================
 function parseMarkdown(text) {
-    let html = text;
+    // XSS-safe markdown (Tasks 2.1 + 2.2):
+    //   1. Extract fenced blocks (JSON content) and render them with
+    //      escapeHtml on every field; replace the original match with a
+    //      placeholder so the rendered HTML survives the next step.
+    //   2. Escape the remaining raw text (between fenced blocks).
+    //   3. Run the standard markdown transformations on the already-escaped
+    //      text. Markdown chars (*, #, `, |) are unaffected by escapeHtml;
+    //      HTML-special chars (<, >, &, ", ') are already entities.
+    //   4. Substitute the placeholders back with their (unescaped) HTML.
+    //   5. Wrap bare text in <p>...</p>, leaving HTML blocks alone.
+    const fenceOutputs = [];
+    const FENCE_TOKEN_RE = /\u0000PARLEZFENCE(\d+)\u0000/g;
 
-    // Vocabulary blocks
-    html = html.replace(/```vocabulary\s*([\s\S]*?)```/g, (_, json) => {
+    let html = text.replace(/```(vocabulary|conjugation|dialogue|quiz|exercise|practiceset|cultural)\s*([\s\S]*?)```/g, (match, type, body) => {
+        let blockHtml = '';
         try {
-            const d = JSON.parse(json.trim());
-            if (!d.words) return _;
-            let h = '<div class="vocab-container">';
-            let lastCat = '';
-            d.words.forEach(w => {
-                if (w.category && w.category !== lastCat) {
-                    lastCat = w.category;
-                    h += `<div class="vocab-category">${w.category}</div>`;
-                }
-                h += `<div class="vocab-word">`;
-                h += `<span class="vocab-fr">${w.fr}</span>`;
-                if (w.ipa) h += `<span class="vocab-ipa">${w.ipa}</span>`;
-                h += `<span class="vocab-en">${w.en}</span>`;
-                h += `</div>`;
-                if (w.example) h += `<div class="vocab-example">${w.example}${w.exampleEn ? ' — ' + w.exampleEn : ''}</div>`;
-            });
-            return h + '</div>';
-        } catch(e) { return _; }
+            const d = JSON.parse(body.trim());
+            switch (type) {
+                case 'vocabulary':    blockHtml = renderVocabBlock(d); break;
+                case 'conjugation':   blockHtml = renderConjugationBlock(d); break;
+                case 'dialogue':      blockHtml = renderDialogueBlock(d); break;
+                case 'quiz':          blockHtml = renderQuizBlock(d); break;
+                case 'exercise':      blockHtml = renderExercise(d, body); break;
+                case 'practiceset':   blockHtml = renderPracticeSetBlock(d); break;
+                case 'cultural':      blockHtml = renderCulturalBlock(body); break;
+            }
+        } catch (e) {
+            // On JSON parse failure, render the raw match escaped so any
+            // embedded HTML is rendered as text rather than executed.
+            blockHtml = escapeHtml(match);
+        }
+        const idx = fenceOutputs.length;
+        fenceOutputs.push(blockHtml);
+        return '\u0000PARLEZFENCE' + idx + '\u0000';
     });
 
-    // Conjugation blocks
-    html = html.replace(/```conjugation\s*([\s\S]*?)```/g, (_, json) => {
-        try {
-            const d = JSON.parse(json.trim());
-            let h = '<div class="conj-container">';
-            h += `<div class="conj-verb">${d.verb} — ${d.tense} (${d.translation})</div>`;
-            h += '<table class="conj-table"><thead><tr><th>Pronoun</th><th>Form</th></tr></thead><tbody>';
-            d.forms.forEach(f => { h += `<tr><td>${f.pronoun}</td><td><strong>${f.form}</strong></td></tr>`; });
-            h += '</tbody></table>';
-            if (d.rule) h += `<div class="conj-rule">${d.rule}</div>`;
-            return h + '</div>';
-        } catch(e) { return _; }
-    });
+    // Escape the remaining raw text (between fenced blocks).
+    html = escapeHtml(html);
 
-    // Dialogue blocks
-    html = html.replace(/```dialogue\s*([\s\S]*?)```/g, (_, json) => {
-        try {
-            const d = JSON.parse(json.trim());
-            let h = '<div class="dialogue-container">';
-            d.lines.forEach(l => {
-                h += `<div class="dialogue-line">`;
-                h += `<span class="dialogue-speaker">${l.name || l.speaker}:</span>`;
-                h += `<div><div class="dialogue-fr">${l.fr}</div>`;
-                h += `<div class="dialogue-en">${l.en}</div></div>`;
-                h += `<button class="btn-speak" onclick="speakText('${l.fr.replace(/'/g, "\\'")}')">🔊</button>`;
-                h += `</div>`;
-            });
-            return h + '</div>';
-        } catch(e) { return _; }
-    });
-
-    // Quiz blocks
-    html = html.replace(/```quiz\s*([\s\S]*?)```/g, (_, json) => {
-        try {
-            const d = JSON.parse(json.trim());
-            let h = '<div class="quiz-container">';
-            if (d.title) h += `<div class="quiz-title">${d.title}</div>`;
-            d.questions.forEach((q, i) => {
-                h += `<div class="quiz-question"><p>${i+1}. ${q.question}</p>`;
-                h += '<div class="quiz-options">';
-                q.options.forEach((o, j) => {
-                    h += `<button class="quiz-option" data-correct="${q.correct}" data-selected="${j}" onclick="checkQuizAnswer(this)">${String.fromCharCode(65+j)}. ${o}</button>`;
-                });
-                h += '</div><div class="quiz-feedback" style="display:none"></div></div>';
-            });
-            return h + '</div>';
-        } catch(e) { return _; }
-    });
-
-    // Exercise blocks - handles all 14 exercise types
-    html = html.replace(/```exercise\s*([\s\S]*?)```/g, (_, json) => {
-        try {
-            const d = JSON.parse(json.trim());
-            return renderExercise(d, json);
-        } catch(e) { return _; }
-    });
-
-    // Practiceset blocks - multiple exercises in a set
-    html = html.replace(/```practiceset\s*([\s\S]*?)```/g, (_, json) => {
-        try {
-            const d = JSON.parse(json.trim());
-            let h = '<div class="practiceset-container">';
-            if (d.title) h += `<div class="quiz-title">${d.title}</div>`;
-            d.exercises.forEach((ex, i) => {
-                h += `<div class="practiceset-item">`;
-                h += `<div class="practiceset-number">${i+1}</div>`;
-                h += renderExercise(ex, JSON.stringify(ex));
-                h += '</div>';
-            });
-            h += '</div>';
-            return h;
-        } catch(e) { return _; }
-    });
-
-    // Cultural notes
-    html = html.replace(/```cultural\s*([\s\S]*?)```/g, (_, note) => {
-        return `<div class="cultural-note"><div class="cultural-note-title">🇫🇷 Cultural Note</div>${note.trim()}</div>`;
-    });
-
-    // Standard markdown
+    // Standard markdown — operates on already-escaped text. $N captures are
+    // already escaped; that is correct for inline-text output and benign
+    // inside <code>/<pre>.
     html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
     html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
     html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-    html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+    html = html.replace(/^## (.+)$/gm, '<h2>$2</h2>');
     html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
     html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
@@ -487,8 +506,8 @@ function parseMarkdown(text) {
     html = html.replace(/(<li>[\s\S]*?<\/li>)/gs, '<ul>$1</ul>');
     html = html.replace(/<\/ul>\s*<ul>/g, '');
     html = html.replace(/^---$/gm, '<hr>');
-    
-    // Markdown tables
+
+    // Markdown tables — cells are already escaped, do NOT double-escape.
     html = html.replace(/^(\|.+\|)\n(\|[-| :]+\|)\n((?:\|.+\|\n?)*)/gm, (_, header, separator, body) => {
         const headers = header.split('|').filter(c => c.trim());
         const rows = body.trim().split('\n').map(r => r.split('|').filter(c => c.trim()));
@@ -504,7 +523,12 @@ function parseMarkdown(text) {
         return table;
     });
 
-    // Paragraphs
+    // Substitute fence placeholders back BEFORE paragraph wrapping so the
+    // startsWith('<div') / '<h' etc. checks below can recognize block-level
+    // HTML produced by fenced blocks.
+    html = html.replace(FENCE_TOKEN_RE, (_, idx) => fenceOutputs[parseInt(idx, 10)] || '');
+
+    // Paragraph wrapping.
     const ps = html.split(/\n\n+/);
     html = ps.map(p => {
         p = p.trim();
@@ -515,6 +539,86 @@ function parseMarkdown(text) {
 
     return html;
 }
+
+// ============================================================
+// Fenced-block renderers (each field is escapeHtml'd; speak buttons
+// use data-action/data-text instead of inline onclick handlers)
+// ============================================================
+function renderVocabBlock(d) {
+    if (!d.words) return '';
+    let h = '<div class="vocab-container">';
+    let lastCat = '';
+    d.words.forEach(w => {
+        if (w.category && w.category !== lastCat) {
+            lastCat = w.category;
+            h += `<div class="vocab-category">${escapeHtml(w.category)}</div>`;
+        }
+        h += `<div class="vocab-word">`;
+        h += `<span class="vocab-fr">${escapeHtml(w.fr)}</span>`;
+        if (w.ipa) h += `<span class="vocab-ipa">${escapeHtml(w.ipa)}</span>`;
+        h += `<span class="vocab-en">${escapeHtml(w.en)}</span>`;
+        h += `</div>`;
+        if (w.example) h += `<div class="vocab-example">${escapeHtml(w.example)}${w.exampleEn ? ' — ' + escapeHtml(w.exampleEn) : ''}</div>`;
+    });
+    return h + '</div>';
+}
+
+function renderConjugationBlock(d) {
+    let h = '<div class="conj-container">';
+    h += `<div class="conj-verb">${escapeHtml(d.verb)} — ${escapeHtml(d.tense)} (${escapeHtml(d.translation)})</div>`;
+    h += '<table class="conj-table"><thead><tr><th>Pronoun</th><th>Form</th></tr></thead><tbody>';
+    (d.forms || []).forEach(f => {
+        h += `<tr><td>${escapeHtml(f.pronoun)}</td><td><strong>${escapeHtml(f.form)}</strong></td></tr>`;
+    });
+    h += '</tbody></table>';
+    if (d.rule) h += `<div class="conj-rule">${escapeHtml(d.rule)}</div>`;
+    return h + '</div>';
+}
+
+function renderDialogueBlock(d) {
+    let h = '<div class="dialogue-container">';
+    (d.lines || []).forEach(l => {
+        h += `<div class="dialogue-line">`;
+        h += `<span class="dialogue-speaker">${escapeHtml(l.name || l.speaker || '')}:</span>`;
+        h += `<div><div class="dialogue-fr">${escapeHtml(l.fr)}</div>`;
+        h += `<div class="dialogue-en">${escapeHtml(l.en)}</div></div>`;
+        // data-speak holds the raw text; delegated listener picks it up.
+        h += `<button class="btn-speak" data-action="speak" data-text="${escapeHtml(l.fr)}">🔊</button>`;
+        h += `</div>`;
+    });
+    return h + '</div>';
+}
+
+function renderQuizBlock(d) {
+    let h = '<div class="quiz-container">';
+    if (d.title) h += `<div class="quiz-title">${escapeHtml(d.title)}</div>`;
+    (d.questions || []).forEach((q, i) => {
+        h += `<div class="quiz-question"><p>${i + 1}. ${escapeHtml(q.question)}</p>`;
+        h += '<div class="quiz-options">';
+        (q.options || []).forEach((o, j) => {
+            h += `<button class="quiz-option" data-correct="${escapeHtml(q.correct)}" data-selected="${j}" data-action="quiz-answer">${String.fromCharCode(65 + j)}. ${escapeHtml(o)}</button>`;
+        });
+        h += '</div><div class="quiz-feedback" style="display:none"></div></div>';
+    });
+    return h + '</div>';
+}
+
+function renderPracticeSetBlock(d) {
+    let h = '<div class="practiceset-container">';
+    if (d.title) h += `<div class="quiz-title">${escapeHtml(d.title)}</div>`;
+    (d.exercises || []).forEach((ex, i) => {
+        h += `<div class="practiceset-item">`;
+        h += `<div class="practiceset-number">${i + 1}</div>`;
+        h += renderExercise(ex, JSON.stringify(ex));
+        h += '</div>';
+    });
+    return h + '</div>';
+}
+
+function renderCulturalBlock(body) {
+    return `<div class="cultural-note"><div class="cultural-note-title">🇫🇷 Cultural Note</div>${escapeHtml(body.trim())}</div>`;
+}
+
 
 // ============================================================
 // Interactive Block Handlers
@@ -777,7 +881,7 @@ btnBackToChat?.addEventListener('click', showChatView);
 // ============================================================
 // Welcome message (single source of truth)
 // ============================================================
-const WELCOME_HTML = '<div class="welcome-message"><div class="welcome-icon">🇫🇷</div><h2>Bonjour! Ready to learn French?</h2><p>I\'m your personal French tutor. I can teach you vocabulary, grammar, pronunciation, and help you practice conversations.</p><div class="quick-actions"><button class="quick-action" onclick="sendQuickMessage(\'Teach me French greetings\')">👋 Learn Greetings</button><button class="quick-action" onclick="sendQuickMessage(\'Show me numbers 1-20 in French\')">🔢 Numbers 1-20</button><button class="quick-action" onclick="sendQuickMessage(\'Practice conversation at a café\')">☕ Café Roleplay</button><button class="quick-action" onclick="sendQuickMessage(\'Give me a French quiz\')">📝 Take a Quiz</button></div></div>';
+const WELCOME_HTML = '<div class="welcome-message"><div class="welcome-icon">🇫🇷</div><h2>Bonjour! Ready to learn French?</h2><p>I\'m your personal French tutor. I can teach you vocabulary, grammar, pronunciation, and help you practice conversations.</p><div class="quick-actions"><button class="quick-action" data-action="send-quick-message" data-text="Teach me French greetings">👋 Learn Greetings</button><button class="quick-action" data-action="send-quick-message" data-text="Show me numbers 1-20 in French">🔢 Numbers 1-20</button><button class="quick-action" data-action="send-quick-message" data-text="Practice conversation at a café">☕ Café Roleplay</button><button class="quick-action" data-action="send-quick-message" data-text="Give me a French quiz">📝 Take a Quiz</button></div></div>';
 
 function resetChatToWelcome() {
     currentConvId = null;
@@ -956,8 +1060,8 @@ async function loadCourses() {
                                 <span class="lesson-time">${l.estimatedMinutes || 30}min</span>
                             </div>
                             <div class="lesson-actions">
-                                <button class="lesson-learn-btn" onclick="startLessonView('${currentLevel}', '${l.id}')">📖 Learn</button>
-                                <button class="lesson-practice-btn" onclick="startLessonPractice('${currentLevel}', '${l.id}')">Practice</button>
+                                <button class="lesson-learn-btn" data-action="start-lesson-view" data-level="${currentLevel}"', '${l.id}')">📖 Learn</button>
+                                <button class="lesson-practice-btn" data-action="start-lesson-practice" data-level="${currentLevel}"', '${l.id}')">Practice</button>
                             </div>
                         `;
                         unitDiv.appendChild(lessonItem);
@@ -1027,7 +1131,7 @@ function renderLessonView(lesson, level) {
         html += `</ul>`;
     }
     html += `<div class="lesson-overview-meta">⏱️ ${lesson.estimatedMinutes || 30} min · ${(lesson.vocabulary||[]).length} words · ${(lesson.grammar||[]).length} grammar · ${(lesson.exercises||[]).length} exercises</div>`;
-    html += `<div class="lesson-cta"><button class="lesson-learn-btn" onclick="startLessonPractice('${level}', '${lesson.id}')">Start Practice →</button></div>`;
+    html += `<div class="lesson-cta"><button class="lesson-learn-btn" data-action="start-lesson-practice" data-level="${level}"', '${lesson.id}')">Start Practice →</button></div>`;
     html += `</div></section>`;
 
     // Vocabulary
@@ -1049,7 +1153,7 @@ function renderLessonView(lesson, level) {
                 if (v.ipa) html += `<div class="lesson-vocab-ipa">${escapeHtml(v.ipa)}</div>`;
                 html += `<div class="lesson-vocab-en">${escapeHtml(v.en)}</div>`;
                 if (v.example) html += `<div class="lesson-vocab-example">${escapeHtml(v.example)}${v.exampleEn ? ` — <em>${escapeHtml(v.exampleEn)}</em>` : ''}</div>`;
-                html += `<button class="lesson-vocab-speak" onclick="speakText('${escapeHtml(v.fr).replace(/'/g, "\\'")}')" title="Listen">🔊</button>`;
+                html += `<button class="lesson-vocab-speak" data-action="speak" data-text="${escapeHtml(v.fr)}" title="Listen">🔊</button>`;
                 html += `</div>`;
             });
             html += `</div>`;
@@ -1135,7 +1239,7 @@ function renderLessonView(lesson, level) {
             html += `<div class="lesson-dialogue-bubble">`;
             html += `<div class="fr">${escapeHtml(d.fr)}</div>`;
             if (d.en) html += `<div class="en">${escapeHtml(d.en)}</div>`;
-            html += `<button class="lesson-vocab-speak" onclick="speakText('${escapeHtml(d.fr).replace(/'/g, "\\'")}')" title="Listen">🔊</button>`;
+            html += `<button class="lesson-vocab-speak" data-action="speak" data-text="${escapeHtml(d.fr)}" title="Listen">🔊</button>`;
             html += `</div></div>`;
         });
         html += `</div></section>`;
@@ -1155,7 +1259,7 @@ function renderLessonView(lesson, level) {
     html += `<div class="lesson-practice-cta">`;
     html += `<h3>Ready to practice?</h3>`;
     html += `<p>You've reviewed the lesson content. Time to test your understanding with ${(lesson.exercises||[]).length + (lesson.conjugation?.practice?.length || 0) + (lesson.activities||[]).length} exercises.</p>`;
-    html += `<button class="lesson-learn-btn" onclick="startLessonPractice('${level}', '${lesson.id}')">✏️ Start Practice</button>`;
+    html += `<button class="lesson-learn-btn" data-action="start-lesson-practice" data-level="${level}"', '${lesson.id}')">✏️ Start Practice</button>`;
     html += `</div></section>`;
 
     html += `</div>`; // end .lesson-view
@@ -1422,7 +1526,7 @@ window.startVocabQuiz = async function() {
         d.quiz.questions.forEach((q, i) => {
             html += `<div class="quiz-question"><p>${i+1}. ${q.question}</p><div class="quiz-options">`;
             q.options.forEach((o, j) => {
-                html += `<button class="quiz-option" data-correct="${q.correct}" data-selected="${j}" onclick="checkQuizAnswer(this)">${String.fromCharCode(65+j)}. ${o}</button>`;
+                html += `<button class="quiz-option" data-correct="${q.correct}" data-selected="${j}" data-action="quiz-answer">${String.fromCharCode(65+j)}. ${o}</button>`;
             });
             html += '</div><div class="quiz-feedback" style="display:none"></div></div>';
         });
@@ -1450,7 +1554,7 @@ window.startConjQuiz = async function() {
         let html = '<div class="tool-header"><h2>🔄 Conjugation Drill</h2></div><div class="quiz-container">';
         d.quiz.questions.forEach((q, i) => {
             html += `<div class="quiz-question"><p>${i+1}. ${q.question}</p><div class="quiz-options">`;
-            q.options.forEach((o, j) => { html += `<button class="quiz-option" data-correct="${q.correct}" data-selected="${j}" onclick="checkQuizAnswer(this)">${String.fromCharCode(65+j)}. ${o}</button>`; });
+            q.options.forEach((o, j) => { html += `<button class="quiz-option" data-correct="${q.correct}" data-selected="${j}" data-action="quiz-answer">${String.fromCharCode(65+j)}. ${o}</button>`; });
             html += '</div><div class="quiz-feedback" style="display:none"></div></div>';
         });
         html += '</div>';
@@ -1502,7 +1606,7 @@ function renderFlashcardReview(cards, stats) {
 
 function renderFlashcard(card) {
     return `
-        <div class="flashcard-card" onclick="this.classList.toggle('flipped')" id="currentFlashcard">
+        <div class="flashcard-card" data-action="toggle-flipped" id="currentFlashcard">
             <div class="flashcard-inner">
                 <div class="flashcard-front">
                     <div class="flashcard-word">${card.front}</div>
@@ -1516,9 +1620,9 @@ function renderFlashcard(card) {
             </div>
         </div>
         <div class="flashcard-actions">
-            <button class="flashcard-btn hard" onclick="reviewCurrentCard(1)">😠 Hard</button>
-            <button class="flashcard-btn good" onclick="reviewCurrentCard(3)">😊 Good</button>
-            <button class="flashcard-btn easy" onclick="reviewCurrentCard(5)">🤩 Easy</button>
+            <button class="flashcard-btn hard" data-action="review-card" data-quality="1">😠 Hard</button>
+            <button class="flashcard-btn good" data-action="review-card" data-quality="3">😊 Good</button>
+            <button class="flashcard-btn easy" data-action="review-card" data-quality="5">🤩 Easy</button>
         </div>
     `;
 }
@@ -1567,7 +1671,7 @@ window.showWordOfDay = async function() {
         if (d.word.ipa) html += `<div style="font-size:0.9rem;color:var(--muted-foreground);font-style:italic">${d.word.ipa}</div>`;
         html += `<div style="font-size:1.1rem;margin:0.5rem 0">${d.word.en}</div>`;
         if (d.word.example) html += `<div style="font-size:0.85rem;color:var(--muted-foreground);font-style:italic">"${d.word.example}"</div>`;
-        html += `<button class="btn-speak" onclick="speakText('${d.word.fr.replace(/'/g, "\\'")}')">🔊 Listen</button>`;
+        html += `<button class="btn-speak" data-action="speak" data-text="${escapeHtml(d.word.fr)}">🔊 Listen</button>`;
         html += '</div>';
         
         getToolContent().innerHTML = html;
@@ -1580,7 +1684,7 @@ window.showWordOfDay = async function() {
 // French Content Ingestion
 // ============================================================
 window.promptContentIngest = function() {
-    showToolView('📄 French Content Tool', '<div style="text-align:center;padding:2rem"><p style="color:var(--muted-foreground)">Paste any French text below (article, lyrics, recipe, etc.) and I\'ll extract vocabulary, create flashcards, and generate a quiz for you!</p><textarea id="contentInput" style="width:100%;min-height:150px;padding:1rem;border:1px solid var(--border);border-radius:10px;font-family:inherit;font-size:0.95rem;resize:vertical;background:var(--input);color:var(--foreground)" placeholder="Paste French content here..."></textarea><div style="margin-top:1rem"><select id="contentLevel" style="padding:0.5rem;border:1px solid var(--border);border-radius:8px;background:var(--input);color:var(--foreground);margin-right:0.5rem"><option value="A1">A1</option><option value="A2">A2</option><option value="B1" selected>B1</option><option value="B2">B2</option></select><button class="btn-primary" onclick="submitContentIngest()">Analyze Content</button></div></div>');
+    showToolView('📄 French Content Tool', '<div style="text-align:center;padding:2rem"><p style="color:var(--muted-foreground)">Paste any French text below (article, lyrics, recipe, etc.) and I\'ll extract vocabulary, create flashcards, and generate a quiz for you!</p><textarea id="contentInput" style="width:100%;min-height:150px;padding:1rem;border:1px solid var(--border);border-radius:10px;font-family:inherit;font-size:0.95rem;resize:vertical;background:var(--input);color:var(--foreground)" placeholder="Paste French content here..."></textarea><div style="margin-top:1rem"><select id="contentLevel" style="padding:0.5rem;border:1px solid var(--border);border-radius:8px;background:var(--input);color:var(--foreground);margin-right:0.5rem"><option value="A1">A1</option><option value="A2">A2</option><option value="B1" selected>B1</option><option value="B2">B2</option></select><button class="btn-primary" data-action="submit-content-ingest">Analyze Content</button></div></div>');
 };
 
 window.submitContentIngest = async function() {
@@ -1610,26 +1714,28 @@ window.submitContentIngest = async function() {
         if (d.vocabulary && d.vocabulary.length > 0) {
             html += '<div style="margin:0.75rem 0"><div style="font-weight:600;margin-bottom:0.5rem">Vocabulary Found</div><div style="display:flex;flex-wrap:wrap;gap:0.375rem">';
             d.vocabulary.forEach(v => {
-                html += `<span style="padding:0.25rem 0.5rem;background:var(--card);border:1px solid var(--border);border-radius:6px;font-size:0.85rem"><strong>${v.fr}</strong> = ${v.en}</span>`;
+                html += `<span style="padding:0.25rem 0.5rem;background:var(--card);border:1px solid var(--border);border-radius:6px;font-size:0.85rem"><strong>${escapeHtml(v.fr)}</strong> = ${escapeHtml(v.en)}</span>`;
             });
             html += '</div></div>';
         }
-        
+
         if (d.flashcards_count > 0) {
             html += `<div style="margin:0.75rem 0;padding:0.5rem;background:rgba(45,106,79,0.08);border-radius:6px;font-size:0.85rem">✅ ${d.flashcards_count} flashcards added to your deck!</div>`;
         }
-        
+
         if (d.quiz && d.quiz.exercises && d.quiz.exercises.length > 0) {
             html += `<div style="margin:0.75rem 0"><div style="font-weight:600;margin-bottom:0.5rem">📝 Content Quiz</div>`;
             d.quiz.exercises.forEach((ex, i) => {
                 const id = 'ci-' + Math.random().toString(36).substr(2, 8);
-                html += `<div class="exercise-container" id="${id}">`;
-                html += `<div class="exercise-prompt">${i+1}. ${ex.prompt}</div>`;
+                // Store exercise data for grading (replaces broken inline <script> injection).
+                window._exercises = window._exercises || {};
+                window._exercises[id] = ex;
+                html += `<div class="exercise-container" id="${escapeHtml(id)}">`;
+                html += `<div class="exercise-prompt">${i + 1}. ${escapeHtml(ex.prompt)}</div>`;
                 html += `<div class="exercise-input-row">`;
-                html += `<input class="exercise-input" placeholder="Type your answer..." onkeydown="if(event.key==='Enter')checkExercise('${id}', this)">`;
-                html += `<button class="exercise-submit" onclick="checkExercise('${id}', this.previousElementSibling)">Check</button>`;
+                html += `<input class="exercise-input" data-submit-on-enter data-exercise-id="${escapeHtml(id)}" placeholder="Type your answer...">`;
+                html += `<button class="exercise-submit" data-action="check-exercise" data-id="${escapeHtml(id)}">Check</button>`;
                 html += `</div><div class="exercise-feedback" style="display:none"></div>`;
-                html += `<script>window._exercises = window._exercises || {}; window._exercises['${id}'] = ${JSON.stringify(ex)};<\/script>`;
                 html += '</div>';
             });
             html += '</div>';
@@ -1774,7 +1880,7 @@ window.startMockTest = async function(testType) {
             for (const set of section.sets) {
                 const label = set.isAI ? '🤖 AI' : `Set ${set.setNum}`;
                 const cls = set.isAI ? 'exam-set-btn ai' : 'exam-set-btn';
-                html += `<button class="${cls}" onclick="startExamSection('${testType}', '${sid}', ${set.setNum})" style="border-color:${exam.color}">${label}<br><small>${set.questionCount}Q</small></button>`;
+                html += `<button class="${cls}" data-action="start-exam-section" data-type="${testType}"', '${sid}', ${set.setNum})" style="border-color:${exam.color}">${label}<br><small>${set.questionCount}Q</small></button>`;
             }
             html += '</div></div>';
         }
@@ -1827,7 +1933,7 @@ function renderExamQuestion(idx) {
     html += `<div class="exam-toolbar">`;
     html += `<div style="display:flex;align-items:center;gap:0.75rem">`;
     html += `<div class="test-timer" id="examTimer">⏱️ ${formatTime(examState.timeLeft)}</div>`;
-    html += `<button class="exam-nav-btn" id="examPauseBtn" onclick="toggleExamPause()" title="Pause/resume test">${examState.paused ? '▶️ Resume' : '⏸️ Pause'}</button>`;
+    html += `<button class="exam-nav-btn" id="examPauseBtn" data-action="toggle-exam-pause" title="Pause/resume test">${examState.paused ? '▶️ Resume' : '⏸️ Pause'}</button>`;
     html += `</div>`;
     html += `<div style="font-size:0.85rem;color:var(--muted-foreground)">Question ${idx+1} of ${total}</div>`;
     html += '</div>';
@@ -1837,31 +1943,31 @@ function renderExamQuestion(idx) {
     examState.questions.forEach((eq, i) => {
         const answered = examState.answers[eq.id] !== undefined;
         const current = i === idx;
-        html += `<button class="exam-nav-btn ${current ? 'current' : ''} ${answered ? 'answered' : ''}" onclick="goToExamQuestion(${i})">${i+1}</button>`;
+        html += `<button class="exam-nav-btn ${current ? 'current' : ''} ${answered ? 'answered' : ''}" data-action="go-exam-question" data-idx="${i}">${i+1}</button>`;
     });
     html += '</div>';
     
     // Question content
     html += `<div class="test-question" id="examQuestion">`;
     if (q.audioText) {
-        html += `<button class="btn-speak" onclick="speakText('${q.audioText.replace(/'/g, "\\'")}')">🔊 Listen to audio</button>`;
+        html += `<button class="btn-speak" data-action="speak" data-text="${escapeHtml(q.audioText)}">🔊 Listen to audio</button>`;
     }
     html += `<div class="test-question-level">${q.level}</div>`;
     html += `<p style="margin-bottom:0.75rem">${q.prompt}</p>`;
     html += '<div class="quiz-options">';
     q.options.forEach((o, j) => {
         const selected = examState.answers[q.id] === j;
-        html += `<button class="quiz-option ${selected ? 'selected' : ''}" onclick="selectExamAnswer('${q.id}', ${j}, this)">${String.fromCharCode(65+j)}. ${o}</button>`;
+        html += `<button class="quiz-option ${selected ? 'selected' : ''}" data-action="select-exam-answer" data-qid="${escapeHtml(q.id)}" data-idx="${j}">${String.fromCharCode(65+j)}. ${o}</button>`;
     });
     html += '</div></div>';
     
     // Navigation buttons
     html += '<div class="exam-nav-buttons">';
-    if (idx > 0) html += `<button class="exam-nav-btn prev" onclick="goToExamQuestion(${idx-1})">← Previous</button>`;
+    if (idx > 0) html += `<button class="exam-nav-btn prev" data-action="go-exam-question" data-idx="${idx-1}">← Previous</button>`;
     if (idx < total - 1) {
-        html += `<button class="exam-nav-btn next" onclick="goToExamQuestion(${idx+1})">Next →</button>`;
+        html += `<button class="exam-nav-btn next" data-action="go-exam-question" data-idx="${idx+1}">Next →</button>`;
     } else {
-        html += `<button class="exam-nav-btn submit" onclick="submitExam()">Submit Test</button>`;
+        html += `<button class="exam-nav-btn submit" data-action="submit-exam">Submit Test</button>`;
     }
     html += '</div>';
     
@@ -1923,7 +2029,7 @@ function pauseExam() {
                 <div style="font-size:2rem;margin-bottom:0.5rem">⏸️</div>
                 <div style="font-size:1.1rem;font-weight:600;margin-bottom:0.25rem">Test Paused</div>
                 <div style="font-size:0.85rem;color:var(--muted-foreground);margin-bottom:1rem">Take your time. Your progress is saved.</div>
-                <button class="exam-nav-btn" onclick="resumeExam()" style="font-size:1rem;padding:0.6rem 1.25rem">▶️ Resume Test</button>
+                <button class="exam-nav-btn" data-action="resume-exam" style="font-size:1rem;padding:0.6rem 1.25rem">▶️ Resume Test</button>
             </div>
         `;
         container.appendChild(overlay);
@@ -2020,8 +2126,8 @@ function renderExamResults(result) {
     html += '</div>';
     
     html += '<div style="display:flex;gap:0.5rem;margin-top:1rem">';
-    html += `<button class="exercise-submit" onclick="startMockTest('${result.testType}')" style="flex:1">Try Another Set</button>`;
-    html += `<button class="exam-nav-btn" onclick="showTestStats()" style="flex:1">View History</button>`;
+    html += `<button class="exercise-submit" data-action="start-mock-test" data-type="${escapeHtml(result.testType)}" style="flex:1">Try Another Set</button>`;
+    html += `<button class="exam-nav-btn" data-action="show-test-stats" style="flex:1">View History</button>`;
     html += '</div>';
     
     getToolContent().innerHTML = html;
@@ -2142,7 +2248,7 @@ async function loadComments() {
                 <div class="comment-header">
                     <span class="comment-author">${escapeHtml(c.author || 'You')}</span>
                     <span class="comment-time">${new Date(c.created_at * 1000).toLocaleString()}</span>
-                    <button class="comment-delete" onclick="deleteComment('${c.id}')">×</button>
+                    <button class="comment-delete" data-action="delete-comment" data-id="${escapeHtml(c.id)}">×</button>
                 </div>
                 <div class="comment-message">${escapeHtml(c.message)}</div>
             </div>
@@ -2227,8 +2333,8 @@ async function loadSharedList() {
             ${shared.map(s => `
                 <div class="shared-item">
                     <span class="shared-title">${escapeHtml(s.title)}</span>
-                    <button class="shared-copy" onclick="navigator.clipboard.writeText('${window.location.origin}/share/${s.id}')">Copy Link</button>
-                    <button class="shared-delete" onclick="deleteShare('${s.id}')">×</button>
+                    <button class="shared-copy" data-action="copy-share-link" data-share-id="${escapeHtml(s.id)}">Copy Link</button>
+                    <button class="shared-delete" data-action="delete-share" data-id="${escapeHtml(s.id)}">×</button>
                 </div>
             `).join('')}
         `;
