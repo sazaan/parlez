@@ -283,8 +283,29 @@ def require_auth(request: Request):
         raise HTTPException(status_code=401, detail="Not authenticated")
     return user
 
+DAILY_LLM_BUDGET = 100  # Task 3.9: per-user LLM request cap
 
-async def call_nvidia(messages, max_tokens=8192):
+def check_daily_llm_budget(user):
+    """Enforce per-user daily LLM request cap. Mutates `user['llm_daily']`
+    in-place; caller is responsible for save_user() if persistence is needed.
+
+    Raises 429 when the cap is exceeded.
+    """
+    today = datetime.date.today().isoformat()
+    llm_daily = user.setdefault('llm_daily', {'date': today, 'count': 0})
+    if llm_daily.get('date') != today:
+        llm_daily['date'] = today
+        llm_daily['count'] = 0
+    if llm_daily['count'] >= DAILY_LLM_BUDGET:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Daily AI tutor limit reached ({DAILY_LLM_BUDGET} requests/day). Resets at midnight UTC.",
+        )
+    llm_daily['count'] += 1
+    return llm_daily['count']
+
+
+async def call_nvidia(messages, max_tokens=2048):
     """Call NVIDIA NIM with retries and graceful degradation."""
     if not NVIDIA_API_KEY:
         raise HTTPException(status_code=503, detail="AI service is not configured.")
@@ -582,7 +603,10 @@ async def delete_conversation(conv_id: str, user=Depends(get_current_user)):
 async def chat(request: Request, msg: ChatMessage, user=Depends(get_current_user)):
     if not user:
         raise HTTPException(401, "Not authenticated")
-    
+    # Task 3.9: per-user daily LLM budget. Increments the counter; raises
+    # 429 if the user has exceeded DAILY_LLM_BUDGET for today.
+    check_daily_llm_budget(user)
+
     message = validate_user_text(msg.message, MAX_CHAT_MESSAGE_LENGTH, "message")
     
     level = msg.level or user.get('level', 'A1')
@@ -1329,6 +1353,9 @@ async def correct_writing(req: WritingCorrectionRequest, user=Depends(get_curren
     if not user:
         raise HTTPException(401, "Not authenticated")
     
+    # Task 3.9: per-user daily LLM budget.
+    check_daily_llm_budget(user)
+
     text = validate_user_text(req.text, MAX_WRITING_TEXT_LENGTH, "text")
     level = req.level or user.get('level', 'A1')
     system_prompt = build_writing_correction_prompt(text, level)
