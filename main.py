@@ -2,6 +2,7 @@ import os
 import io
 import time
 import uuid
+import secrets
 import asyncio
 import datetime
 import urllib.parse
@@ -661,8 +662,17 @@ async def chat(request: Request, msg: ChatMessage, user=Depends(get_current_user
     try:
         r = await call_nvidia(messages)
         resp = r["choices"][0]["message"]["content"]
-    except Exception as e:
-        resp = f"I apologize, but I encountered an error: {str(e)}. Please try again."
+    except HTTPException:
+        raise
+    except Exception:
+        # Don't leak exception text to the client (fixes S11). Mirror the
+        # /api/writing/correct pattern: log internally, return a generic 503,
+        # and do NOT persist a fake assistant reply or award XP.
+        logger.exception("Chat LLM call failed")
+        raise HTTPException(
+            status_code=503,
+            detail="The tutor is temporarily unavailable. Please try again.",
+        )
     
     # Save to conversation
     user_convs = user.get('conversations', {})
@@ -1501,6 +1511,9 @@ class ExportRequest(BaseModel):
 async def add_comment(req: CommentCreate, user=Depends(get_current_user)):
     if not user:
         raise HTTPException(401, "Not authenticated")
+    # Ownership check (fixes IDOR S4): only the conversation owner can comment on it.
+    if req.conv_id not in user.get("conversations", {}):
+        raise HTTPException(status_code=404, detail="Conversation not found")
 
     comment = {
         "id": str(uuid.uuid4())[:8],
@@ -1514,12 +1527,25 @@ async def add_comment(req: CommentCreate, user=Depends(get_current_user)):
 
 @app.get("/api/comments/{conv_id}")
 async def get_comments(conv_id: str, user=Depends(require_auth)):
+    # Ownership check (fixes IDOR S4): don't leak comments on conversations
+    # the caller doesn't own.
+    if conv_id not in user.get("conversations", {}):
+        raise HTTPException(status_code=404, detail="Conversation not found")
     return storage.get_comments(conv_id)
 
 @app.delete("/api/comments/{conv_id}/{comment_id}")
 async def delete_comment(conv_id: str, comment_id: str, user=Depends(get_current_user)):
     if not user:
         raise HTTPException(401, "Not authenticated")
+    # Ownership check (fixes IDOR S4): caller must own the conversation.
+    # We also restrict to comments authored by the caller, so users can't
+    # delete each other's comments even on their own thread.
+    if conv_id not in user.get("conversations", {}):
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    existing = storage.get_comments(conv_id)
+    target = next((c for c in existing if c.get("id") == comment_id), None)
+    if not target or target.get("user_id") != user["id"]:
+        raise HTTPException(status_code=404, detail="Comment not found")
     storage.delete_comment(conv_id, comment_id)
     return {"ok": True}
 
@@ -1532,7 +1558,7 @@ async def create_share(req: ShareCreate, user=Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Conversation not found")
 
     conv = user_convs[req.conv_id]
-    share_id = str(uuid.uuid4())[:8]
+    share_id = secrets.token_urlsafe(32)  # unguessable; fixes S6 (32-bit IDOR via enumeration)
 
     data = {
         "id": share_id,
@@ -1569,6 +1595,11 @@ async def list_shared(user=Depends(get_current_user)):
 async def delete_share(share_id: str, user=Depends(get_current_user)):
     if not user:
         raise HTTPException(401, "Not authenticated")
+    # Ownership check (fixes IDOR S5): only the share's creator may delete it.
+    # 404 (not 403) to avoid disclosing that the share exists.
+    share = storage.get_shared(share_id)
+    if not share or share.get("user_id") != user["id"]:
+        raise HTTPException(status_code=404, detail="Not found")
     storage.delete_shared(share_id)
     return {"ok": True}
 
