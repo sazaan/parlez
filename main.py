@@ -10,7 +10,7 @@ import logging
 import logging.handlers
 from typing import Optional
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Response, Request
+from fastapi import FastAPI, HTTPException, Depends, Response, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
@@ -282,31 +282,6 @@ def require_auth(request: Request):
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     return user
-
-class RAGKnowledgeBase:
-    def __init__(self):
-        self.chunks = []
-        self.doc_files = []
-    
-    def add(self, filename, content):
-        for i in range(0, len(content), 500):
-            chunk = content[i:i+500]
-            if chunk.strip():
-                self.chunks.append({"text": chunk, "filename": filename})
-        if filename not in self.doc_files:
-            self.doc_files.append(filename)
-    
-    def search(self, query, n=5):
-        if not self.chunks: return []
-        query_lower = query.lower()
-        scored = [(c, sum(1 for w in query_lower.split() if w in c["text"].lower())) for c in self.chunks]
-        scored.sort(key=lambda x: x[1], reverse=True)
-        return [c["text"] for c, s in scored[:n] if s > 0]
-    
-    def count(self): return len(self.chunks)
-    def filenames(self): return self.doc_files.copy()
-
-kb = RAGKnowledgeBase()
 
 
 async def call_nvidia(messages, max_tokens=8192):
@@ -1738,46 +1713,6 @@ async def text_to_speech(request: Request, req: TTSRequest, user=Depends(require
 
     return StreamingResponse(audio_stream(), media_type="audio/mpeg")
 
-
-# --- Knowledge Base (file upload) ---
-
-@app.post("/api/upload")
-@limiter.limit("10/minute")
-async def upload_file(request: Request, file: UploadFile = File(...), user=Depends(require_auth)):
-    # Validate extension
-    filename = file.filename or "upload"
-    ext = os.path.splitext(filename.lower())[1]
-    if ext not in ALLOWED_UPLOAD_EXTENSIONS:
-        raise HTTPException(400, f"Unsupported file type: {ext}. Allowed: .pdf, .txt, .md")
-
-    # Validate content-type when provided
-    if file.content_type and file.content_type not in ALLOWED_UPLOAD_TYPES:
-        raise HTTPException(400, f"Unsupported content type: {file.content_type}")
-
-    content = await file.read()
-    if len(content) > MAX_UPLOAD_SIZE:
-        raise HTTPException(400, f"File too large. Max size is {MAX_UPLOAD_SIZE // (1024 * 1024)} MB")
-
-    text = ""
-    if ext == '.pdf':
-        try:
-            reader = PyPDF2.PdfReader(io.BytesIO(content))
-            text = "".join(p.extract_text() or "" for p in reader.pages)
-        except Exception:
-            logger.warning("Could not read uploaded PDF: %s", filename)
-            text = "Could not read PDF"
-    else:
-        text = content.decode('utf-8', errors='ignore')
-
-    if text.strip():
-        kb.add(filename, text)
-
-    return {"filename": filename, "chunks": kb.count(), "status": "ok"}
-
-
-@app.get("/api/knowledge")
-async def get_knowledge(user=Depends(require_auth)):
-    return {"count": kb.count(), "files": kb.filenames()}
 
 
 # --- Clear ---

@@ -38,8 +38,7 @@ def test_protected_endpoints_require_auth(client):
         ("get", "/api/exam/history/tcf"),
         ("post", "/api/exam/submit/tcf/reading/1", {"answers": {}}),
         ("post", "/api/tts", {"text": "bonjour", "lang": "fr"}),
-        ("post", "/api/upload", {}),
-        ("get", "/api/knowledge"),
+        ("post", "/api/tts", {"text": "bonjour", "lang": "fr"}),
         ("delete", "/api/history"),
     ]
     failures = []

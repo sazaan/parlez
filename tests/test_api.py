@@ -196,16 +196,6 @@ def test_tts_requires_auth(client):
     assert r.status_code == 401
 
 
-def test_upload_requires_auth(client):
-    r = client.post("/api/upload", files={"file": ("test.txt", b"hello", "text/plain")})
-    assert r.status_code == 401
-
-
-def test_knowledge_requires_auth(client):
-    r = client.get("/api/knowledge")
-    assert r.status_code == 401
-
-
 def test_comments_require_auth(client):
     r = client.get("/api/comments/conv-123")
     assert r.status_code == 401
