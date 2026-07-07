@@ -1,14 +1,24 @@
 import os
 import sys
+import tempfile
 
 # Ensure the project root is on the path so `import main` works.
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
+# CRITICAL: force an isolated DB before importing main, so tests never touch
+# data/parlez.db (real users / bcrypt hashes / PII). This MUST happen before
+# `import main` — `main.py` constructs the storage singleton at import time.
+# We use a per-session tempdir (not :memory:) so all connections in the
+# SQLAlchemy pool share one DB; :memory: is per-connection and would split
+# test state across connections.
+_TEST_DB_DIR = tempfile.mkdtemp(prefix="parlez-test-")
+os.environ["DATABASE_URL"] = f"sqlite:///{_TEST_DB_DIR}/test.db"
+
 import pytest
 from fastapi.testclient import TestClient
 
-# Import main *after* path manipulation so the module-level storage singleton
-# is created from the same working directory the tests run in.
+# Import main *after* path manipulation AND env setup so the module-level
+# storage singleton is built against the test DB.
 import main
 
 

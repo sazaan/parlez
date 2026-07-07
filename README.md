@@ -215,5 +215,5 @@ python -m pytest tests/
 ```
 
 ## License
-mimo -s REMOVED
-MIT License
+
+MIT License. See [`LICENSE`](./LICENSE) (or add a `LICENSE` file with your chosen terms before public release).

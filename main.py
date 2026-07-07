@@ -111,6 +111,32 @@ async def no_cache_middleware(request, call_next):
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     return response
 
+@app.middleware("http")
+async def security_headers_middleware(request, call_next):
+    """Add baseline security headers to every response.
+
+    - CSP: blocks injected inline scripts until Task 2.1/2.2 land (uses
+      'unsafe-inline' for scripts because app.js still has inline handlers).
+      Tighten script-src to 'self' once Task 2.2 removes inline onclick.
+    - X-Frame-Options / frame-ancestors: prevent clickjacking.
+    - X-Content-Type-Options: stop MIME sniffing.
+    - Referrer-Policy: don't leak full URLs to third parties.
+    HSTS is set at the Caddy layer (see Caddyfile).
+    """
+    response = await call_next(request)
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "img-src 'self' data:; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "connect-src 'self' https://translate.google.com; "
+        "frame-ancestors 'none'"
+    )
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
+
 NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY")
 INVOKE_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
 MODEL = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
