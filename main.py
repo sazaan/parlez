@@ -685,7 +685,7 @@ async def chat(request: Request, msg: ChatMessage, user=Depends(get_current_user
 
     # Update XP
     progress = user.setdefault('progress', {"xp": 0, "streak": 0, "best_streak": 0, "last_active": None})
-    progress['xp'] = progress.get('xp', 0) + 5
+    progress['xp'] = progress.get('xp', 0) + XP.CHAT_MESSAGE
     today = datetime.date.today().isoformat()
     last = progress.get('last_active')
     if last == today:
@@ -721,7 +721,7 @@ async def check_exercise(req: ExerciseCheck, user=Depends(get_current_user)):
     
     progress = user.setdefault('progress', {"xp": 0})
     if is_correct:
-        progress['xp'] = progress.get('xp', 0) + 10
+        progress['xp'] = progress.get('xp', 0) + XP.EXERCISE_CORRECT
     
     # Track exercise history
     history_entry = {
@@ -815,7 +815,7 @@ async def complete_lesson(data: dict, user=Depends(get_current_user)):
     progress = user.setdefault('progress', {})
     if lesson_id and lesson_id not in progress.get('lessons_completed', []):
         progress.setdefault('lessons_completed', []).append(lesson_id)
-        progress['xp'] = progress.get('xp', 0) + 50
+        progress['xp'] = progress.get('xp', 0) + XP.LESSON_COMPLETE
     storage.save_user(user)
     return progress
 
@@ -896,7 +896,7 @@ async def review_flashcard_endpoint(card_id: str, req: FlashcardReview, user=Dep
     card = review_flashcard(user_flashcards[card_id], req.quality)
     user_flashcards[card_id] = card
     progress = user.setdefault('progress', {"xp": 0})
-    progress['xp'] = progress.get('xp', 0) + 5
+    progress['xp'] = progress.get('xp', 0) + XP.FLASHCARD_REVIEW
     storage.save_user(user)
     return {"card": card, "xp_earned": 5, "total_xp": progress.get('xp', 0)}
 
@@ -1132,7 +1132,7 @@ async def submit_test(test_type: str, data: dict, user=Depends(get_current_user)
     if len(user['test_results']) > 500:
         user['test_results'] = user['test_results'][-500:]
     progress = user.setdefault('progress', {"xp": 0})
-    progress['xp'] = progress.get('xp', 0) + (correct * 5)
+    progress['xp'] = progress.get('xp', 0) + (correct * XP.EXAM_QUESTION_CORRECT)
     storage.save_user(user)
     
     return result
@@ -1305,7 +1305,7 @@ async def submit_exam(request: Request, test_type: str, section_id: str, set_num
     if len(user['test_results']) > 500:
         user['test_results'] = user['test_results'][-500:]
     progress = user.setdefault('progress', {"xp": 0})
-    progress['xp'] = progress.get('xp', 0) + (correct * 5)
+    progress['xp'] = progress.get('xp', 0) + (correct * XP.EXAM_QUESTION_CORRECT)
     storage.save_user(user)
     
     return result
@@ -1382,7 +1382,7 @@ async def correct_writing(req: WritingCorrectionRequest, user=Depends(get_curren
     
     # Track XP for writing practice
     progress = user.setdefault('progress', {"xp": 0})
-    progress['xp'] = progress.get('xp', 0) + 15
+    progress['xp'] = progress.get('xp', 0) + XP.WRITING_CORRECTION
     storage.save_user(user)
     
     return {
