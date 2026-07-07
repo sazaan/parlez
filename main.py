@@ -797,23 +797,17 @@ async def complete_lesson(data: dict, user=Depends(get_current_user)):
 
 @app.get("/api/streaks")
 async def get_streaks(user=Depends(get_current_user)):
+    """Return the current streak as stored. Read-only (Task 4.4): streak
+    mutations live in /api/chat (and other action endpoints), not here.
+    Calling GET twice in a row must NOT change stored state."""
     if not user:
         raise HTTPException(401, "Not authenticated")
     progress = user.get('progress', {})
-    today = datetime.date.today().isoformat()
-    last = progress.get("last_active")
-    current = progress.get("streak", 0)
-    if last == today:
-        return {"current": current, "best": progress.get("best_streak", 0)}
-    elif last == str(datetime.date.today() - datetime.timedelta(days=1)):
-        current += 1
-        progress["streak"] = current
-        progress["best_streak"] = max(progress.get("best_streak", 0), current)
-    else:
-        progress["streak"] = 1
-    progress["last_active"] = today
-    storage.save_user(user)
-    return {"current": progress.get("streak", 1), "best": progress.get("best_streak", 1)}
+    return {
+        "current": progress.get("streak", 0),
+        "best": progress.get("best_streak", 0),
+        "last_active": progress.get("last_active"),
+    }
 
 
 # --- Flashcards ---
