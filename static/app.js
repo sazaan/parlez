@@ -65,20 +65,26 @@ const authToggle = document.getElementById('authToggle');
 const authError = document.getElementById('authError');
 const nameGroup = document.getElementById('nameGroup');
 
-authToggleLink?.addEventListener('click', (e) => {
-    e.preventDefault();
-    isSignup = !isSignup;
-    authTitle.textContent = isSignup ? 'Create Account' : 'Welcome Back';
-    authSubtitle.textContent = isSignup ? 'Sign up to start learning French' : 'Log in to continue learning French';
-    authSubmit.textContent = isSignup ? 'Sign Up' : 'Log In';
-    authToggle.innerHTML = isSignup ? 'Already have an account? <a href="#" id="authToggleLink">Log In</a>' : 'Don\'t have an account? <a href="#" id="authToggleLink">Sign Up</a>';
-    nameGroup.style.display = isSignup ? 'block' : 'none';
+// Task 5.3 (F7 fix): delegate the toggle click instead of rewriting
+// innerHTML and re-binding to a detached node each time. One listener on
+// the container survives the innerHTML reset, so we never accumulate
+// listeners on orphaned anchor nodes.
+function setAuthMode(signup) {
+    isSignup = signup;
+    authTitle.textContent = signup ? 'Create Account' : 'Welcome Back';
+    authSubtitle.textContent = signup ? 'Sign up to start learning French' : 'Log in to continue learning French';
+    authSubmit.textContent = signup ? 'Sign Up' : 'Log In';
+    authToggle.innerHTML = signup
+        ? 'Already have an account? <a href="#" id="authToggleLink">Log In</a>'
+        : 'Don\'t have an account? <a href="#" id="authToggleLink">Sign Up</a>';
+    nameGroup.style.display = signup ? 'block' : 'none';
     authError.style.display = 'none';
-    // Re-bind the toggle link
-    document.getElementById('authToggleLink')?.addEventListener('click', (e2) => {
-        e2.preventDefault();
-        authToggleLink.click();
-    });
+}
+authToggle?.addEventListener('click', (e) => {
+    if (e.target.closest('#authToggleLink')) {
+        e.preventDefault();
+        setAuthMode(!isSignup);
+    }
 });
 
 authForm?.addEventListener('submit', async (e) => {
