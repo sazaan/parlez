@@ -1,0 +1,23 @@
+# Files NOT needed in the production image (Task 3.2).
+# Reduces image size, attack surface, and the risk of leaking dev artifacts.
+venv/
+.venv/
+data/
+books/
+tests/
+.git/
+.github/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.superpowers/
+*.bak
+*.md
+.env
+.env.*
+mock_tests/
+docs/
+.kimchi/
+*.pyc
+*.pyo
+*.pyd

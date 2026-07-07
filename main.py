@@ -1787,4 +1787,9 @@ async def clear_history(user=Depends(get_current_user)):
 
 if __name__ == "__main__":
     import uvicorn
+    # Task 3.2: SQLite + the in-memory rate limiter (main.storage.session /
+    # app.state.limiter) are per-process. Do NOT set workers>1 without
+    # first migrating storage to Postgres and switching the limiter to a
+    # shared backend (e.g. Redis). See docker-compose.prod.yml for the
+    # single-replica constraint.
     uvicorn.run(app, host="0.0.0.0", port=8000)
