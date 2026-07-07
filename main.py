@@ -49,6 +49,38 @@ COOKIE_SAMESITE = os.getenv('COOKIE_SAMESITE', 'lax')
 
 from courses import courses, get_course, course_levels, conversation_scenarios
 from engine import build_system_prompt, detect_mode, find_lesson_context, LEVEL_NAMES
+
+# Task 4.3 (A3 fix): build a {lesson_id: (course, unit, lesson)} index once
+# at import time so handlers don't do full nested scans of all courses ×
+# units × lessons on every request.
+LESSON_INDEX: dict = {}
+for _c in courses:
+    for _u in _c.units:
+        for _l in _u.lessons:
+            LESSON_INDEX[_l.id] = (_c, _u, _l)
+
+
+def serialize_lesson(lesson, course=None, unit=None) -> dict:
+    """Task 4.3: one helper for the duplicated lesson-serialization
+    dict-comprehension that was previously copy-pasted across endpoints.
+    Pass course/unit when you have them; otherwise they're looked up in
+    LESSON_INDEX (cheaper than re-walking the tree)."""
+    if course is None or unit is None:
+        hit = LESSON_INDEX.get(lesson.id)
+        if hit is not None:
+            course, unit, _ = hit
+    return {
+        'id': lesson.id,
+        'title': lesson.title,
+        'titleFr': lesson.titleFr,
+        'description': lesson.description,
+        'objectives': lesson.objectives,
+        'vocabulary': [{'fr': v.fr, 'en': v.en, 'ipa': v.ipa, 'example': v.example} for v in lesson.vocabulary] if lesson.vocabulary else [],
+        'grammar': [{'title': g.title, 'explanation': g.explanation, 'examples': [{'fr': e.fr, 'en': e.en} for e in g.examples]} for g in lesson.grammar] if lesson.grammar else [],
+        'dialogue': [{'speaker': d.speaker, 'name': d.name, 'fr': d.fr, 'en': d.en} for d in lesson.dialogue] if lesson.dialogue else [],
+        'culturalNote': lesson.culturalNote,
+    }
+
 from engine.exercises import check_answer
 from engine.flashcards import create_flashcard, review_flashcard, get_due_cards, get_review_stats
 from engine.practice import generate_vocab_quiz, generate_conj_quiz, generate_fill_blank_vocab, categorize_vocabulary, get_word_of_day
