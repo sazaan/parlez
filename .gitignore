@@ -44,3 +44,6 @@ Thumbs.db
 # Runtime data (never commit — contains PII and password hashes)
 data/
 !data/.gitkeep
+
+# Copyrighted / large source material — keep out of VCS
+books/
