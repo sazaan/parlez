@@ -375,16 +375,21 @@ async def call_nvidia(messages, max_tokens=2048):
 # ROUTES
 # ============================================================
 
+# Task 4.7 (A8): read the static HTML once at import time instead of
+# blocking open() per request. The no-cache header still forces clients to
+# revalidate, but the server-side cost is now a single file read at boot.
+_LANDING_HTML = open("static/landing.html").read()
+_INDEX_HTML = open("static/index.html").read()
+
+
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    html = open("static/landing.html").read()
-    return Response(content=html, media_type="text/html", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+    return Response(content=_LANDING_HTML, media_type="text/html", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page():
-    html = open("static/index.html").read()
-    return Response(content=html, media_type="text/html", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+    return Response(content=_INDEX_HTML, media_type="text/html", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
 
 @app.get("/health")
