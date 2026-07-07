@@ -34,6 +34,31 @@
     --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Task 5.6: dark mode override of the :root CSS variables. Brand colors
+   (primary, secondary) are kept; backgrounds, foreground, and borders are
+   inverted. Activated when the user's OS reports prefers-color-scheme: dark. */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: #0f0f12;
+        --bg-gradient: linear-gradient(135deg, #0f0f12 0%, #1a1a1f 100%);
+        --card: #1a1a1f;
+        --card-elevated: #23232a;
+        --foreground: #f1f1f3;
+        --muted-foreground: #a1a1aa;
+        --border: rgba(255,255,255,0.08);
+        --border-strong: rgba(255,255,255,0.14);
+        --user-bubble: #a8455c;
+        --assistant-bubble: #23232a;
+        --assistant-text: #f1f1f3;
+        --correct: #4ade80;
+        --incorrect: #f87171;
+        --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
+        --shadow: 0 4px 6px -1px rgba(0,0,0,0.4), 0 2px 4px -2px rgba(0,0,0,0.3);
+        --shadow-md: 0 10px 15px -3px rgba(0,0,0,0.5), 0 4px 6px -4px rgba(0,0,0,0.3);
+        --shadow-lg: 0 20px 25px -5px rgba(0,0,0,0.5), 0 8px 10px -6px rgba(0,0,0,0.3);
+    }
+}
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 html, body {
