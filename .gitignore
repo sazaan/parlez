@@ -47,3 +47,9 @@ data/
 
 # Copyrighted / large source material — keep out of VCS
 books/
+
+# Local backup directory (backup.py default = data/backups). The Docker
+# sidecar writes to a named volume (backup_data), but if someone runs
+# backup.py locally for testing, the output lands here.
+backups/
+data/backups/

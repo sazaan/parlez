@@ -30,9 +30,41 @@ services:
     depends_on:
       - chatbot
 
+  # Task 4.11 (D6 fix): nightly backup sidecar. Runs the existing
+  # backup.py (SQLite online backup, safe while the chatbot is running)
+  # against the data volume, writes to a SEPARATE volume so a corrupted
+  # app data dir can't take out the backups. Keeps the last 30 backups.
+  #
+  # Schedule: every 24h. Override via BACKUP_INTERVAL_SECONDS.
+  # Host-cron alternative: `0 3 * * *  docker compose -f
+  # docker-compose.prod.yml run --rm backup` — also valid.
+  backup:
+    build: .
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data:ro   # read-only access to the DB
+      - backup_data:/backups  # separate volume, NOT inside ./data
+    command:
+      - sh
+      - -c
+      - |
+        while true; do
+          echo "[backup] $$(date -u) — starting nightly backup"
+          python backup.py --dest /backups --keep 30 || \
+            echo "[backup] FAILED — will retry next cycle"
+          sleep $${BACKUP_INTERVAL_SECONDS:-86400}
+        done
+    restart: unless-stopped
+    networks:
+      - parlez
+    depends_on:
+      - chatbot
+
 volumes:
   caddy_data:
   caddy_config:
+  backup_data:
 
 networks:
   parlez:
