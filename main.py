@@ -1798,4 +1798,15 @@ if __name__ == "__main__":
     # first migrating storage to Postgres and switching the limiter to a
     # shared backend (e.g. Redis). See docker-compose.prod.yml for the
     # single-replica constraint.
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    #
+    # Task 3.7: behind Caddy we must trust the proxy so slowapi's
+    # key_func=get_remote_address sees the real client IP, not Caddy's
+    # container IP (otherwise every user shares one rate-limit bucket).
+    # Caddy sets X-Forwarded-For by default; we honor it here.
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8000,
+        proxy_headers=True,
+        forwarded_allow_ips="*",  # trust Caddy in front
+    )
