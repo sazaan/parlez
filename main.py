@@ -464,10 +464,8 @@ async def logout(request: Request, response: Response):
     return {"ok": True}
 
 @app.get("/api/auth/me")
-async def get_me(user=Depends(get_current_user)):
+async def get_me(user=Depends(require_auth)):
     """Get current user info."""
-    if not user:
-        raise HTTPException(401, "Not authenticated")
     return {
         "id": user['id'],
         "username": user['username'],
@@ -537,15 +535,11 @@ async def get_scenarios():
 # --- User Settings ---
 
 @app.get("/api/user")
-async def get_user(user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
+async def get_user(user=Depends(require_auth)):
     return {"level": user.get('level', 'A1'), "name": user.get('name', ''), "username": user.get('username', '')}
 
 @app.post("/api/user")
-async def update_user(settings: UserSettings, user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
+async def update_user(settings: UserSettings, user=Depends(require_auth)):
     if settings.level: user['level'] = settings.level.upper()
     if settings.name: user['name'] = settings.name
     storage.save_user(user)
@@ -555,16 +549,12 @@ async def update_user(settings: UserSettings, user=Depends(get_current_user)):
 # --- Conversations ---
 
 @app.get("/api/conversations")
-async def get_conversations(user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
+async def get_conversations(user=Depends(require_auth)):
     convs = user.get('conversations', {})
     return sorted(convs.values(), key=lambda x: x.get("updated", 0), reverse=True)
 
 @app.post("/api/conversations")
-async def create_conversation(conv: ConversationCreate, user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
+async def create_conversation(conv: ConversationCreate, user=Depends(require_auth)):
     conv_id = str(uuid.uuid4())[:8]
     level = conv.level or user.get('level', 'A1')
     user.setdefault('conversations', {})[conv_id] = {
@@ -576,18 +566,14 @@ async def create_conversation(conv: ConversationCreate, user=Depends(get_current
     return user['conversations'][conv_id]
 
 @app.get("/api/conversations/{conv_id}")
-async def get_conversation(conv_id: str, user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
+async def get_conversation(conv_id: str, user=Depends(require_auth)):
     conv = user.get('conversations', {}).get(conv_id)
     if not conv:
         raise HTTPException(404, "Conversation not found")
     return conv
 
 @app.delete("/api/conversations/{conv_id}")
-async def delete_conversation(conv_id: str, user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
+async def delete_conversation(conv_id: str, user=Depends(require_auth)):
     convs = user.get('conversations', {})
     if conv_id not in convs:
         raise HTTPException(404, "Conversation not found")
@@ -600,9 +586,7 @@ async def delete_conversation(conv_id: str, user=Depends(get_current_user)):
 
 @app.post("/api/chat")
 @limiter.limit("30/minute")
-async def chat(request: Request, msg: ChatMessage, user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
+async def chat(request: Request, msg: ChatMessage, user=Depends(require_auth)):
     # Task 3.9: per-user daily LLM budget. Increments the counter; raises
     # 429 if the user has exceeded DAILY_LLM_BUDGET for today.
     check_daily_llm_budget(user)
@@ -712,10 +696,7 @@ async def chat(request: Request, msg: ChatMessage, user=Depends(get_current_user
 # --- Exercise checking ---
 
 @app.post("/api/check-exercise")
-async def check_exercise(req: ExerciseCheck, user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
-    
+async def check_exercise(req: ExerciseCheck, user=Depends(require_auth)):
     exercise = req.exercise_data or {}
     is_correct, explanation = check_answer(exercise, req.answer)
     
@@ -752,15 +733,11 @@ async def check_exercise(req: ExerciseCheck, user=Depends(get_current_user)):
 # --- Exercise History ---
 
 @app.get("/api/exercise-history")
-async def get_exercise_history(limit: int = 50, user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
+async def get_exercise_history(limit: int = 50, user=Depends(require_auth)):
     return user.get('exercise_history', [])[-limit:]
 
 @app.get("/api/exercise-stats")
-async def get_exercise_stats(user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
+async def get_exercise_stats(user=Depends(require_auth)):
     history = user.get('exercise_history', [])
     if not history:
         return {"total": 0, "correct": 0, "accuracy": 0, "by_type": {}, "weak_areas": []}
@@ -801,15 +778,11 @@ async def get_exercise_stats(user=Depends(get_current_user)):
 # --- Progress ---
 
 @app.get("/api/progress")
-async def get_progress(user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
+async def get_progress(user=Depends(require_auth)):
     return user.get('progress', {})
 
 @app.post("/api/progress/complete-lesson")
-async def complete_lesson(data: dict, user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
+async def complete_lesson(data: dict, user=Depends(require_auth)):
     lesson_id = data.get('lesson_id')
     score = data.get('score', 0)
     progress = user.setdefault('progress', {})
@@ -820,12 +793,10 @@ async def complete_lesson(data: dict, user=Depends(get_current_user)):
     return progress
 
 @app.get("/api/streaks")
-async def get_streaks(user=Depends(get_current_user)):
+async def get_streaks(user=Depends(require_auth)):
     """Return the current streak as stored. Read-only (Task 4.4): streak
     mutations live in /api/chat (and other action endpoints), not here.
     Calling GET twice in a row must NOT change stored state."""
-    if not user:
-        raise HTTPException(401, "Not authenticated")
     progress = user.get('progress', {})
     return {
         "current": progress.get("streak", 0),
@@ -837,29 +808,21 @@ async def get_streaks(user=Depends(get_current_user)):
 # --- Flashcards ---
 
 @app.get("/api/flashcards")
-async def get_all_flashcards(user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
+async def get_all_flashcards(user=Depends(require_auth)):
     return list(user.get('flashcards', {}).values())
 
 @app.get("/api/flashcards/due")
-async def get_due_flashcards(user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
+async def get_due_flashcards(user=Depends(require_auth)):
     cards = list(user.get('flashcards', {}).values())
     return get_due_cards(cards)
 
 @app.get("/api/flashcards/stats")
-async def get_flashcard_stats(user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
+async def get_flashcard_stats(user=Depends(require_auth)):
     cards = list(user.get('flashcards', {}).values())
     return get_review_stats(cards)
 
 @app.post("/api/flashcards")
-async def create_flashcard_endpoint(req: FlashcardCreate, user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
+async def create_flashcard_endpoint(req: FlashcardCreate, user=Depends(require_auth)):
     card = create_flashcard(
         front=req.front, back=req.back, card_type=req.card_type,
         level=req.level or user.get('level', 'A1'),
@@ -870,9 +833,7 @@ async def create_flashcard_endpoint(req: FlashcardCreate, user=Depends(get_curre
     return card
 
 @app.post("/api/flashcards/bulk")
-async def create_bulk_flashcards(cards: list[FlashcardCreate], user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
+async def create_bulk_flashcards(cards: list[FlashcardCreate], user=Depends(require_auth)):
     created = []
     user_flashcards = user.setdefault('flashcards', {})
     for req in cards:
@@ -887,9 +848,7 @@ async def create_bulk_flashcards(cards: list[FlashcardCreate], user=Depends(get_
     return {"created": len(created), "cards": created}
 
 @app.post("/api/flashcards/{card_id}/review")
-async def review_flashcard_endpoint(card_id: str, req: FlashcardReview, user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
+async def review_flashcard_endpoint(card_id: str, req: FlashcardReview, user=Depends(require_auth)):
     user_flashcards = user.get('flashcards', {})
     if card_id not in user_flashcards:
         raise HTTPException(404, "Card not found")
@@ -901,9 +860,7 @@ async def review_flashcard_endpoint(card_id: str, req: FlashcardReview, user=Dep
     return {"card": card, "xp_earned": 5, "total_xp": progress.get('xp', 0)}
 
 @app.delete("/api/flashcards/{card_id}")
-async def delete_flashcard(card_id: str, user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
+async def delete_flashcard(card_id: str, user=Depends(require_auth)):
     user_flashcards = user.get('flashcards', {})
     if card_id in user_flashcards:
         del user_flashcards[card_id]
@@ -911,9 +868,7 @@ async def delete_flashcard(card_id: str, user=Depends(get_current_user)):
     return {"ok": True}
 
 @app.delete("/api/flashcards")
-async def clear_flashcards(user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
+async def clear_flashcards(user=Depends(require_auth)):
     user['flashcards'] = {}
     storage.save_user(user)
     return {"ok": True}
@@ -1081,9 +1036,7 @@ async def get_test_section(test_type: str, section_id: str):
     raise HTTPException(404, "Section not found")
 
 @app.post("/api/mock-tests/{test_type}/submit")
-async def submit_test(test_type: str, data: dict, user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
+async def submit_test(test_type: str, data: dict, user=Depends(require_auth)):
     """Submit test answers and get results."""
     answers = data.get('answers', {})  # {question_id: selected_index}
     section_id = data.get('section_id')
@@ -1138,15 +1091,11 @@ async def submit_test(test_type: str, data: dict, user=Depends(get_current_user)
     return result
 
 @app.get("/api/test-results")
-async def get_test_results(limit: int = 20, user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
+async def get_test_results(limit: int = 20, user=Depends(require_auth)):
     return user.get('test_results', [])[-limit:]
 
 @app.get("/api/test-results/stats")
-async def get_test_stats(user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
+async def get_test_stats(user=Depends(require_auth)):
     results = user.get('test_results', [])
     if not results:
         return {'total': 0, 'by_type': {}, 'avg_score': 0, 'best_scores': {}}
@@ -1231,11 +1180,8 @@ async def get_exam_questions(request: Request, test_type: str, section_id: str, 
 
 @app.post("/api/exam/submit/{test_type}/{section_id}/{set_num}")
 @limiter.limit("20/minute")
-async def submit_exam(request: Request, test_type: str, section_id: str, set_num: int, data: dict, user=Depends(get_current_user)):
+async def submit_exam(request: Request, test_type: str, section_id: str, set_num: int, data: dict, user=Depends(require_auth)):
     """Submit exam answers and get results with level estimation."""
-    if not user:
-        raise HTTPException(401, "Not authenticated")
-    
     answers = data.get('answers', {})
     duration_sec = data.get('duration_sec', 0)
     
@@ -1311,19 +1257,14 @@ async def submit_exam(request: Request, test_type: str, section_id: str, set_num
     return result
 
 @app.get("/api/exam/history/{test_type}")
-async def get_exam_history(test_type: str, user=Depends(get_current_user)):
+async def get_exam_history(test_type: str, user=Depends(require_auth)):
     """Get test history for a specific test type."""
-    if not user:
-        raise HTTPException(401, "Not authenticated")
     results = user.get('test_results', [])
     return [r for r in results if r.get('testType') == test_type.upper()]
 
 @app.get("/api/adaptive/analysis")
-async def get_adaptive_analysis(user=Depends(get_current_user)):
+async def get_adaptive_analysis(user=Depends(require_auth)):
     """Get adaptive difficulty analysis for the current user."""
-    if not user:
-        raise HTTPException(401, "Not authenticated")
-    
     user_history = user.get('exercise_history', [])
     user_test_results = user.get('test_results', [])
     level = user.get('level', 'A1')
@@ -1348,11 +1289,8 @@ class WritingCorrectionRequest(BaseModel):
     level: Optional[str] = None
 
 @app.post("/api/writing/correct")
-async def correct_writing(req: WritingCorrectionRequest, user=Depends(get_current_user)):
+async def correct_writing(req: WritingCorrectionRequest, user=Depends(require_auth)):
     """Correct French writing with inline annotations."""
-    if not user:
-        raise HTTPException(401, "Not authenticated")
-    
     # Task 3.9: per-user daily LLM budget.
     check_daily_llm_budget(user)
 
@@ -1395,11 +1333,8 @@ async def correct_writing(req: WritingCorrectionRequest, user=Depends(get_curren
 
 
 @app.post("/api/content/ingest")
-async def ingest_content(req: ContentIngestRequest, user=Depends(get_current_user)):
+async def ingest_content(req: ContentIngestRequest, user=Depends(require_auth)):
     """Process French text content to extract vocabulary, flashcards, and quizzes."""
-    if not user:
-        raise HTTPException(401, "Not authenticated")
-    
     level = req.level or user.get('level', 'A1')
     result = process_french_content(req.text, level)
     
@@ -1424,11 +1359,8 @@ async def ingest_content(req: ContentIngestRequest, user=Depends(get_current_use
 
 
 @app.get("/api/exam/stats/{test_type}")
-async def get_exam_stats(test_type: str, user=Depends(get_current_user)):
+async def get_exam_stats(test_type: str, user=Depends(require_auth)):
     """Get detailed stats for a test type."""
-    if not user:
-        raise HTTPException(401, "Not authenticated")
-    
     results = [r for r in user.get('test_results', []) if r.get('testType') == test_type.upper()]
     
     if not results:
@@ -1472,9 +1404,7 @@ async def get_exam_stats(test_type: str, user=Depends(get_current_user)):
 
 
 @app.get("/api/practice/word-of-day")
-async def word_of_day(user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
+async def word_of_day(user=Depends(require_auth)):
     course = get_course(user.get('level', 'A1'))
     all_vocab = []
     for unit in course.units:
@@ -1520,9 +1450,7 @@ class ExportRequest(BaseModel):
     format: str = "markdown"  # "markdown" or "json"
 
 @app.post("/api/comments")
-async def add_comment(req: CommentCreate, user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
+async def add_comment(req: CommentCreate, user=Depends(require_auth)):
     # Ownership check (fixes IDOR S4): only the conversation owner can comment on it.
     if req.conv_id not in user.get("conversations", {}):
         raise HTTPException(status_code=404, detail="Conversation not found")
@@ -1546,9 +1474,7 @@ async def get_comments(conv_id: str, user=Depends(require_auth)):
     return storage.get_comments(conv_id)
 
 @app.delete("/api/comments/{conv_id}/{comment_id}")
-async def delete_comment(conv_id: str, comment_id: str, user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
+async def delete_comment(conv_id: str, comment_id: str, user=Depends(require_auth)):
     # Ownership check (fixes IDOR S4): caller must own the conversation.
     # We also restrict to comments authored by the caller, so users can't
     # delete each other's comments even on their own thread.
@@ -1562,9 +1488,7 @@ async def delete_comment(conv_id: str, comment_id: str, user=Depends(get_current
     return {"ok": True}
 
 @app.post("/api/share")
-async def create_share(req: ShareCreate, user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
+async def create_share(req: ShareCreate, user=Depends(require_auth)):
     user_convs = user.get('conversations', {})
     if req.conv_id not in user_convs:
         raise HTTPException(status_code=404, detail="Conversation not found")
@@ -1598,15 +1522,11 @@ async def get_shared(share_id: str):
     return shared
 
 @app.get("/api/shared")
-async def list_shared(user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
+async def list_shared(user=Depends(require_auth)):
     return storage.list_shared_by_user(user['id'])
 
 @app.delete("/api/share/{share_id}")
-async def delete_share(share_id: str, user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
+async def delete_share(share_id: str, user=Depends(require_auth)):
     # Ownership check (fixes IDOR S5): only the share's creator may delete it.
     # 404 (not 403) to avoid disclosing that the share exists.
     share = storage.get_shared(share_id)
@@ -1616,9 +1536,7 @@ async def delete_share(share_id: str, user=Depends(get_current_user)):
     return {"ok": True}
 
 @app.post("/api/export")
-async def export_conversation(req: ExportRequest, user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
+async def export_conversation(req: ExportRequest, user=Depends(require_auth)):
     user_convs = user.get('conversations', {})
     if req.conv_id not in user_convs:
         raise HTTPException(status_code=404, detail="Conversation not found")
@@ -1739,9 +1657,7 @@ async def text_to_speech(request: Request, req: TTSRequest, user=Depends(require
 # --- Clear ---
 
 @app.delete("/api/history")
-async def clear_history(user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(401, "Not authenticated")
+async def clear_history(user=Depends(require_auth)):
     user['conversations'] = {}
     storage.save_user(user)
     return {"ok": True}
