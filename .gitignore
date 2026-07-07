@@ -40,3 +40,7 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.log
+
+# Runtime data (never commit — contains PII and password hashes)
+data/
+!data/.gitkeep
