@@ -1066,8 +1066,8 @@ async def get_mock_test(test_type: str):
             'description': s.description, 'icon': s.icon,
             'questionCount': s.questionCount, 'durationMinutes': s.durationMinutes,
             'questions': [{'id': q.id, 'type': q.type, 'prompt': q.prompt, 'promptFr': q.promptFr,
-                           'options': q.options, 'answer': q.answer, 'explanation': q.explanation,
-                           'audioText': q.audioText, 'level': q.level} for q in s.questions]
+                           'options': q.options, 'audioText': q.audioText, 'level': q.level}
+                          for q in s.questions]
         } for s in test.sections]
     }
 
@@ -1082,8 +1082,8 @@ async def get_test_section(test_type: str, section_id: str):
                 'description': s.description, 'icon': s.icon,
                 'questionCount': s.questionCount, 'durationMinutes': s.durationMinutes,
                 'questions': [{'id': q.id, 'type': q.type, 'prompt': q.prompt, 'promptFr': q.promptFr,
-                               'options': q.options, 'answer': q.answer, 'explanation': q.explanation,
-                               'audioText': q.audioText, 'level': q.level} for q in s.questions]
+                               'options': q.options, 'audioText': q.audioText, 'level': q.level}
+                              for q in s.questions]
             }
     raise HTTPException(404, "Section not found")
 
@@ -1227,8 +1227,14 @@ async def get_exam_questions(request: Request, test_type: str, section_id: str, 
     questions = get_practice_set_questions(test_type, section_id, set_num)
     if not questions:
         return {"questions": [], "message": "No questions available for this set. Try sets 1-3."}
-    
-    return {"questions": questions, "total": len(questions)}
+
+    # Task 3.6 (S7 fix): strip answer+explanation so users can't read them in
+    # the network tab. The submit endpoint returns them with grading.
+    sanitized = [
+        {k: v for k, v in q.items() if k not in ('answer', 'explanation')}
+        for q in questions
+    ]
+    return {"questions": sanitized, "total": len(sanitized)}
 
 @app.post("/api/exam/submit/{test_type}/{section_id}/{set_num}")
 @limiter.limit("20/minute")
