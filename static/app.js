@@ -215,7 +215,7 @@ function setupDelegatedHandlers() {
 async function logout() {
     try {
         await fetch('/api/auth/logout', { method: 'POST' });
-    } catch(e) {}
+    } catch(e) { showToast('Could not load user (network error).', { retry: loadUser }); }
     currentUser = null;
     showAuthScreen();
 }
@@ -272,7 +272,9 @@ async function speakText(text, lang = 'fr') {
         }
         
         currentSpeakingText = text;
-        const response = await fetch('/api/tts', {
+        // Task 4.10 (F4): route through apiFetch so a 401 triggers logout
+        // instead of silently failing for an expired session.
+        const response = await apiFetch('/api/tts', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text: text.substring(0, 500), lang })
@@ -1008,7 +1010,7 @@ async function loadConversations() {
             // "Clear All", the welcome screen is already showing, so skip.
             await loadConversation(convs[0].id);
         }
-    } catch (e) { console.error(e); }
+    } catch (e) { showToast('Could not load conversations (network error).', { retry: loadConversations }); }
 }
 
 async function loadConversation(convId) {
@@ -1070,7 +1072,7 @@ async function loadCourses() {
                 courseList.appendChild(unitDiv);
             });
         }
-    } catch (e) { console.error(e); }
+    } catch (e) { showToast('Could not load courses (network error).', { retry: loadCourses }); }
 }
 
 // ============================================================
@@ -1115,6 +1117,39 @@ function feedbackHTML(correct, text) {
     const cls = correct ? 'correct' : 'incorrect';
     const emoji = correct ? '✓' : '✗';
     return '<div class="quiz-feedback ' + cls + '">' + emoji + ' ' + escapeHtml(text) + '</div>';
+}
+
+// Task 4.10 (F4 fix): surface load failures to the user instead of silently
+// rendering an empty UI. showToast stacks a dismissable banner with an
+// optional Retry button that re-runs the failed loader.
+function showToast(message, opts) {
+    opts = opts || {};
+    let host = document.getElementById('toastHost');
+    if (!host) {
+        host = document.createElement('div');
+        host.id = 'toastHost';
+        host.style.cssText = 'position:fixed;top:1rem;right:1rem;z-index:9999;display:flex;flex-direction:column;gap:0.5rem;max-width:24rem';
+        document.body.appendChild(host);
+    }
+    const el = document.createElement('div');
+    el.className = 'toast toast-' + (opts.kind || 'error');
+    el.style.cssText = 'background:var(--card);color:var(--foreground);border:1px solid var(--border-strong);border-left:4px solid var(--incorrect);padding:0.75rem 1rem;border-radius:8px;box-shadow:var(--shadow);display:flex;align-items:center;gap:0.75rem;font-size:0.9rem';
+    el.textContent = message;
+    if (opts.retry) {
+        const btn = document.createElement('button');
+        btn.textContent = 'Retry';
+        btn.className = 'btn-retry';
+        btn.style.cssText = 'background:var(--primary);color:white;border:0;border-radius:6px;padding:0.35rem 0.75rem;cursor:pointer';
+        btn.addEventListener('click', () => { el.remove(); opts.retry(); });
+        el.appendChild(btn);
+    }
+    const close = document.createElement('button');
+    close.textContent = '×';
+    close.style.cssText = 'background:none;border:0;color:var(--muted-foreground);cursor:pointer;font-size:1.1rem;line-height:1';
+    close.addEventListener('click', () => el.remove());
+    el.appendChild(close);
+    host.appendChild(el);
+    if (opts.timeout) setTimeout(() => el.remove(), opts.timeout);
 }
 
 function renderLessonView(lesson, level) {
@@ -1350,7 +1385,7 @@ async function loadScenarios() {
             });
             scenarioList.appendChild(item);
         });
-    } catch (e) { console.error(e); }
+    } catch (e) { showToast('Could not load scenarios (network error).', { retry: loadScenarios }); }
 }
 
 // ============================================================
@@ -1368,7 +1403,7 @@ async function loadUser() {
         document.querySelectorAll('.level-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.level === currentLevel);
         });
-    } catch(e) {}
+    } catch(e) { showToast('Could not load user (network error).', { retry: loadUser }); }
 }
 
 async function storage_user_level(level) {
@@ -1381,7 +1416,7 @@ async function storage_user_level(level) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ level })
         });
-    } catch(e) {}
+    } catch(e) { showToast('Could not load user (network error).', { retry: loadUser }); }
 }
 
 async function loadProgress() {
@@ -1394,7 +1429,7 @@ async function loadProgress() {
         document.getElementById('xpDisplay').textContent = p.xp || 0;
         document.getElementById('streakDisplay').textContent = s.current || 0;
         document.getElementById('accuracyDisplay').textContent = stats.accuracy || 0;
-    } catch(e) {}
+    } catch(e) { showToast('Could not load user (network error).', { retry: loadUser }); }
 }
 
 // ============================================================
@@ -1659,7 +1694,7 @@ window.reviewCurrentCard = async function(quality) {
         });
         const d = await r.json();
         if (d.total_xp) updateXP(d.total_xp);
-    } catch(e) {}
+    } catch(e) { showToast('Could not load user (network error).', { retry: loadUser }); }
     
     flashcardIndex++;
     if (flashcardIndex >= currentFlashcards.length) {
