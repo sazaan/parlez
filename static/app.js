@@ -276,26 +276,52 @@ const LEVEL_NAMES = { 'A1': 'Débutant' };
 let currentAudio = null;
 let currentSpeakingText = '';
 
-function getFrenchVoice() {
-    const voices = window.speechSynthesis?.getVoices() || [];
-    const preferred = ['Google français', 'Microsoft Julie', 'Microsoft Pauline', 'Amélie', 'Thomas'];
+async function loadVoices() {
+    if (!window.speechSynthesis) return [];
+    return new Promise((resolve) => {
+        let voices = window.speechSynthesis.getVoices();
+        if (voices && voices.length) {
+            resolve(voices);
+            return;
+        }
+        const handler = () => {
+            voices = window.speechSynthesis.getVoices();
+            window.speechSynthesis.removeEventListener('voiceschanged', handler);
+            resolve(voices);
+        };
+        window.speechSynthesis.addEventListener('voiceschanged', handler);
+        // Fallback if voicesnever load
+        setTimeout(() => {
+            window.speechSynthesis.removeEventListener('voiceschanged', handler);
+            resolve(window.speechSynthesis.getVoices());
+        }, 1000);
+    });
+}
+
+function pickFrenchVoice(voices) {
+    const preferred = ['Google français', 'Microsoft Julie', 'Microsoft Pauline', 'Amélie', 'Thomas', 'Audrey', 'Aurelie'];
     for (const name of preferred) {
         const v = voices.find(voice => voice.name.includes(name));
         if (v) return v;
     }
-    return voices.find(voice => voice.lang.startsWith('fr')) || voices[0];
+    const frVoice = voices.find(voice => voice.lang && voice.lang.toLowerCase().startsWith('fr'));
+    if (frVoice) return frVoice;
+    // Some voices report lang as empty; try name matching
+    const nameMatch = voices.find(voice => /fran|french|français|francais/i.test(voice.name));
+    return nameMatch || voices[0];
 }
 
-function speakWithBrowserTTS(text, lang = 'fr') {
+async function speakWithBrowserTTS(text, lang = 'fr') {
     if (!window.speechSynthesis) {
         showToast('Audio unavailable. Please try again.', { kind: 'error' });
         return;
     }
     window.speechSynthesis.cancel();
+    const voices = await loadVoices();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = lang === 'fr' ? 'fr-FR' : lang;
-    utterance.voice = getFrenchVoice();
-    utterance.rate = 0.95;
+    utterance.voice = pickFrenchVoice(voices);
+    utterance.rate = 0.9;
     utterance.pitch = 1;
     utterance.onerror = () => showToast('Audio unavailable. Please try again.', { kind: 'error' });
     window.speechSynthesis.speak(utterance);
@@ -341,7 +367,7 @@ async function speakText(text, lang = 'fr') {
         await currentAudio.play();
     } catch (e) {
         console.warn('TTS API failed, falling back to browser TTS:', e);
-        speakWithBrowserTTS(text, lang);
+        await speakWithBrowserTTS(text, lang);
     }
 }
 

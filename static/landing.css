@@ -1073,11 +1073,24 @@ a {
     align-items: center;
     padding: 6rem 0 4rem;
     overflow: hidden;
+    background: linear-gradient(135deg, #faf9f6 0%, #f5f2eb 55%, #ede8de 100%);
 }
 
 .hero-bg .hero-gradient {
-    background: radial-gradient(ellipse at 70% 20%, rgba(124,45,63,0.12) 0%, transparent 50%),
-                radial-gradient(ellipse at 30% 80%, rgba(201,163,92,0.14) 0%, transparent 50%);
+    background: radial-gradient(ellipse at 75% 20%, rgba(124,45,63,0.10) 0%, transparent 45%),
+                radial-gradient(ellipse at 25% 85%, rgba(201,163,92,0.14) 0%, transparent 45%);
+}
+
+.hero-copy {
+    position: relative;
+    z-index: 3;
+    padding: 2rem;
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
 }
 
 .hero-tag {
@@ -1099,6 +1112,7 @@ a {
     font-size: clamp(2.5rem, 5vw, 4rem);
     line-height: 1.1;
     letter-spacing: -0.02em;
+    color: var(--foreground);
     margin-bottom: 1rem;
 }
 
@@ -1112,7 +1126,7 @@ a {
 .hero-subtitle {
     font-size: 1.15rem;
     color: var(--muted-foreground);
-    max-width: 520px;
+    max-width: 480px;
     margin-bottom: 1.75rem;
 }
 
@@ -1143,7 +1157,14 @@ a {
 }
 
 .phone-mockup {
+    position: relative;
+    z-index: 2;
     animation: float 6s ease-in-out infinite;
+    filter: drop-shadow(0 24px 48px rgba(0,0,0,0.12));
+}
+
+.phone-frame {
+    background: linear-gradient(145deg, #f8f8f8 0%, #e8e8e8 100%);
 }
 
 /* How it works */
