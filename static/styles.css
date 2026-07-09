@@ -1013,6 +1013,7 @@ body {
     flex: 1;
     overflow-y: auto;
     padding: 1.5rem;
+    animation: fadeInUp 0.4s var(--transition-base) forwards;
 }
 
 .tool-content .quiz-container,
@@ -1031,19 +1032,18 @@ body {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 1rem 1.25rem;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    margin-bottom: 1rem;
-    box-shadow: var(--shadow-sm);
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
 }
 
 .tool-header h2 {
-    font-size: 1.15rem;
+    font-family: 'Playfair Display', serif;
+    font-size: 1.5rem;
     font-weight: 600;
     flex: 1;
     letter-spacing: -0.01em;
+    color: var(--primary);
 }
 
 .tool-header .tool-subtitle {
@@ -1832,42 +1832,53 @@ textarea {
 .quiz-options {
     display: flex;
     flex-direction: column;
-    gap: 0.625rem;
+    gap: 0.75rem;
 }
 
-.quiz-option {
-    padding: 0.75rem 1rem;
-    border: 1px solid var(--border-strong);
-    border-radius: var(--radius-md);
-    background: var(--card);
-    cursor: pointer;
+.quiz-option,
+.exam-option {
+    width: 100%;
     text-align: left;
-    font-size: 0.9rem;
+    padding: 1rem 1.25rem;
+    margin-bottom: 0;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    font-size: 0.95rem;
     line-height: 1.5;
-    transition: all var(--transition-base);
-    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    transition: border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
 }
 
-.quiz-option:hover:not(:disabled) {
+.quiz-option:hover:not(:disabled),
+.exam-option:hover:not(:disabled) {
     border-color: var(--primary-light);
-    background: rgba(124, 45, 63, 0.04);
-    transform: translateY(-1px);
-    box-shadow: var(--shadow);
+    background: rgba(124, 45, 63, 0.03);
+    transform: translateX(4px);
 }
 
-.quiz-option.correct {
+.quiz-option.selected,
+.exam-option.selected {
+    border-color: var(--primary);
+    background: rgba(124, 45, 63, 0.08);
+}
+
+.quiz-option.correct,
+.exam-option.correct {
     border-color: var(--correct);
-    background: rgba(22, 163, 74, 0.1);
+    background: rgba(22, 163, 74, 0.08);
     color: var(--correct);
 }
 
-.quiz-option.incorrect {
+.quiz-option.incorrect,
+.exam-option.incorrect {
     border-color: var(--incorrect);
-    background: rgba(220, 38, 38, 0.1);
+    background: rgba(220, 38, 38, 0.06);
     color: var(--incorrect);
 }
 
-.quiz-option:disabled { cursor: default; }
+.quiz-option:disabled,
+.exam-option:disabled { cursor: default; }
 
 .quiz-feedback {
     margin-top: 0.5rem;
@@ -2509,31 +2520,35 @@ textarea {
 }
 
 .exam-set-btn {
-    padding: 0.625rem 0.875rem;
-    border: 1px solid var(--border-strong);
+    min-width: 80px;
+    padding: 0.75rem 1rem;
+    background: white;
+    border: 1.5px solid var(--border-strong);
     border-radius: var(--radius-md);
-    background: var(--card);
-    cursor: pointer;
-    font-size: 0.8rem;
+    font-size: 0.85rem;
+    font-weight: 600;
     text-align: center;
-    transition: all var(--transition-base);
-    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
 }
 
 .exam-set-btn:hover {
-    border-color: var(--primary-light);
-    background: rgba(124, 45, 63, 0.04);
     transform: translateY(-2px);
     box-shadow: var(--shadow);
 }
 
+.exam-set-btn:active {
+    transform: scale(0.97);
+}
+
 .exam-set-btn.ai {
-    border-color: rgba(124, 45, 63, 0.3);
-    background: rgba(124, 45, 63, 0.04);
+    background: linear-gradient(135deg, rgba(124,45,63,0.08) 0%, rgba(201,163,92,0.12) 100%);
+    border-color: var(--secondary);
 }
 
 .exam-set-btn small {
     color: var(--muted-foreground);
+    font-weight: 500;
 }
 
 /* ============================================================
