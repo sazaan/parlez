@@ -3,17 +3,17 @@
    ============================================================ */
 
 :root {
-    --bg: #faf6f2;
-    --bg-gradient: radial-gradient(ellipse at 50% 0%, #faf6f2 0%, #f3ece4 100%);
+    --bg: #fafaf7;
+    --bg-gradient: radial-gradient(ellipse at 50% 0%, #fafaf7 0%, #f2f5f0 100%);
     --card: #ffffff;
-    --foreground: #2c2420;
-    --muted-foreground: #7a6f69;
-    --primary: #c65d3b;
-    --primary-light: #d97757;
-    --primary-dark: #9c4a2f;
-    --secondary: #e9b949;
-    --secondary-light: #f2d78c;
-    --accent: #5a8a6e;
+    --foreground: #22332a;
+    --muted-foreground: #68766c;
+    --primary: #5a8a6e;
+    --primary-light: #6fa384;
+    --primary-dark: #446a53;
+    --secondary: #d4a574;
+    --secondary-light: #e4c49a;
+    --accent: #4a7c59;
     --border: rgba(0,0,0,0.06);
     --border-strong: rgba(0,0,0,0.1);
     --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
@@ -101,13 +101,13 @@ a {
 .btn-primary {
     background: var(--primary);
     color: #fff;
-    box-shadow: 0 4px 12px rgba(198, 93, 59, 0.25);
+    box-shadow: 0 4px 12px rgba(90, 138, 110, 0.25);
 }
 
 .btn-primary:hover {
     background: var(--primary-light);
     transform: translateY(-2px);
-    box-shadow: 0 6px 18px rgba(198, 93, 59, 0.32);
+    box-shadow: 0 6px 18px rgba(90, 138, 110, 0.32);
 }
 
 .btn-ghost {
@@ -669,7 +669,7 @@ a {
     width: 48px;
     height: 48px;
     border-radius: var(--radius-md);
-    background: rgba(198, 93, 59, 0.10);
+    background: rgba(90, 138, 110, 0.10);
     color: var(--primary);
     display: flex;
     align-items: center;
@@ -898,7 +898,7 @@ a {
         width: 70%;
         max-width: 280px;
         height: 100vh;
-        background: rgba(124, 59, 40, 0.98);
+        background: rgba(51, 78, 63, 0.98);
         backdrop-filter: blur(10px);
         flex-direction: column;
         padding: 5rem 1.5rem 1.5rem;
@@ -1073,25 +1073,25 @@ a {
     align-items: center;
     padding: 6rem 0 4rem;
     overflow: hidden;
-    background: linear-gradient(135deg, #7c3b28 0%, #c65d3b 40%, #d97757 75%, #e8a88d 100%);
+    background: linear-gradient(135deg, #334e3f 0%, #446a53 40%, #5a8a6e 75%, #7aa88a 100%);
 }
 
 .hero-bg .hero-gradient {
     background:
-        radial-gradient(ellipse at 20% 20%, rgba(233,185,73,0.22) 0%, transparent 40%),
-        radial-gradient(ellipse at 85% 80%, rgba(124,59,40,0.45) 0%, transparent 50%);
+        radial-gradient(ellipse at 20% 20%, rgba(212,165,116,0.22) 0%, transparent 40%),
+        radial-gradient(ellipse at 85% 80%, rgba(51,78,63,0.45) 0%, transparent 50%);
 }
 
 .hero-copy {
     position: relative;
     z-index: 3;
     padding: 2rem;
-    background: rgba(124, 59, 40, 0.38);
+    background: rgba(51, 78, 63, 0.38);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: var(--radius-xl);
-    box-shadow: 0 20px 40px rgba(124, 59, 40, 0.35);
+    box-shadow: 0 20px 40px rgba(51, 78, 63, 0.35);
 }
 
 .hero-tag {
@@ -1118,7 +1118,7 @@ a {
 }
 
 .hero-title .accent {
-    color: #f2d78c;
+    color: #e4c49a;
     font-style: italic;
 }
 
@@ -1143,16 +1143,16 @@ a {
 .btn-cta {
     padding: 0.9rem 1.75rem;
     background: linear-gradient(135deg, var(--secondary) 0%, var(--secondary-light) 100%);
-    color: #4a2c1f;
+    color: #2f3d34;
     border-radius: var(--radius-full);
     font-weight: 700;
-    box-shadow: 0 6px 18px rgba(233, 185, 73, 0.35);
+    box-shadow: 0 6px 18px rgba(212, 165, 116, 0.35);
     transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .btn-cta:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(233, 185, 73, 0.45);
+    box-shadow: 0 8px 24px rgba(212, 165, 116, 0.45);
 }
 
 .phone-mockup {
@@ -1169,7 +1169,7 @@ a {
 /* How it works */
 .how-it-works {
     padding: 4rem 0;
-    background: #f5ebe2;
+    background: #eef2ec;
     border-top: 1px solid var(--border);
     border-bottom: 1px solid var(--border);
 }
@@ -1259,7 +1259,7 @@ a {
     align-items: center;
     justify-content: center;
     font-size: 1.75rem;
-    background: rgba(198, 93, 59, 0.10);
+    background: rgba(90, 138, 110, 0.10);
     border-radius: var(--radius-md);
 }
 
@@ -1306,7 +1306,7 @@ a {
 
 .cta-strip .btn-cta {
     background: white;
-    color: #7c3b28;
+    color: #334e3f;
 }
 
 @media (max-width: 768px) {
