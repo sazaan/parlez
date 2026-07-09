@@ -177,7 +177,7 @@ function setupDelegatedHandlers() {
                 btn.classList.toggle('flipped');
                 break;
             case 'start-exam-section':
-                if (typeof window.startExamSection === 'function') window.startExamSection(btn.dataset.type, btn.dataset.section);
+                if (typeof window.startExamSection === 'function') window.startExamSection(btn.dataset.type, btn.dataset.section, btn.dataset.set);
                 break;
             case 'toggle-exam-pause':
                 if (typeof window.toggleExamPause === 'function') window.toggleExamPause();
@@ -192,6 +192,27 @@ function setupDelegatedHandlers() {
                 break;
             case 'resume-exam':
                 if (typeof window.resumeExam === 'function') window.resumeExam();
+                break;
+            case 'start-vocab-quiz':
+                if (typeof window.startVocabQuiz === 'function') window.startVocabQuiz();
+                break;
+            case 'start-conj-quiz':
+                if (typeof window.startConjQuiz === 'function') window.startConjQuiz();
+                break;
+            case 'start-flashcard-review':
+                if (typeof window.startFlashcardReview === 'function') window.startFlashcardReview();
+                break;
+            case 'show-word-of-day':
+                if (typeof window.showWordOfDay === 'function') window.showWordOfDay();
+                break;
+            case 'show-adaptive-analysis':
+                if (typeof window.showAdaptiveAnalysis === 'function') window.showAdaptiveAnalysis();
+                break;
+            case 'prompt-content-ingest':
+                if (typeof window.promptContentIngest === 'function') window.promptContentIngest();
+                break;
+            case 'show-test-stats':
+                if (typeof window.showTestStats === 'function') window.showTestStats();
                 break;
             case 'start-mock-test':
                 if (typeof window.startMockTest === 'function') window.startMockTest(btn.dataset.type);
@@ -1062,8 +1083,8 @@ async function loadCourses() {
                                 <span class="lesson-time">${l.estimatedMinutes || 30}min</span>
                             </div>
                             <div class="lesson-actions">
-                                <button class="lesson-learn-btn" data-action="start-lesson-view" data-level="${currentLevel}"', '${l.id}')">📖 Learn</button>
-                                <button class="lesson-practice-btn" data-action="start-lesson-practice" data-level="${currentLevel}"', '${l.id}')">Practice</button>
+                                <button class="lesson-learn-btn" data-action="start-lesson-view" data-level="${currentLevel}" data-id="${l.id}">📖 Learn</button>
+                                <button class="lesson-practice-btn" data-action="start-lesson-practice" data-level="${currentLevel}" data-id="${l.id}">Practice</button>
                             </div>
                         `;
                         unitDiv.appendChild(lessonItem);
@@ -1128,28 +1149,29 @@ function showToast(message, opts) {
     if (!host) {
         host = document.createElement('div');
         host.id = 'toastHost';
-        host.style.cssText = 'position:fixed;top:1rem;right:1rem;z-index:9999;display:flex;flex-direction:column;gap:0.5rem;max-width:24rem';
         document.body.appendChild(host);
     }
     const el = document.createElement('div');
     el.className = 'toast toast-' + (opts.kind || 'error');
-    el.style.cssText = 'background:var(--card);color:var(--foreground);border:1px solid var(--border-strong);border-left:4px solid var(--incorrect);padding:0.75rem 1rem;border-radius:8px;box-shadow:var(--shadow);display:flex;align-items:center;gap:0.75rem;font-size:0.9rem';
     el.textContent = message;
     if (opts.retry) {
         const btn = document.createElement('button');
         btn.textContent = 'Retry';
         btn.className = 'btn-retry';
-        btn.style.cssText = 'background:var(--primary);color:white;border:0;border-radius:6px;padding:0.35rem 0.75rem;cursor:pointer';
         btn.addEventListener('click', () => { el.remove(); opts.retry(); });
         el.appendChild(btn);
     }
+    const progress = document.createElement('div');
+    progress.className = 'toast-progress';
+    el.appendChild(progress);
     const close = document.createElement('button');
     close.textContent = '×';
-    close.style.cssText = 'background:none;border:0;color:var(--muted-foreground);cursor:pointer;font-size:1.1rem;line-height:1';
+    close.className = 'btn-close toast-close';
     close.addEventListener('click', () => el.remove());
     el.appendChild(close);
     host.appendChild(el);
     if (opts.timeout) setTimeout(() => el.remove(), opts.timeout);
+    else setTimeout(() => el.remove(), 4000);
 }
 
 function renderLessonView(lesson, level) {
@@ -1186,7 +1208,7 @@ function renderLessonView(lesson, level) {
         html += `</ul>`;
     }
     html += `<div class="lesson-overview-meta">⏱️ ${lesson.estimatedMinutes || 30} min · ${(lesson.vocabulary||[]).length} words · ${(lesson.grammar||[]).length} grammar · ${(lesson.exercises||[]).length} exercises</div>`;
-    html += `<div class="lesson-cta"><button class="lesson-learn-btn" data-action="start-lesson-practice" data-level="${level}"', '${lesson.id}')">Start Practice →</button></div>`;
+    html += `<div class="lesson-cta"><button class="lesson-learn-btn" data-action="start-lesson-practice" data-level="${level}" data-id="${lesson.id}">Start Practice →</button></div>`;
     html += `</div></section>`;
 
     // Vocabulary
@@ -1314,7 +1336,7 @@ function renderLessonView(lesson, level) {
     html += `<div class="lesson-practice-cta">`;
     html += `<h3>Ready to practice?</h3>`;
     html += `<p>You've reviewed the lesson content. Time to test your understanding with ${(lesson.exercises||[]).length + (lesson.conjugation?.practice?.length || 0) + (lesson.activities||[]).length} exercises.</p>`;
-    html += `<button class="lesson-learn-btn" data-action="start-lesson-practice" data-level="${level}"', '${lesson.id}')">✏️ Start Practice</button>`;
+    html += `<button class="lesson-learn-btn" data-action="start-lesson-practice" data-level="${level}" data-id="${lesson.id}">✏️ Start Practice</button>`;
     html += `</div></section>`;
 
     html += `</div>`; // end .lesson-view
@@ -1935,7 +1957,7 @@ window.startMockTest = async function(testType) {
             for (const set of section.sets) {
                 const label = set.isAI ? '🤖 AI' : `Set ${set.setNum}`;
                 const cls = set.isAI ? 'exam-set-btn ai' : 'exam-set-btn';
-                html += `<button class="${cls}" data-action="start-exam-section" data-type="${testType}"', '${sid}', ${set.setNum})" style="border-color:${exam.color}">${label}<br><small>${set.questionCount}Q</small></button>`;
+                html += `<button class="${cls}" data-action="start-exam-section" data-type="${testType}" data-section="${sid}" data-set="${set.setNum}" style="border-color:${exam.color}">${label}<br><small>${set.questionCount}Q</small></button>`;
             }
             html += '</div></div>';
         }
