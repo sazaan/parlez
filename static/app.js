@@ -276,8 +276,36 @@ const LEVEL_NAMES = { 'A1': 'Débutant' };
 let currentAudio = null;
 let currentSpeakingText = '';
 
+function getFrenchVoice() {
+    const voices = window.speechSynthesis?.getVoices() || [];
+    const preferred = ['Google français', 'Microsoft Julie', 'Microsoft Pauline', 'Amélie', 'Thomas'];
+    for (const name of preferred) {
+        const v = voices.find(voice => voice.name.includes(name));
+        if (v) return v;
+    }
+    return voices.find(voice => voice.lang.startsWith('fr')) || voices[0];
+}
+
+function speakWithBrowserTTS(text, lang = 'fr') {
+    if (!window.speechSynthesis) {
+        showToast('Audio unavailable. Please try again.', { kind: 'error' });
+        return;
+    }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = lang === 'fr' ? 'fr-FR' : lang;
+    utterance.voice = getFrenchVoice();
+    utterance.rate = 0.95;
+    utterance.pitch = 1;
+    utterance.onerror = () => showToast('Audio unavailable. Please try again.', { kind: 'error' });
+    window.speechSynthesis.speak(utterance);
+    currentSpeakingText = text;
+}
+
 async function speakText(text, lang = 'fr') {
     try {
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+
         // If same text is playing, stop it (toggle behavior)
         if (currentAudio && currentSpeakingText === text) {
             currentAudio.pause();
@@ -285,13 +313,13 @@ async function speakText(text, lang = 'fr') {
             currentSpeakingText = '';
             return;
         }
-        
+
         // Stop any currently playing audio
         if (currentAudio) {
             currentAudio.pause();
             currentAudio = null;
         }
-        
+
         currentSpeakingText = text;
         // Task 4.10 (F4): route through apiFetch so a 401 triggers logout
         // instead of silently failing for an expired session.
@@ -300,20 +328,31 @@ async function speakText(text, lang = 'fr') {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text: text.substring(0, 500), lang })
         });
-        if (!response.ok) return;
+
+        if (!response.ok) {
+            throw new Error('API TTS failed: ' + response.status);
+        }
+
         const blob = await response.blob();
         const url = URL.createObjectURL(blob);
         currentAudio = new Audio(url);
         currentAudio.onended = () => { currentAudio = null; currentSpeakingText = ''; };
         currentAudio.onerror = () => { currentAudio = null; currentSpeakingText = ''; };
         await currentAudio.play();
-    } catch (e) { console.error('TTS error:', e); }
+    } catch (e) {
+        console.warn('TTS API failed, falling back to browser TTS:', e);
+        speakWithBrowserTTS(text, lang);
+    }
 }
 
 function stopSpeaking() {
     if (currentAudio) {
         currentAudio.pause();
         currentAudio = null;
+        currentSpeakingText = '';
+    }
+    if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
         currentSpeakingText = '';
     }
 }
@@ -1574,6 +1613,10 @@ function initApp() {
     loadProgress();
     initVoice();
     messageInput.focus();
+    if (window.speechSynthesis) {
+        window.speechSynthesis.getVoices();
+        window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+    }
 }
 
 // Check auth on page load
