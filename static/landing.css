@@ -1297,16 +1297,19 @@ a {
 .cta-strip h2 {
     font-family: 'Playfair Display', serif;
     font-size: 2rem;
+    color: #ffffff;
+    text-shadow: 0 1px 3px rgba(34, 51, 42, 0.35);
     margin-bottom: 0.5rem;
 }
 
 .cta-strip p {
-    opacity: 0.85;
+    color: rgba(255, 255, 255, 0.96);
+    text-shadow: 0 1px 2px rgba(34, 51, 42, 0.3);
     margin-bottom: 1.5rem;
 }
 
 .cta-strip .btn-cta {
-    background: white;
+    background: #ffffff;
     color: #334e3f;
 }
 
