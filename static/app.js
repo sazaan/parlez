@@ -298,8 +298,14 @@ async function loadVoices() {
     });
 }
 
+function isHighQualityVoice(voice) {
+    if (!voice) return false;
+    const name = voice.name.toLowerCase();
+    return /google|microsoft|apple|samantha|daniel|amélie|amelie|aurelie|audrey|thomas/i.test(name);
+}
+
 function pickFrenchVoice(voices) {
-    const preferred = ['Google français', 'Microsoft Julie', 'Microsoft Pauline', 'Amélie', 'Thomas', 'Audrey', 'Aurelie'];
+    const preferred = ['Google français', 'Google French', 'Microsoft Julie', 'Microsoft Pauline', 'Amélie', 'Thomas', 'Audrey', 'Aurelie'];
     for (const name of preferred) {
         const v = voices.find(voice => voice.name.includes(name));
         if (v) return v;
@@ -318,12 +324,23 @@ async function speakWithBrowserTTS(text, lang = 'fr') {
     }
     window.speechSynthesis.cancel();
     const voices = await loadVoices();
+    const voice = pickFrenchVoice(voices);
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = lang === 'fr' ? 'fr-FR' : lang;
-    utterance.voice = pickFrenchVoice(voices);
-    utterance.rate = 0.9;
-    utterance.pitch = 1;
+    utterance.voice = voice;
+    // Slightly slower and warmer to reduce robotic feel on system voices
+    utterance.rate = 0.92;
+    utterance.pitch = 1.02;
     utterance.onerror = () => showToast('Audio unavailable. Please try again.', { kind: 'error' });
+
+    if (voice) {
+        console.log('[TTS] Using browser voice:', voice.name, voice.lang);
+        if (!isHighQualityVoice(voice) && !window.__ttsQualityWarned) {
+            window.__ttsQualityWarned = true;
+            showToast('For the best French voice, use Chrome or Edge. Firefox system voices can sound robotic.', { kind: 'info', timeout: 6000 });
+        }
+    }
+
     window.speechSynthesis.speak(utterance);
     currentSpeakingText = text;
 }
