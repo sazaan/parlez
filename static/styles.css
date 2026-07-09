@@ -1,13 +1,13 @@
 :root {
-    --bg: #f8f7f4;
-    --bg-gradient: linear-gradient(135deg, #f8f7f4 0%, #f0ede8 100%);
+    --bg: #faf9f6;
+    --bg-gradient: radial-gradient(ellipse at 50% 0%, #faf9f6 0%, #f3f1ec 100%);
     --card: #ffffff;
     --card-elevated: #ffffff;
     --foreground: #18181b;
-    --muted-foreground: #71717a;
+    --muted-foreground: #6b6b74;
     --primary: #7c2d3f;
-    --primary-light: #a8455c;
-    --primary-dark: #5c1f2d;
+    --primary-light: #9e3b52;
+    --primary-dark: #5e2130;
     --secondary: #c9a35c;
     --secondary-light: #e0be7a;
     --accent: #2d6a4f;
@@ -69,6 +69,22 @@ body {
 
 .fade-in-up { animation: fadeInUp 0.5s var(--transition-slow) forwards; }
 .fade-in { animation: fadeIn 0.4s var(--transition-base) forwards; }
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+}
+
+@keyframes pulse-ring {
+    0% { transform: scale(1); opacity: 0.6; }
+    100% { transform: scale(1.4); opacity: 0; }
+}
+
+.shimmer {
+    background: linear-gradient(90deg, rgba(0,0,0,0.04) 25%, rgba(0,0,0,0.08) 50%, rgba(0,0,0,0.04) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite linear;
+}
 
 /* Auth Screen */
 .auth-screen {
