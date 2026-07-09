@@ -1315,17 +1315,50 @@ body {
 .progress-text { font-size: 0.8rem; color: var(--muted-foreground); }
 
 .progress-bar {
-    height: 4px;
-    background: var(--border);
-    border-radius: 2px;
+    height: 8px;
+    background: rgba(0,0,0,0.06);
+    border-radius: var(--radius-full);
     overflow: hidden;
 }
 
 .progress-fill {
     height: 100%;
-    background: var(--primary);
-    border-radius: 2px;
-    transition: width 0.3s;
+    background: linear-gradient(90deg, var(--primary) 0%, var(--primary-light) 100%);
+    border-radius: var(--radius-full);
+    transition: width 0.5s var(--transition-slow);
+}
+
+.progress-fill.complete {
+    animation: pulse-glow 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.75; }
+}
+
+/* Card utility */
+.card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+}
+
+.card-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+}
+
+.card-body {
+    padding: 1.25rem;
 }
 
 .progress-indeterminate {
