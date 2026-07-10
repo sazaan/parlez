@@ -2413,6 +2413,10 @@ textarea {
     line-height: 1.6;
 }
 
+.test-question-prompt {
+    white-space: pre-wrap;
+}
+
 .quiz-option.selected {
     border-color: var(--primary);
     background: rgba(124, 45, 63, 0.08);

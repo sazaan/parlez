@@ -2120,17 +2120,19 @@ function renderExamQuestion(idx) {
     
     // Question content
     html += `<div class="test-question" id="examQuestion">`;
+    html += `<div class="test-question-num">${idx + 1}</div>`;
+    html += `<div class="test-question-content">`;
     if (q.audioText) {
         html += `<button class="btn-speak" data-action="speak" data-text="${escapeHtml(q.audioText)}">🔊 Listen to audio</button>`;
     }
-    html += `<div class="test-question-level">${q.level}</div>`;
-    html += `<p style="margin-bottom:0.75rem">${q.prompt}</p>`;
+    html += `<div class="test-question-level">${escapeHtml(q.level || '')}</div>`;
+    html += `<p class="test-question-prompt">${escapeHtml(q.prompt || '')}</p>`;
     html += '<div class="quiz-options">';
     q.options.forEach((o, j) => {
         const selected = examState.answers[q.id] === j;
-        html += `<button class="quiz-option ${selected ? 'selected' : ''}" data-action="select-exam-answer" data-qid="${escapeHtml(q.id)}" data-idx="${j}">${String.fromCharCode(65+j)}. ${o}</button>`;
+        html += `<button class="quiz-option ${selected ? 'selected' : ''}" data-action="select-exam-answer" data-qid="${escapeHtml(q.id)}" data-idx="${j}">${String.fromCharCode(65+j)}. ${escapeHtml(o)}</button>`;
     });
-    html += '</div></div>';
+    html += '</div></div></div>';
     
     // Navigation buttons
     html += '<div class="exam-nav-buttons">';
