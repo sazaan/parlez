@@ -53,3 +53,6 @@ books/
 # backup.py locally for testing, the output lands here.
 backups/
 data/backups/
+
+# Kimchi workspace docs (plans, specs, verification notes) — local only
+.kimchi/
