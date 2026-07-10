@@ -122,8 +122,16 @@ authForm?.addEventListener('submit', async (e) => {
         // Backend sets HttpOnly cookie; we just track the user object.
         currentUser = data.user;
         showApp();
+        // Install delegated event handlers if this is the first successful auth
+        // (they are normally installed only by checkAuth on an existing session).
+        if (typeof setupDelegatedHandlers === 'function' && !window.__parlezHandlersInstalled) {
+            setupDelegatedHandlers();
+            window.__parlezHandlersInstalled = true;
+        }
         // Initialize app after auth
         initApp();
+        // Load user settings so the level badge and selector match the logged-in user
+        loadUser();
     } catch(e) {
         authError.textContent = 'Network error. Please try again.';
         authError.style.display = 'block';
