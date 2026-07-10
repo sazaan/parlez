@@ -102,7 +102,7 @@ a1_course = Course(
                         ],
                         practice=[
                             Exercise(id='a1-m1-l1-conj-1', type='conjugation', prompt='Conjugate être for "je":', answer='suis', explanation='je suis'),
-                            Exercise(id='a1-m1-l1-conj-2', type='multiple_choice', prompt='Complete: "il/elle _____" with être.', answer='', options=['est', 'es', 'sommes', 'êtes'], explanation='il/elle est'),
+                            Exercise(id='a1-m1-l1-conj-2', type='multiple_choice', prompt='Complete: "il/elle _____" with être.', answer=0, options=['est', 'es', 'sommes', 'êtes'], explanation='il/elle est'),
                             Exercise(id='a1-m1-l1-conj-3', type='fill_blank', prompt='Fill in: "Je _____ professeur."', answer='suis', explanation='The correct form is suis.'),
                         ],
                     ),
@@ -201,7 +201,7 @@ a1_course = Course(
                         ],
                         practice=[
                             Exercise(id='a1-m1-l2-conj-1', type='conjugation', prompt='Conjugate avoir for "nous":', answer='avons', explanation='nous avons'),
-                            Exercise(id='a1-m1-l2-conj-2', type='multiple_choice', prompt='Complete: "Elle _____ un livre." with avoir.', answer='', options=['a', 'ai', 'as', 'ont'], explanation='elle a'),
+                            Exercise(id='a1-m1-l2-conj-2', type='multiple_choice', prompt='Complete: "Elle _____ un livre." with avoir.', answer=0, options=['a', 'ai', 'as', 'ont'], explanation='elle a'),
                             Exercise(id='a1-m1-l2-conj-3', type='fill_blank', prompt='Fill in: "Tu _____ quinze ans."', answer='as', explanation='tu as'),
                         ],
                     ),
@@ -417,7 +417,7 @@ a1_course = Course(
                         ],
                         practice=[
                             Exercise(id='a1-m2-l1-conj-1', type='conjugation', prompt='Conjugate venir for "nous":', answer='venons', explanation='nous venons'),
-                            Exercise(id='a1-m2-l1-conj-2', type='multiple_choice', prompt='Complete: "Elle _____ de Belgique."', answer='', options=['viens', 'venons', 'vient', 'viennent'], explanation='elle vient'),
+                            Exercise(id='a1-m2-l1-conj-2', type='multiple_choice', prompt='Complete: "Elle _____ de Belgique."', answer=2, options=['viens', 'venons', 'vient', 'viennent'], explanation='elle vient'),
                             Exercise(id='a1-m2-l1-conj-3', type='fill_blank', prompt='Fill in: "Je _____ de France."', answer='viens', explanation='je viens'),
                         ],
                     ),
@@ -520,7 +520,7 @@ a1_course = Course(
                         practice=[
                             Exercise(id='a1-m2-l2-conj-1', type='conjugation', prompt='Conjugate avoir for "ils/elles":', answer='ont', explanation='ils/elles ont'),
                             Exercise(id='a1-m2-l2-conj-2', type='fill_blank', prompt='Fill in: "Vous _____ cinquante ans."', answer='avez', explanation='vous avez'),
-                            Exercise(id='a1-m2-l2-conj-3', type='multiple_choice', prompt='Complete: "Nous _____ vingt ans."', answer='', options=['ai', 'as', 'a', 'avons'], explanation='nous avons'),
+                            Exercise(id='a1-m2-l2-conj-3', type='multiple_choice', prompt='Complete: "Nous _____ vingt ans."', answer=3, options=['ai', 'as', 'a', 'avons'], explanation='nous avons'),
                         ],
                     ),
                     dialogue=[
@@ -621,7 +621,7 @@ a1_course = Course(
                         practice=[
                             Exercise(id='a1-m2-l3-conj-1', type='conjugation', prompt='Conjugate parler for "vous":', answer='parlez', explanation='vous parlez'),
                             Exercise(id='a1-m2-l3-conj-2', type='fill_blank', prompt='Fill in: "Ils _____ français."', answer='parlent', explanation='ils parlent'),
-                            Exercise(id='a1-m2-l3-conj-3', type='multiple_choice', prompt='Complete: "Nous _____ anglais."', answer='', options=['parle', 'parles', 'parlons', 'parlent'], explanation='nous parlons'),
+                            Exercise(id='a1-m2-l3-conj-3', type='multiple_choice', prompt='Complete: "Nous _____ anglais."', answer=2, options=['parle', 'parles', 'parlons', 'parlent'], explanation='nous parlons'),
                         ],
                     ),
                     dialogue=[
@@ -732,7 +732,7 @@ a1_course = Course(
                         ],
                         practice=[
                             Exercise(id='a1-m3-l1-conj-1', type='conjugation', prompt='Conjugate avoir for "je":', answer='ai', explanation="j'ai"),
-                            Exercise(id='a1-m3-l1-conj-2', type='multiple_choice', prompt='Complete: "Elle _____ un fils."', answer='', options=['ai', 'as', 'a', 'ont'], explanation='elle a'),
+                            Exercise(id='a1-m3-l1-conj-2', type='multiple_choice', prompt='Complete: "Elle _____ un fils."', answer=2, options=['ai', 'as', 'a', 'ont'], explanation='elle a'),
                             Exercise(id='a1-m3-l1-conj-3', type='fill_blank', prompt='Fill in: "Nous _____ une grande famille."', answer='avons', explanation='nous avons'),
                         ],
                     ),
@@ -834,7 +834,7 @@ a1_course = Course(
                         ],
                         practice=[
                             Exercise(id='a1-m3-l2-conj-1', type='conjugation', prompt='Conjugate être for "elles":', answer='sont', explanation='elles sont'),
-                            Exercise(id='a1-m3-l2-conj-2', type='multiple_choice', prompt='Complete: "Nous _____ amusants."', answer='', options=['suis', 'es', 'sommes', 'sont'], explanation='nous sommes'),
+                            Exercise(id='a1-m3-l2-conj-2', type='multiple_choice', prompt='Complete: "Nous _____ amusants."', answer=2, options=['suis', 'es', 'sommes', 'sont'], explanation='nous sommes'),
                             Exercise(id='a1-m3-l2-conj-3', type='fill_blank', prompt='Fill in: "Tu _____ très sympa."', answer='es', explanation='tu es'),
                         ],
                     ),
@@ -935,7 +935,7 @@ a1_course = Course(
                         ],
                         practice=[
                             Exercise(id='a1-m3-l3-conj-1', type='conjugation', prompt='Conjugate aimer for "nous":', answer='aimons', explanation='nous aimons'),
-                            Exercise(id='a1-m3-l3-conj-2', type='multiple_choice', prompt='Complete: "Vous _____ les animaux."', answer='', options=['aime', 'aimes', 'aimons', 'aimez'], explanation='vous aimez'),
+                            Exercise(id='a1-m3-l3-conj-2', type='multiple_choice', prompt='Complete: "Vous _____ les animaux."', answer=3, options=['aime', 'aimes', 'aimons', 'aimez'], explanation='vous aimez'),
                             Exercise(id='a1-m3-l3-conj-3', type='fill_blank', prompt='Fill in: "Elle _____ son chien."', answer='aime', explanation='elle aime'),
                         ],
                     ),
@@ -1052,7 +1052,7 @@ a1_course = Course(
                         ],
                         practice=[
                             Exercise(id='a1-m4-l1-conj-1', type='conjugation', prompt='Conjugate être for "nous":', answer='sommes', explanation='nous sommes'),
-                            Exercise(id='a1-m4-l1-conj-2', type='multiple_choice', prompt='Complete: "Il/elle _____ à l\'heure."', answer='', options=['est', 'es', 'sont', 'sommes'], explanation='il/elle est'),
+                            Exercise(id='a1-m4-l1-conj-2', type='multiple_choice', prompt='Complete: "Il/elle _____ à l\'heure."', answer=0, options=['est', 'es', 'sont', 'sommes'], explanation='il/elle est'),
                             Exercise(id='a1-m4-l1-conj-3', type='fill_blank', prompt='Fill in: "Nous _____ en retard."', answer='sommes', explanation='nous sommes'),
                         ],
                     ),
@@ -1154,7 +1154,7 @@ a1_course = Course(
                         ],
                         practice=[
                             Exercise(id='a1-m4-l2-conj-1', type='conjugation', prompt='Conjugate se lever for "je":', answer='me lève', explanation='je me lève'),
-                            Exercise(id='a1-m4-l2-conj-2', type='multiple_choice', prompt='Complete: "Nous _____ à six heures."', answer='', options=['me lève', 'nous levons', 'te lèves', 'se lèvent'], explanation='nous nous levons'),
+                            Exercise(id='a1-m4-l2-conj-2', type='multiple_choice', prompt='Complete: "Nous _____ à six heures."', answer=1, options=['me lève', 'nous levons', 'te lèves', 'se lèvent'], explanation='nous nous levons'),
                             Exercise(id='a1-m4-l2-conj-3', type='fill_blank', prompt='Fill in: "Elle _____ à huit heures."', answer='se lève', explanation='elle se lève'),
                         ],
                     ),
@@ -1259,7 +1259,7 @@ a1_course = Course(
                         ],
                         practice=[
                             Exercise(id='a1-m4-l3-conj-1', type='conjugation', prompt='Conjugate faire for "ils/elles":', answer='font', explanation='ils/elles font'),
-                            Exercise(id='a1-m4-l3-conj-2', type='multiple_choice', prompt='Complete: "Il/elle _____ beau."', answer='', options=['fais', 'fait', 'faisons', 'font'], explanation='il/elle fait'),
+                            Exercise(id='a1-m4-l3-conj-2', type='multiple_choice', prompt='Complete: "Il/elle _____ beau."', answer=1, options=['fais', 'fait', 'faisons', 'font'], explanation='il/elle fait'),
                             Exercise(id='a1-m4-l3-conj-3', type='fill_blank', prompt='Fill in: "Nous _____ du sport."', answer='faisons', explanation='nous faisons'),
                         ],
                     ),
@@ -1379,7 +1379,7 @@ a1_course = Course(
                         ],
                         practice=[
                             Exercise(id='a1-m5-l1-conj-1', type='conjugation', prompt='Conjugate aller for "nous":', answer='allons', explanation='nous allons'),
-                            Exercise(id='a1-m5-l1-conj-2', type='multiple_choice', prompt='Complete: "Elle _____ à la gare."', answer='', options=['vais', 'vas', 'va', 'vont'], explanation='elle va'),
+                            Exercise(id='a1-m5-l1-conj-2', type='multiple_choice', prompt='Complete: "Elle _____ à la gare."', answer=2, options=['vais', 'vas', 'va', 'vont'], explanation='elle va'),
                             Exercise(id='a1-m5-l1-conj-3', type='fill_blank', prompt='Fill in: "Ils _____ au restaurant."', answer='vont', explanation='ils vont'),
                         ],
                     ),
@@ -1482,7 +1482,7 @@ a1_course = Course(
                         ],
                         practice=[
                             Exercise(id='a1-m5-l2-conj-1', type='conjugation', prompt='Conjugate aller for "vous":', answer='allez', explanation='vous allez'),
-                            Exercise(id='a1-m5-l2-conj-2', type='multiple_choice', prompt='Complete: "Nous _____ à la pharmacie."', answer='', options=['vais', 'vas', 'allons', 'vont'], explanation='nous allons'),
+                            Exercise(id='a1-m5-l2-conj-2', type='multiple_choice', prompt='Complete: "Nous _____ à la pharmacie."', answer=2, options=['vais', 'vas', 'allons', 'vont'], explanation='nous allons'),
                             Exercise(id='a1-m5-l2-conj-3', type='fill_blank', prompt='Fill in: "Tu _____ tout droit."', answer='vas', explanation='tu vas'),
                         ],
                     ),
@@ -1590,7 +1590,7 @@ a1_course = Course(
                         ],
                         practice=[
                             Exercise(id='a1-m5-l3-conj-1', type='conjugation', prompt='Conjugate prendre for "nous":', answer='prenons', explanation='nous prenons'),
-                            Exercise(id='a1-m5-l3-conj-2', type='multiple_choice', prompt='Complete: "Ils _____ le métro."', answer='', options=['prend', 'prenons', 'prenez', 'prennent'], explanation='ils prennent'),
+                            Exercise(id='a1-m5-l3-conj-2', type='multiple_choice', prompt='Complete: "Ils _____ le métro."', answer=3, options=['prend', 'prenons', 'prenez', 'prennent'], explanation='ils prennent'),
                             Exercise(id='a1-m5-l3-conj-3', type='fill_blank', prompt='Fill in: "Vous _____ un taxi."', answer='prenez', explanation='vous prenez'),
                         ],
                     ),
@@ -1706,7 +1706,7 @@ a1_course = Course(
                         ],
                         practice=[
                             Exercise(id='a1-m6-l1-conj-1', type='conjugation', prompt='Conjugate manger for "nous":', answer='mangeons', explanation='nous mangeons'),
-                            Exercise(id='a1-m6-l1-conj-2', type='multiple_choice', prompt='Complete: "Ils _____ des fruits."', answer='', options=['mange', 'manges', 'mangeons', 'mangent'], explanation='ils mangent'),
+                            Exercise(id='a1-m6-l1-conj-2', type='multiple_choice', prompt='Complete: "Ils _____ des fruits."', answer=3, options=['mange', 'manges', 'mangeons', 'mangent'], explanation='ils mangent'),
                             Exercise(id='a1-m6-l1-conj-3', type='fill_blank', prompt='Fill in: "Je _____ du fromage."', answer='mange', explanation='je mange'),
                         ],
                     ),
@@ -1805,7 +1805,7 @@ a1_course = Course(
                         ],
                         practice=[
                             Exercise(id='a1-m6-l2-conj-1', type='conjugation', prompt='Conjugate prendre for "nous":', answer='prenons', explanation='nous prenons'),
-                            Exercise(id='a1-m6-l2-conj-2', type='multiple_choice', prompt='Complete: "Vous _____ un thé."', answer='', options=['prend', 'prenons', 'prenez', 'prennent'], explanation='vous prenez'),
+                            Exercise(id='a1-m6-l2-conj-2', type='multiple_choice', prompt='Complete: "Vous _____ un thé."', answer=2, options=['prend', 'prenons', 'prenez', 'prennent'], explanation='vous prenez'),
                             Exercise(id='a1-m6-l2-conj-3', type='fill_blank', prompt='Fill in: "Ils _____ deux cafés."', answer='prennent', explanation='ils prennent'),
                         ],
                     ),
@@ -1906,7 +1906,7 @@ a1_course = Course(
                         ],
                         practice=[
                             Exercise(id='a1-m6-l3-conj-1', type='conjugation', prompt='Conjugate aimer for "nous":', answer='aimons', explanation='nous aimons'),
-                            Exercise(id='a1-m6-l3-conj-2', type='multiple_choice', prompt='Complete: "Ils _____ le poisson."', answer='', options=['aime', 'aimes', 'aimons', 'aiment'], explanation='ils aiment'),
+                            Exercise(id='a1-m6-l3-conj-2', type='multiple_choice', prompt='Complete: "Ils _____ le poisson."', answer=3, options=['aime', 'aimes', 'aimons', 'aiment'], explanation='ils aiment'),
                             Exercise(id='a1-m6-l3-conj-3', type='fill_blank', prompt='Fill in: "Tu _____ le bœuf ?"', answer='aimes', explanation='tu aimes'),
                         ],
                     ),
@@ -2025,7 +2025,7 @@ a1_course = Course(
                         ],
                         practice=[
                             Exercise(id='a1-m7-l1-conj-1', type='conjugation', prompt='Conjugate être for "il/elle":', answer='est', explanation='il/elle est'),
-                            Exercise(id='a1-m7-l1-conj-2', type='multiple_choice', prompt='Complete: "Nous _____ dans le salon."', answer='', options=['suis', 'es', 'sommes', 'sont'], explanation='nous sommes'),
+                            Exercise(id='a1-m7-l1-conj-2', type='multiple_choice', prompt='Complete: "Nous _____ dans le salon."', answer=2, options=['suis', 'es', 'sommes', 'sont'], explanation='nous sommes'),
                             Exercise(id='a1-m7-l1-conj-3', type='fill_blank', prompt='Fill in: "La table _____ dans la cuisine."', answer='est', explanation='La table est'),
                         ],
                     ),
@@ -2130,7 +2130,7 @@ a1_course = Course(
                         ],
                         practice=[
                             Exercise(id='a1-m7-l2-conj-1', type='conjugation', prompt='Conjugate être for "ils/elles":', answer='sont', explanation='ils/elles sont'),
-                            Exercise(id='a1-m7-l2-conj-2', type='multiple_choice', prompt='Complete: "Cette chaise _____ confortable."', answer='', options=['suis', 'es', 'est', 'sommes'], explanation='cette chaise est'),
+                            Exercise(id='a1-m7-l2-conj-2', type='multiple_choice', prompt='Complete: "Cette chaise _____ confortable."', answer=2, options=['suis', 'es', 'est', 'sommes'], explanation='cette chaise est'),
                             Exercise(id='a1-m7-l2-conj-3', type='fill_blank', prompt='Fill in: "Ces clés _____ sur la table."', answer='sont', explanation='ces clés sont'),
                         ],
                     ),
@@ -2235,7 +2235,7 @@ a1_course = Course(
                         ],
                         practice=[
                             Exercise(id='a1-m7-l3-conj-1', type='conjugation', prompt='Conjugate coûter for "nous":', answer='coûtons', explanation='nous coûtons'),
-                            Exercise(id='a1-m7-l3-conj-2', type='multiple_choice', prompt='Complete: "Le loyer _____ cinq cents euros."', answer='', options=['coûte', 'coûtes', 'coûtons', 'coûtent'], explanation='le loyer coûte'),
+                            Exercise(id='a1-m7-l3-conj-2', type='multiple_choice', prompt='Complete: "Le loyer _____ cinq cents euros."', answer=0, options=['coûte', 'coûtes', 'coûtons', 'coûtent'], explanation='le loyer coûte'),
                             Exercise(id='a1-m7-l3-conj-3', type='fill_blank', prompt='Fill in: "Les charges _____ cent euros."', answer='coûtent', explanation='les charges coûtent'),
                         ],
                     ),
@@ -2353,7 +2353,7 @@ a1_course = Course(
                         ],
                         practice=[
                             Exercise(id='a1-m8-l1-conj-1', type='conjugation', prompt='Conjugate faire for "nous":', answer='faisons', explanation='nous faisons'),
-                            Exercise(id='a1-m8-l1-conj-2', type='multiple_choice', prompt='Complete: "Ils _____ du vélo."', answer='', options=['fais', 'fait', 'faisons', 'font'], explanation='ils font'),
+                            Exercise(id='a1-m8-l1-conj-2', type='multiple_choice', prompt='Complete: "Ils _____ du vélo."', answer=3, options=['fais', 'fait', 'faisons', 'font'], explanation='ils font'),
                             Exercise(id='a1-m8-l1-conj-3', type='fill_blank', prompt='Fill in: "Tu _____ du sport le weekend."', answer='fais', explanation='tu fais'),
                         ],
                     ),
@@ -2459,7 +2459,7 @@ a1_course = Course(
                         ],
                         practice=[
                             Exercise(id='a1-m8-l2-conj-1', type='conjugation', prompt='Conjugate être for "je":', answer='suis', explanation='je suis'),
-                            Exercise(id='a1-m8-l2-conj-2', type='multiple_choice', prompt='Complete: "Mon anniversaire _____ le huit juin."', answer='', options=['suis', 'es', 'est', 'sommes'], explanation='mon anniversaire est'),
+                            Exercise(id='a1-m8-l2-conj-2', type='multiple_choice', prompt='Complete: "Mon anniversaire _____ le huit juin."', answer=2, options=['suis', 'es', 'est', 'sommes'], explanation='mon anniversaire est'),
                             Exercise(id='a1-m8-l2-conj-3', type='fill_blank', prompt='Fill in: "Nous _____ en décembre."', answer='sommes', explanation='nous sommes en décembre'),
                         ],
                     ),
@@ -2561,7 +2561,7 @@ a1_course = Course(
                         ],
                         practice=[
                             Exercise(id='a1-m8-l3-conj-1', type='conjugation', prompt='Conjugate aller for "ils/elles":', answer='vont', explanation='ils/elles vont'),
-                            Exercise(id='a1-m8-l3-conj-2', type='multiple_choice', prompt='Complete: "Nous _____ manger au restaurant."', answer='', options=['vais', 'vas', 'va', 'allons'], explanation='nous allons'),
+                            Exercise(id='a1-m8-l3-conj-2', type='multiple_choice', prompt='Complete: "Nous _____ manger au restaurant."', answer=3, options=['vais', 'vas', 'va', 'allons'], explanation='nous allons'),
                             Exercise(id='a1-m8-l3-conj-3', type='fill_blank', prompt='Fill in: "Tu _____ voir un film demain."', answer='vas', explanation='tu vas voir'),
                         ],
                     ),

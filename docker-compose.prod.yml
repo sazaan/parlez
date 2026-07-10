@@ -8,6 +8,12 @@ services:
     volumes:
       - ./data:/app/data
       - ./static:/app/static
+    # Local-testing port mapping: expose the chatbot directly on the host
+    # so it can be hit without going through Caddy (whose 80/443 ports may
+    # already be in use by another container on this host). For production,
+    # remove this mapping and rely on the Caddy reverse proxy.
+    ports:
+      - "8000:8000"
     restart: unless-stopped
     networks:
       - parlez

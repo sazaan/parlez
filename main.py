@@ -118,35 +118,80 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.mount("/static", StaticFiles(directory="static", html=True), name="static")
 
-@app.middleware("http")
-async def log_requests_middleware(request, call_next):
-    start = time.time()
-    try:
-        response = await call_next(request)
-        duration = round((time.time() - start) * 1000, 2)
-        logger.info(
-            "method=%s path=%s status=%s duration_ms=%s",
-            request.method, request.url.path, response.status_code, duration,
-        )
-        return response
-    except Exception as exc:
-        duration = round((time.time() - start) * 1000, 2)
-        logger.exception(
-            "method=%s path=%s duration_ms=%s error=%s",
-            request.method, request.url.path, duration, exc,
-        )
-        raise
+class RequestLoggingMiddleware:
+    """Pure ASGI middleware for request logging.
 
-@app.middleware("http")
-async def no_cache_middleware(request, call_next):
-    response = await call_next(request)
-    if request.url.path.startswith(("/static/", "/")):
-        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-    return response
+    Implemented as a class instead of @app.middleware to avoid the
+    Starlette BaseHTTPMiddleware + TestClient EndOfStream issue.
+    """
 
-@app.middleware("http")
-async def security_headers_middleware(request, call_next):
-    """Add baseline security headers to every response.
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        start = time.time()
+        request = Request(scope, receive)
+        status_code = None
+
+        async def wrapped_send(message):
+            nonlocal status_code
+            if message["type"] == "http.response.start":
+                status_code = message["status"]
+            await send(message)
+
+        try:
+            await self.app(scope, request.receive, wrapped_send)
+            duration = round((time.time() - start) * 1000, 2)
+            logger.info(
+                "method=%s path=%s status=%s duration_ms=%s",
+                request.method, request.url.path, status_code, duration,
+            )
+        except Exception as exc:
+            duration = round((time.time() - start) * 1000, 2)
+            logger.exception(
+                "method=%s path=%s duration_ms=%s error=%s",
+                request.method, request.url.path, duration, exc,
+            )
+            raise
+
+
+class NoCacheMiddleware:
+    """Pure ASGI middleware to disable caching for static and HTML responses."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        request = Request(scope, receive)
+        path = request.url.path
+
+        async def wrapped_send(message):
+            if (
+                message["type"] == "http.response.start"
+                and path.startswith(("/static/", "/"))
+            ):
+                headers = [
+                    (k, v)
+                    for k, v in message.get("headers", [])
+                    if k.lower() != b"cache-control"
+                ]
+                headers.append(
+                    (b"cache-control", b"no-cache, no-store, must-revalidate")
+                )
+                message["headers"] = headers
+            await send(message)
+
+        await self.app(scope, request.receive, wrapped_send)
+
+
+class SecurityHeadersMiddleware:
+    """Pure ASGI middleware to add baseline security headers.
 
     - CSP: blocks injected inline scripts until Task 2.1/2.2 land (uses
       'unsafe-inline' for scripts because app.js still has inline handlers).
@@ -156,24 +201,62 @@ async def security_headers_middleware(request, call_next):
     - Referrer-Policy: don't leak full URLs to third parties.
     HSTS is set at the Caddy layer (see Caddyfile).
     """
-    response = await call_next(request)
-    response.headers["Content-Security-Policy"] = (
+
+    CSP = (
         "default-src 'self'; "
-        "script-src 'self'; "  # Tightened after Tasks 2.1 + 2.2 removed all inline handlers/scripts
+        "script-src 'self'; "
         "img-src 'self' data:; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com; "
         "connect-src 'self' https://translate.google.com; "
         "frame-ancestors 'none'"
     )
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    return response
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def wrapped_send(message):
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                headers.append((b"content-security-policy", self.CSP.encode("latin-1")))
+                headers.append((b"x-frame-options", b"DENY"))
+                headers.append((b"x-content-type-options", b"nosniff"))
+                headers.append(
+                    (b"referrer-policy", b"strict-origin-when-cross-origin")
+                )
+                message["headers"] = headers
+            await send(message)
+
+        await self.app(scope, receive, wrapped_send)
+
+
+# Add ASGI middlewares. FastAPI applies add_middleware in reverse order, so the
+# last-added middleware is the outermost wrapper. We add security, then cache,
+# then logging to preserve the previous @app.middleware execution order.
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(NoCacheMiddleware)
+app.add_middleware(RequestLoggingMiddleware)
+
+
+class XP:
+    """XP reward amounts used across endpoints."""
+
+    CHAT_MESSAGE = 5
+    EXERCISE_CORRECT = 10
+    LESSON_COMPLETE = 50
+    FLASHCARD_REVIEW = 5
+    EXAM_QUESTION_CORRECT = 5
+    WRITING_CORRECTION = 15
+
 
 NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY")
 INVOKE_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
-MODEL = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
+MODEL = "nvidia/nemotron-3-nano-30b-a3b"
 
 MAX_CHUNK_LENGTH = 190
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB

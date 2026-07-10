@@ -95,11 +95,11 @@
                         <span>Quick Practice</span><span class="collapse-icon">▼</span>
                     </div>
                     <div class="collapsible-content collapsed" id="practiceList">
-                        <div class="practice-item" onclick="startVocabQuiz()">📝 Vocab Quiz</div>
-                        <div class="practice-item" onclick="startConjQuiz()">🔄 Conjugation Drill</div>
-                        <div class="practice-item" onclick="startFlashcardReview()">🃏 Flashcard Review</div>
-                        <div class="practice-item" onclick="showWordOfDay()">📅 Word of the Day</div>
-                        <div class="practice-item" onclick="showAdaptiveAnalysis()">📊 My Progress</div>
+                        <div class="practice-item" data-action="start-vocab-quiz">📝 Vocab Quiz</div>
+                        <div class="practice-item" data-action="start-conj-quiz">🔄 Conjugation Drill</div>
+                        <div class="practice-item" data-action="start-flashcard-review">🃏 Flashcard Review</div>
+                        <div class="practice-item" data-action="show-word-of-day">📅 Word of the Day</div>
+                        <div class="practice-item" data-action="show-adaptive-analysis">📊 My Progress</div>
                     </div>
                 </div>
 
@@ -108,7 +108,7 @@
                         <span>Content Tools</span><span class="collapse-icon">▼</span>
                     </div>
                     <div class="collapsible-content collapsed" id="ingestList">
-                        <div class="practice-item" onclick="promptContentIngest()">📄 Ingest French Content</div>
+                        <div class="practice-item" data-action="prompt-content-ingest">📄 Ingest French Content</div>
                     </div>
                 </div>
 
@@ -117,9 +117,9 @@
                         <span>Mock Tests</span><span class="collapse-icon">▼</span>
                     </div>
                     <div class="collapsible-content collapsed" id="mockTestList">
-                        <div class="practice-item" onclick="startMockTest('TEF')">📝 TEF Practice</div>
-                        <div class="practice-item" onclick="startMockTest('TCF')">📝 TCF Practice</div>
-                        <div class="practice-item" onclick="showTestStats()">📊 Test History</div>
+                        <div class="practice-item" data-action="start-mock-test" data-type="TEF">📝 TEF Practice</div>
+                        <div class="practice-item" data-action="start-mock-test" data-type="TCF">📝 TCF Practice</div>
+                        <div class="practice-item" data-action="show-test-stats">📊 Test History</div>
                     </div>
                 </div>
             </div>
@@ -157,10 +157,10 @@
                         <h2>Bonjour! Ready to learn French?</h2>
                         <p>I'm your personal French tutor. I can teach you vocabulary, grammar, pronunciation, and help you practice conversations.</p>
                         <div class="quick-actions">
-                            <button class="quick-action" onclick="sendQuickMessage('Teach me French greetings')">👋 Learn Greetings</button>
-                            <button class="quick-action" onclick="sendQuickMessage('Show me numbers 1-20 in French')">🔢 Numbers 1-20</button>
-                            <button class="quick-action" onclick="sendQuickMessage('Practice conversation at a café')">☕ Café Roleplay</button>
-                            <button class="quick-action" onclick="sendQuickMessage('Give me a French quiz')">📝 Take a Quiz</button>
+                            <button class="quick-action" data-action="send-quick-message" data-text="Teach me French greetings">👋 Learn Greetings</button>
+                            <button class="quick-action" data-action="send-quick-message" data-text="Show me numbers 1-20 in French">🔢 Numbers 1-20</button>
+                            <button class="quick-action" data-action="send-quick-message" data-text="Practice conversation at a café">☕ Café Roleplay</button>
+                            <button class="quick-action" data-action="send-quick-message" data-text="Give me a French quiz">📝 Take a Quiz</button>
                         </div>
                     </div>
                 </div>

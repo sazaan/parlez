@@ -15,7 +15,6 @@ __pycache__/
 *.md
 .env
 .env.*
-mock_tests/
 docs/
 .kimchi/
 *.pyc
