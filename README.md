@@ -208,6 +208,37 @@ docker compose build --no-cache
 docker compose up
 ```
 
+### Docker data permissions
+
+The container runs as a non-root `appuser`. Both Compose configurations run a
+one-shot `data-init` service as root to give that user ownership of the bind-mounted
+`./data` directory before the app starts. This fixes `sqlite3.OperationalError:
+unable to open database file` caused by data created by older root-running
+containers (or by Docker creating the host directory as root).
+
+Use a current Docker Compose v2 release, then rebuild and start:
+
+```bash
+docker compose down
+docker compose up --build -d
+docker compose logs --tail=50 data-init chatbot
+```
+
+`data-init` exiting with code **0** is expected. Existing database contents are
+preserved; do not delete `data/` or `parlez.db` to resolve this error. Ownership of
+`./data` on the host changes to the container user's numeric UID/GID, so host-side
+file management may require `sudo`. Only the initializer runs as root; the app
+continues to run as `appuser`.
+
+The default database is `/app/data/parlez.db` inside Docker. If you set
+`DATABASE_URL` in `.env`, ensure it uses a valid **container** path with a writable
+parent directory; this initializer only manages `/app/data`. For the default
+SQLite database, omit `DATABASE_URL` or use
+`DATABASE_URL=sqlite:////app/data/parlez.db`.
+
+The obsolete Compose `version` warning is removed. A missing Buildx/Bake warning
+is separate from the SQLite crash; install Docker's Buildx plugin if needed.
+
 ### Run tests
 
 ```bash

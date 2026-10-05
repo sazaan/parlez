@@ -1,5 +1,8 @@
 #!/bin/bash
 
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")"
+
 # Learning Chatbot - Docker Quick Start
 
 echo "📚 Learning Chatbot - NVIDIA NIM (Docker)"
@@ -16,8 +19,12 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-# Check if Docker Compose is installed
-if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
+# Use the same Compose implementation for detection, build, and startup.
+if docker compose version &> /dev/null; then
+    COMPOSE=(docker compose)
+elif command -v docker-compose &> /dev/null; then
+    COMPOSE=(docker-compose)
+else
     echo "❌ Docker Compose is not installed."
     echo ""
     echo "Install Docker Compose:"
@@ -52,7 +59,7 @@ if grep -q "your-nvidia-api-key-here" .env; then
 fi
 
 echo "🐳 Building Docker container..."
-docker compose build
+"${COMPOSE[@]}" build
 
 echo ""
 echo "🚀 Starting Learning Chatbot..."
@@ -61,4 +68,4 @@ echo "🤖 Model: NVIDIA Nemotron 3 Nano Omni"
 echo "Press Ctrl+C to stop"
 echo ""
 
-docker compose up
+"${COMPOSE[@]}" up

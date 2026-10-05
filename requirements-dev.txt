@@ -3,3 +3,6 @@
 pytest==7.4.4
 ruff==0.1.9
 redis==8.0.1
+
+# Parse Compose files in Docker startup regression tests
+PyYAML==6.0.2

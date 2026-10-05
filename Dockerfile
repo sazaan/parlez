@@ -22,7 +22,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Hand ownership to the non-root user and switch to it.
-RUN chown -R appuser:appuser /app
+# Ensure direct Docker runs (without a data mount) also have writable storage.
+RUN mkdir -p /app/data && chown -R appuser:appuser /app
 USER appuser
 
 EXPOSE 8000

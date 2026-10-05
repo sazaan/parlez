@@ -1,8 +1,21 @@
-version: '3.8'
-
 services:
+  # Bind mounts hide image ownership. Repair fresh/root-owned data directories
+  # before starting the non-root app, without deleting or replacing the DB.
+  data-init:
+    build: .
+    image: parlez-chatbot:local
+    user: "0:0"
+    entrypoint: ["sh", "-c", "mkdir -p /app/data && chown -R appuser:appuser /app/data"]
+    volumes:
+      - ./data:/app/data
+    restart: "no"
+
   chatbot:
     build: .
+    image: parlez-chatbot:local
+    depends_on:
+      data-init:
+        condition: service_completed_successfully
     ports:
       - "8000:8000"
     env_file:
