@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content.0">
     <title>Parlez — French AI Tutor</title>
     <meta name="description" content="AI-powered French learning: spaced-repetition flashcards, adaptive exercises, mock TEF/TCF exams, and a personal tutor that adapts to your weak areas.">
     <meta name="theme-color" content="#7C2D3F">
@@ -34,7 +34,11 @@
             <form id="authForm" class="auth-form">
                 <div class="form-group">
                     <label>Username</label>
-                    <input type="text" id="authUsername" placeholder="Enter username" required minlength="3">
+                    <input type="text" id="authUsername" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Enter username" required minlength="3">
+                </div>
+                <div class="form-group" id="emailGroup" style="display:none">
+                    <label for="authEmail">Email address</label>
+                    <input type="email" id="authEmail" name="email" placeholder="you@example.com" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" maxlength="254" disabled>
                 </div>
                 <div class="form-group" id="nameGroup" style="display:none">
                     <label>Name</label>
@@ -42,7 +46,7 @@
                 </div>
                 <div class="form-group">
                     <label>Password</label>
-                    <input type="password" id="authPassword" placeholder="Enter password" required minlength="4">
+                    <input type="password" id="authPassword" placeholder="Enter password" autocomplete="current-password" required minlength="1">
                 </div>
                 <button type="submit" class="auth-submit" id="authSubmit">Log In</button>
                 <p class="auth-toggle" id="authToggle">Don't have an account? <a href="#" id="authToggleLink">Sign Up</a></p>
@@ -171,7 +175,7 @@
                     <button id="voiceButton" class="btn-voice" title="Voice input">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
                     </button>
-                    <textarea id="messageInput" placeholder="Ask me anything about French..." rows="1"></textarea>
+                    <textarea id="messageInput" aria-label="Message your French tutor" placeholder="Ask me anything about French..." rows="1"></textarea>
                     <button id="sendButton" class="btn-send" disabled>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
                     </button>
@@ -260,6 +264,7 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=2"></script>
+    <script src="/static/viewport.js"></script>
+    <script src="/static/app.js?v=3"></script>
 </body>
 </html>

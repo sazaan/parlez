@@ -6,6 +6,7 @@ from unittest.mock import patch
 def test_signup_and_login(client):
     # Signup
     r = client.post("/api/auth/signup", json={
+        "email": "person@example.com",
         "username": "alice",
         "password": "password123",
         "name": "Alice"
@@ -26,6 +27,7 @@ def test_signup_and_login(client):
 
 def test_signup_password_too_short(client):
     r = client.post("/api/auth/signup", json={
+        "email": "person@example.com",
         "username": "bob",
         "password": "short",
         "name": "Bob"
@@ -36,6 +38,7 @@ def test_signup_password_too_short(client):
 
 def test_login_invalid_credentials(client):
     client.post("/api/auth/signup", json={
+        "email": "person@example.com",
         "username": "carol",
         "password": "password123",
         "name": "Carol"

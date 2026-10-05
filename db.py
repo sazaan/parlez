@@ -11,7 +11,7 @@ import os
 import json
 import bcrypt
 from typing import Optional
-from sqlalchemy import create_engine, Column, String, Text, JSON, text
+from sqlalchemy import create_engine, Column, String, Text, JSON, text, inspect, Index
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 Base = declarative_base()
@@ -38,8 +38,13 @@ class User(Base):
     __tablename__ = "users"
     id = Column(String, primary_key=True)
     username = Column(String, unique=True, nullable=False, index=True)
+    email = Column(String(254), nullable=True)
     password_hash = Column(Text, nullable=False)
     data = Column(JSON, nullable=False, default=dict)
+
+
+# NULL permits pre-email accounts; a unique index also protects concurrent signup.
+USER_EMAIL_INDEX = Index("ix_users_email", User.email, unique=True)
 
 
 class SharedLink(Base):
@@ -67,7 +72,19 @@ class Storage:
         )
         self._enable_wal()
         Base.metadata.create_all(self.engine)
+        self._migrate_user_email()
         self.Session = sessionmaker(bind=self.engine)
+
+    def _migrate_user_email(self):
+        """Add nullable email to existing databases without changing legacy accounts.
+
+        Run startup migrations with a single app instance during deployment.
+        create_all() alone does not add columns to an existing table.
+        """
+        if "email" not in {column["name"] for column in inspect(self.engine).get_columns("users")}:
+            with self.engine.begin() as conn:
+                conn.execute(text("ALTER TABLE users ADD COLUMN email VARCHAR(254)"))
+        USER_EMAIL_INDEX.create(self.engine, checkfirst=True)
 
     def _enable_wal(self):
         """Enable WAL mode for SQLite only."""
@@ -80,19 +97,20 @@ class Storage:
     @staticmethod
     def _user_from_row(row: User) -> dict:
         data = row.data or {}
-        return {"id": row.id, "username": row.username, "password_hash": row.password_hash, **data}
+        return {"id": row.id, "username": row.username, "password_hash": row.password_hash, **data, "email": row.email}
 
     # ------------------------------------------------------------------
     # Users
     # ------------------------------------------------------------------
 
-    def create_user(self, username: str, password_hash: str, name: Optional[str] = None) -> dict:
+    def create_user(self, username: str, password_hash: str, name: Optional[str] = None, email: Optional[str] = None) -> dict:
         import uuid
         import time
         user_id = str(uuid.uuid4())[:8]
         user = {
             "id": user_id,
             "username": username,
+            "email": email,
             "password_hash": password_hash,
             "name": name or username,
             "level": "A1",
@@ -111,10 +129,10 @@ class Storage:
             "exercise_history": [],
             "test_results": [],
         }
-        data = {k: v for k, v in user.items() if k not in ("id", "username", "password_hash")}
+        data = {k: v for k, v in user.items() if k not in ("id", "username", "password_hash", "email")}
         with self.Session() as session:
             with session.begin():
-                session.add(User(id=user_id, username=username, password_hash=password_hash, data=data))
+                session.add(User(id=user_id, username=username, email=email, password_hash=password_hash, data=data))
         return user
 
     def get_user_by_id(self, user_id: str) -> Optional[dict]:
@@ -131,6 +149,10 @@ class Storage:
         with self.Session() as session:
             return session.query(User.id).filter_by(username=username).first() is not None
 
+    def email_exists(self, email: str) -> bool:
+        with self.Session() as session:
+            return session.query(User.id).filter_by(email=email).first() is not None
+
     def verify_user(self, username: str, password: str) -> Optional[str]:
         user = self.get_user_by_username(username)
         if not user:
@@ -144,7 +166,7 @@ class Storage:
         user_id = user["id"]
         username = user["username"]
         password_hash = user["password_hash"]
-        data = {k: v for k, v in user.items() if k not in ("id", "username", "password_hash")}
+        data = {k: v for k, v in user.items() if k not in ("id", "username", "password_hash", "email")}
         with self.Session() as session:
             with session.begin():
                 row = session.query(User).filter_by(id=user_id).first()
@@ -153,7 +175,7 @@ class Storage:
                     row.password_hash = password_hash
                     row.data = data
                 else:
-                    session.add(User(id=user_id, username=username, password_hash=password_hash, data=data))
+                    session.add(User(id=user_id, username=username, email=user.get("email"), password_hash=password_hash, data=data))
 
     # ------------------------------------------------------------------
     # Shared links

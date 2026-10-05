@@ -1,5 +1,4 @@
 import os
-import io
 import time
 import uuid
 import secrets
@@ -27,10 +26,11 @@ logging.basicConfig(
 logger = logging.getLogger("parlez")
 
 import httpx
-import PyPDF2
 import bcrypt
 import jwt
 import db
+from email_validator import validate_email, EmailNotValidError
+from sqlalchemy.exc import IntegrityError
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -344,6 +344,7 @@ class UserSettings(BaseModel):
     name: Optional[str] = None
 
 class SignupRequest(BaseModel):
+    email: str
     username: str
     password: str
     name: Optional[str] = None
@@ -503,6 +504,16 @@ async def health():
 @limiter.limit("5/minute")
 async def signup(request: Request, req: SignupRequest, response: Response):
     """Create a new user account."""
+    # Validate syntax without DNS/network dependency. This does NOT prove inbox ownership.
+    try:
+        email = validate_email(req.email.strip(), check_deliverability=False, allow_smtputf8=False).normalized.casefold()
+    except EmailNotValidError:
+        raise HTTPException(400, "Please enter a valid email address")
+    if len(email) > 254:
+        raise HTTPException(400, "Email address must be at most 254 characters")
+    if storage.email_exists(email):
+        raise HTTPException(409, "Email address already registered. Please log in.")
+
     # Validate username
     if len(req.username) < 3:
         raise HTTPException(400, "Username must be at least 3 characters")
@@ -519,11 +530,18 @@ async def signup(request: Request, req: SignupRequest, response: Response):
     if len(req.password) < 8:
         raise HTTPException(400, "Password must be at least 8 characters")
     
+    if len(req.password.encode('utf-8')) > 72:
+        raise HTTPException(400, "Password must be at most 72 UTF-8 bytes")
+
     # Hash password
     password_hash = bcrypt.hashpw(req.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     
     # Create user
-    user = storage.create_user(req.username, password_hash, req.name)
+    try:
+        user = storage.create_user(req.username, password_hash, req.name, email=email)
+    except IntegrityError:
+        # Unique DB constraints are authoritative if two requests race the prechecks.
+        raise HTTPException(409, "Username or email address already registered. Please log in.")
     
     # Generate token
     token = create_token(user['id'])

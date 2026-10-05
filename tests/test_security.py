@@ -62,6 +62,7 @@ def test_user_cannot_access_another_users_data(auth_client, client):
     """Create two users and ensure one cannot read the other's conversations."""
     # Create a second user
     client.post("/api/auth/signup", json={
+        "email": "other@example.com",
         "username": "otheruser",
         "password": "password123",
         "name": "Other"
@@ -116,6 +117,7 @@ def test_writing_correction_rejects_empty_text(auth_client):
 
 def test_signup_rejects_weak_passwords(client):
     r = client.post("/api/auth/signup", json={
+        "email": "person@example.com",
         "username": "weakuser",
         "password": "1234567",
         "name": "Weak"
@@ -125,6 +127,7 @@ def test_signup_rejects_weak_passwords(client):
 
 def test_signup_rejects_long_username(client):
     r = client.post("/api/auth/signup", json={
+        "email": "person@example.com",
         "username": "a" * 21,
         "password": "password123",
         "name": "Long"

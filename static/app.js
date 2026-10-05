@@ -64,6 +64,8 @@ const authToggleLink = document.getElementById('authToggleLink');
 const authToggle = document.getElementById('authToggle');
 const authError = document.getElementById('authError');
 const nameGroup = document.getElementById('nameGroup');
+const emailGroup = document.getElementById('emailGroup');
+const authEmail = document.getElementById('authEmail');
 
 // Task 5.3 (F7 fix): delegate the toggle click instead of rewriting
 // innerHTML and re-binding to a detached node each time. One listener on
@@ -78,6 +80,12 @@ function setAuthMode(signup) {
         ? 'Already have an account? <a href="#" id="authToggleLink">Log In</a>'
         : 'Don\'t have an account? <a href="#" id="authToggleLink">Sign Up</a>';
     nameGroup.style.display = signup ? 'block' : 'none';
+    emailGroup.style.display = signup ? 'block' : 'none';
+    authEmail.disabled = !signup;
+    authEmail.required = signup;
+    const passwordInput = document.getElementById('authPassword');
+    passwordInput.minLength = signup ? 8 : 1;
+    passwordInput.autocomplete = signup ? 'new-password' : 'current-password';
     authError.style.display = 'none';
 }
 authToggle?.addEventListener('click', (e) => {
@@ -89,7 +97,9 @@ authToggle?.addEventListener('click', (e) => {
 
 authForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (authSubmit.disabled) return;
     authError.style.display = 'none';
+    if (!authForm.reportValidity()) return;
     
     const username = document.getElementById('authUsername').value.trim();
     const password = document.getElementById('authPassword').value;
@@ -101,9 +111,10 @@ authForm?.addEventListener('submit', async (e) => {
         return;
     }
     
+    authSubmit.disabled = true;
     try {
         const endpoint = isSignup ? '/api/auth/signup' : '/api/auth/login';
-        const body = isSignup ? { username, password, name } : { username, password };
+        const body = isSignup ? { username, password, name, email: authEmail.value.trim() } : { username, password };
         
         const r = await fetch(endpoint, {
             method: 'POST',
@@ -114,7 +125,9 @@ authForm?.addEventListener('submit', async (e) => {
         const data = await r.json();
         
         if (!r.ok) {
-            authError.textContent = data.detail || 'Authentication failed';
+            authError.textContent = Array.isArray(data.detail)
+                ? data.detail.map(error => `${error.loc.at(-1)}: ${error.msg}`).join(' · ')
+                : (data.detail || 'Authentication failed');
             authError.style.display = 'block';
             return;
         }
@@ -135,6 +148,8 @@ authForm?.addEventListener('submit', async (e) => {
     } catch(e) {
         authError.textContent = 'Network error. Please try again.';
         authError.style.display = 'block';
+    } finally {
+        authSubmit.disabled = false;
     }
 });
 

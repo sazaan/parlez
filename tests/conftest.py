@@ -46,6 +46,7 @@ def client():
 def auth_client(client):
     """Return a client logged in as a test user."""
     client.post("/api/auth/signup", json={
+        "email": "fixture@example.com",
         "username": "testuser",
         "password": "password123",
         "name": "Test User"
