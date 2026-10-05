@@ -1,0 +1,910 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Parlez — Project Overview &amp; Commercial Feasibility</title><style>
+:root{--ink:#23352f;--muted:#68776f;--accent:#7c2d3f;--line:#dce2da;--paper:#fffefa}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}body{margin:0;background:#eeeee7;color:var(--ink);font:16px/1.75 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{max-width:1440px;margin:auto;padding:26px 44px;display:flex;justify-content:space-between;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}header b{color:var(--accent);font-size:18px;letter-spacing:.08em}
+.layout{max-width:1440px;margin:auto;display:grid;grid-template-columns:260px minmax(0,1fr);gap:30px;padding:0 44px 60px}aside{position:sticky;top:24px;align-self:start;font-size:12px;line-height:1.5;max-height:94vh;overflow:auto;padding:14px 0}aside p{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}aside ul{padding:0;list-style:none}aside li{margin:0 0 13px}aside a{color:var(--muted);text-decoration:none}aside a:hover{color:var(--accent)}main{background:var(--paper);padding:64px 60px;min-width:0;box-shadow:0 8px 50px #23352f08;border-top:5px solid var(--accent)}h1{font:700 66px/1.08 Georgia,serif;letter-spacing:-.04em;margin:0 0 24px;color:var(--accent)}h2{font:500 30px/1.3 Georgia,serif;margin:54px 0 20px;letter-spacing:-.015em}h1+h2{font-size:30px;max-width:650px;margin-top:0}h3{font-size:18px;line-height:1.4;margin:30px 0 12px}h4{font-size:16px}p{margin:0 0 18px}strong{font-weight:650}a{color:var(--accent);overflow-wrap:anywhere;text-underline-offset:3px}hr{border:0;border-top:1px solid var(--line);margin:40px 0}blockquote{margin:26px 0;padding:18px 24px;background:#f1f3ec;border-left:3px solid #6b8267}blockquote p{margin:0}table{border-collapse:collapse;width:100%;font-size:12px;line-height:1.6;margin:24px 0 30px}thead{background:#e9ede5}th,td{padding:11px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;overflow-wrap:anywhere}th{font-size:11px;font-weight:700}tr:nth-child(even){background:#f7f7f1}pre{overflow-x:auto;padding:22px;background:#22372f;color:#eff2e9;font-size:12px;line-height:1.6;border-radius:4px}code{font-size:.86em;overflow-wrap:anywhere}pre code{font-size:inherit}li{margin:7px 0}footer{margin-top:48px;font-size:11px;color:var(--muted);border-top:1px solid var(--line);padding-top:20px}
+@media(max-width:1050px){.layout{grid-template-columns:1fr;padding:0 20px 30px}aside{position:static;max-height:none}aside ul{columns:2}main{padding:36px 24px}header{padding:20px}h1{font-size:52px}table{font-size:11px}th,td{padding:8px}}
+@media print{@page{size:A4;margin:18mm 15mm}body{background:white;font-size:10pt;line-height:1.55}header,aside{display:none}.layout{display:block;padding:0;max-width:none}main{padding:0;border:0;box-shadow:none}h1{font-size:42pt}h1+h2{font-size:22pt}h2{font-size:20pt;break-before:page;margin-top:0}h1+h2{break-before:auto}h3{font-size:12pt;break-after:avoid}table{font-size:8pt}th,td{padding:6px}tr,blockquote,pre{break-inside:avoid}thead{display:table-header-group}pre{white-space:pre-wrap;background:#eff2eb;color:#23352f}a{color:#7c2d3f}hr{margin:20px 0}p{orphans:3;widows:3}}
+</style></head><body><header><b>Parlez</b><span>Project brief · October 2026</span></header><div class="layout"><aside><p>In this document</p><div class="toc">
+<ul>
+<li><a href="#affordable-french-learning-with-a-path-toward-tef-canada-and-tcf-canada-preparation">Affordable French learning, with a path toward TEF Canada and TCF Canada preparation</a></li>
+<li><a href="#executive-summary">Executive summary</a></li>
+<li><a href="#1-problem-statement">1. Problem statement</a></li>
+<li><a href="#2-product-vision-and-audience">2. Product vision and audience</a></li>
+<li><a href="#3-scope-current-application-versus-planned-product">3. Scope: current application versus planned product</a></li>
+<li><a href="#4-curriculum-and-exam-integrity">4. Curriculum and exam integrity</a></li>
+<li><a href="#5-competitive-position">5. Competitive position</a></li>
+<li><a href="#6-technical-architecture">6. Technical architecture</a></li>
+<li><a href="#7-ai-model-strategy-can-it-serve-thousands-of-users">7. AI model strategy: can it serve thousands of users?</a></li>
+<li><a href="#8-proposed-pricing-and-unit-economics">8. Proposed pricing and unit economics</a></li>
+<li><a href="#9-scaling-plan-and-operational-risks">9. Scaling plan and operational risks</a></li>
+<li><a href="#10-development-and-deployment-guide">10. Development and deployment guide</a></li>
+<li><a href="#11-delivery-roadmap-and-success-measures">11. Delivery roadmap and success measures</a></li>
+<li><a href="#12-recommendation-and-decisions-required">12. Recommendation and decisions required</a></li>
+<li><a href="#research-notes-and-source-register">Research notes and source register</a></li>
+</ul>
+</div>
+<p>Print / Save as PDF<br>Use your browser’s print menu</p></aside><main><h1 id="parlez">PARLEZ</h1>
+<h2 id="affordable-french-learning-with-a-path-toward-tef-canada-and-tcf-canada-preparation">Affordable French learning, with a path toward TEF Canada and TCF Canada preparation</h2>
+<p><strong>Project description · market evidence · product strategy · technical architecture · commercial feasibility</strong><br />
+<strong>Prepared:</strong> 5 October 2026 · <strong>Version:</strong> 1.0<br />
+<strong>Pricing assumption:</strong> US$4.99 per month, before applicable taxes.<br />
+<strong>Status:</strong> Existing prototype; proposed paid product and expansion roadmap.</p>
+<blockquote>
+<p><strong>Mission:</strong> Make structured French learning and consistent, personalized practice accessible to learners who cannot afford frequent private tuition—starting with people pursuing Canadian immigration goals.</p>
+</blockquote>
+<h3 id="document-conventions">Document conventions</h3>
+<p><strong>Implemented</strong> means observed in the repository, not independently certified or production-load-tested. <strong>Proposed</strong> means a recommendation, not an available feature. <strong>Estimate</strong> means an explicit planning assumption rather than measured customer behavior. Immigration rules, provider availability, and prices must be rechecked before launch. This document is educational and commercial research, not immigration or legal advice.</p>
+<hr />
+<h2 id="executive-summary">Executive summary</h2>
+<p>Parlez is a French-learning web application combining a familiar, ChatGPT-style conversation interface with structured lessons, practice exercises, spaced-repetition flashcards, writing feedback, and test-practice workflows. Its intended launch curriculum is <strong>A1–B2</strong>, organized around the Common European Framework of Reference for Languages (CEFR), followed by an eventual <strong>C1–C2</strong> expansion.</p>
+<p>The opportunity is specific: learners need more than a vocabulary habit, but many cannot repeatedly pay for classroom instruction or individual feedback. Canadian immigration provides a strong motivation. IRCC continues to prioritize French-language candidates, and qualifying French proficiency can provide up to 50 additional Express Entry ranking points. These benefits depend on approved test results and broader program eligibility; learning French does not guarantee permanent residence. <a href="https://www.canada.ca/en/immigration-refugees-citizenship/campaigns/francophone-immigration-outside-quebec/francophone-immigration-express-entry.html">1</a> <a href="https://www.canada.ca/en/immigration-refugees-citizenship/news/2026/02/canada-prioritizes-top-talent-in-2026-immigration-express-entry-categories.html">1</a></p>
+<p><strong>Recommended business:</strong> a US$4.99/month, text-first study companion with substantial reusable course content and a transparent AI allowance—not unlimited live voice or guaranteed exam scores. Public API rates suggest text inference can fit this price at thousands of paying users. The larger uncertainties are educational quality, acquisition cost, retention, support, payment access, and production reliability.</p>
+<p><strong>Important implementation findings:</strong> only A1 is currently enabled in the course registry; higher-level source material is present but not an active complete offering. Current TEF/TCF practice is not yet an accurate four-skill Canada-exam simulator. Billing and production usage accounting are not implemented. These are launch requirements, not reasons to abandon the project.</p>
+<hr />
+<h2 id="1-problem-statement">1. Problem statement</h2>
+<h3 id="11-french-is-a-strategic-skill-for-canadian-immigration">1.1 French is a strategic skill for Canadian immigration</h3>
+<p>Canada is increasing the targeted share of French-speaking permanent residents outside Quebec even while constraining overall immigration volumes. IRCC's May 2026 briefing reports a French-speaking admissions share of <strong>8.9% in 2025</strong>, above its 8.5% target, and targets of <strong>9% in 2026, 9.5% in 2027, and 10.5% in 2028</strong>. The 2026 target corresponds to <strong>30,267 admissions outside Quebec</strong>. These percentages are not a proportion of all applicants and must not be applied to Canada's total population. <a href="https://www.canada.ca/en/immigration-refugees-citizenship/corporate/transparency/committees/cimm-may-04-2026/francophone-immigration.html">1</a></p>
+<p>The Parliamentary Budget Officer describes the 2026–2028 plan's baseline as <strong>380,000 permanent resident admissions annually</strong>, alongside separate one-time transition initiatives. The opportunity is therefore <strong>targeted preference for relevant skills</strong>, not a claim that Canada is accepting ever more immigrants without restriction. <a href="https://www.pbo-dpb.ca/en/publications/RP-2526-025-S--demographic-implications-2026-2028-immigration-levels-plan--implications-demographiques-plan-niveaux-immigration-2026-2028">3</a></p>
+<h3 id="12-news-and-policy-evidence">1.2 News and policy evidence</h3>
+<table>
+<thead>
+<tr>
+<th>Date</th>
+<th>Development</th>
+<th>Implication for Parlez</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>18 February 2026</td>
+<td>IRCC announced its 2026 categories and confirmed continued French-language invitation rounds. <a href="https://www.canada.ca/en/immigration-refugees-citizenship/news/2026/02/canada-prioritizes-top-talent-in-2026-immigration-express-entry-categories.html">1</a></td>
+<td>There is a current policy rationale for immigration-focused French learning.</td>
+</tr>
+<tr>
+<td>20 February 2026</td>
+<td>CIC News reported the new categories and continued prioritization of French proficiency. This is secondary reporting, not the legal authority. <a href="https://www.cicnews.com/2026/02/three-new-express-entry-categories-0271729.html">3</a></td>
+<td>The topic is visible in the audience's immigration news channels.</td>
+</tr>
+<tr>
+<td>4 May 2026</td>
+<td>IRCC published the Francophone admissions results and rising percentage targets above. <a href="https://www.canada.ca/en/immigration-refugees-citizenship/corporate/transparency/committees/cimm-may-04-2026/francophone-immigration.html">1</a></td>
+<td>Supports a multi-year opportunity, subject to policy changes.</td>
+</tr>
+<tr>
+<td>August 2026 consultation record</td>
+<td>IRCC described French proficiency as a 2026 priority and discussed 2027 selection considerations. Consultations are not enacted rules. <a href="https://www.canada.ca/en/immigration-refugees-citizenship/corporate/transparency/consultations/2026-consultations-express-entry-selection.html">9</a></td>
+<td>Policy content needs dates, source links, and an assigned maintenance owner.</td>
+</tr>
+</tbody>
+</table>
+<p>Do not market a historical draw's cutoff as a future admission threshold. Invitations depend on ranking, eligibility, and the instructions for each round.</p>
+<h3 id="13-how-many-people-apply-for-canadian-pr-each-year">1.3 How many people apply for Canadian PR each year?</h3>
+<p>There is no single interchangeable number for applicants, profiles, invitations, and admissions. The defensible figures verified for this document are:</p>
+<table>
+<thead>
+<tr>
+<th>Measure</th>
+<th style="text-align: right;">2022</th>
+<th style="text-align: right;">2023</th>
+<th style="text-align: right;">2024</th>
+<th>Average and interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Express Entry profiles submitted</td>
+<td style="text-align: right;">428,391</td>
+<td style="text-align: right;">488,571</td>
+<td style="text-align: right;">468,073</td>
+<td><strong>About 461,678/year</strong>, 2022–2024. Expressions of interest; not completed PR applications or necessarily unique people.</td>
+</tr>
+<tr>
+<td>Express Entry PR applications, principal applicants</td>
+<td style="text-align: right;">34,976</td>
+<td style="text-align: right;">80,470</td>
+<td style="text-align: right;">85,120</td>
+<td><strong>About 66,855/year</strong>, 2022–2024; <strong>82,795/year</strong> for 2023–2024. Excludes accompanying family members and non-Express Entry pathways.</td>
+</tr>
+<tr>
+<td>All-pathway permanent resident admissions</td>
+<td style="text-align: right;">Not used in this calculation</td>
+<td style="text-align: right;">471,808</td>
+<td style="text-align: right;">483,640</td>
+<td><strong>477,724/year</strong>, 2023–2024. People who became permanent residents, including family members—not people applying that year.</td>
+</tr>
+</tbody>
+</table>
+<p>Sources: IRCC's 2024 Express Entry year-end report, especially Figure 3 and the principal-applicant discussion/Table 23; IRCC's 2025 annual report and PDF. The Express Entry narrative reports 34,976 for 2022 while a destination table rounds to 34,975; the three-year average is deliberately rounded. <a href="https://www.canada.ca/en/immigration-refugees-citizenship/corporate/publications-manuals/express-entry-year-end-report-2024.html">1</a> <a href="https://www.canada.ca/content/dam/ircc/documents/pdf/english/corporate/publications-manuals/express-entry-year-end-report-2024.pdf">2</a> <a href="https://www.canada.ca/content/dam/ircc/documents/pdf/english/corporate/publications-manuals/annual-report-parliament-immigration-2025.pdf">2</a></p>
+<p><strong>Recommended public wording:</strong> “Canada received roughly 83,000 Express Entry principal-applicant PR applications annually in 2023–2024, while about 478,000 people became permanent residents annually across all pathways.” Do not describe either figure as the annual total of all Canadian PR applicants. An all-pathway, consistently defined annual application series was not verified in this research and should remain an explicit data gap.</p>
+<p>These are historical indicators, not a 2026 forecast. The latest complete Express Entry annual report located for this research covers 2024; do not combine partial 2026 draw totals with full-year application counts.</p>
+<h3 id="14-benefits-of-french-for-a-pr-candidate">1.4 Benefits of French for a PR candidate</h3>
+<ol>
+<li><strong>Additional CRS points.</strong> NCLC 7 or higher in all four French abilities can earn 25 additional points with English at CLB 4 or lower, or no English test; it can earn 50 with CLB 5 or higher in all four English abilities. Regular first/second-language points are separate and depend on the complete profile. <a href="https://www.canada.ca/en/immigration-refugees-citizenship/campaigns/francophone-immigration-outside-quebec/francophone-immigration-express-entry.html">1</a> <a href="https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry/check-score/crs-criteria.html">10</a></li>
+<li><strong>French-category eligibility.</strong> NCLC 7 in all four abilities meets the category's language threshold; candidates still need eligibility for an Express Entry-managed program and must satisfy round instructions. <a href="https://www.canada.ca/en/immigration-refugees-citizenship/corporate/transparency/consultations/2026-consultations-express-entry-selection.html">9</a></li>
+<li><strong>A recognized assessment route.</strong> IRCC accepts <strong>TEF Canada</strong> and <strong>TCF Canada</strong> for French in Express Entry. Results must be less than two years old both at profile completion and PR application submission. <a href="https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry/documents/language-test.html">IRCC language-test guidance</a></li>
+<li><strong>Practical communication.</strong> Beyond points, the product aims to build the language needed for work, services, and participation in French-speaking communities. No employment or salary improvement is promised.</li>
+</ol>
+<p><strong>CEFR is not NCLC.</strong> A1–C2 is a curriculum framework; NCLC is the Canadian French proficiency benchmark. Completing a B2 course, receiving an app badge, or scoring 80% on a practice quiz does not establish NCLC 7. Approved test scores must be converted separately for each ability using current IRCC guidance.</p>
+<h3 id="15-cost-and-accessibility-of-instruction">1.5 Cost and accessibility of instruction</h3>
+<p>The founder reports paying <strong>14,000–15,000 every six weeks</strong> for French classes. This document assumes <strong>Nepalese rupees (NPR)</strong> from the Kathmandu context; the currency and included charges should be confirmed before external publication. It is a personal experience, not a statement about every Alliance Française centre.</p>
+<p>Alliance Française de Katmandou's published fee table provides a useful local comparison: <strong>NPR 11,900 for a six-week, 45-hour regular session</strong>, with books listed separately at <strong>NPR 2,300 for A1/A2</strong> and <strong>NPR 2,600 for B1/B2</strong>. A session plus a newly purchased book therefore totals <strong>NPR 14,200–14,500</strong> for those levels. Books may be reused across sessions; this is not necessarily the recurring six-week cost. <a href="https://www.alliancefrancaise.org.np/french-classes/">1</a></p>
+<p>Classroom teaching provides live interaction, accountability, and expert correction. Parlez should complement it rather than claim equivalent outcomes at a fraction of the price. The affordability problem is the repeated cost of personalized practice between classes, plus scheduling and travel constraints.</p>
+<h3 id="16-why-another-language-app">1.6 Why another language app?</h3>
+<p>The claim should <strong>not</strong> be “Duolingo does not help people learn French.” Duolingo documents CEFR-oriented content through B2 tasks and AI conversation features. General-purpose apps are credible competitors. <a href="https://blog.duolingo.com/duolingo-updates/">2</a></p>
+<p>The proposed differentiation is narrower: <strong>a continuous path from foundational learning to Canada-specific, four-skill practice</strong>, with explicit task formats, error explanations, writing revision, and skill-by-skill progress. General French practice is useful, but it is not the same deliverable as a validated TEF Canada/TCF Canada preparation system.</p>
+<hr />
+<h2 id="2-product-vision-and-audience">2. Product vision and audience</h2>
+<h3 id="positioning">Positioning</h3>
+<p><strong>“Your affordable French study companion: learn systematically, ask questions naturally, and practise toward your exam goals.”</strong></p>
+<p>The first audience is English-supported beginner and intermediate learners in Nepal and comparable price-sensitive markets, including prospective Canadian immigrants. A second audience is temporary residents in Canada who want to improve French while working or studying. Classroom learners needing extra practice and independent exam candidates are additional segments.</p>
+<p>These segments are hypotheses, not validated market shares. Conduct 20–30 interviews and a paid pilot before projecting a total addressable market from immigration statistics. Many PR applicants already speak French, have no French-learning goal, or cannot be reached economically.</p>
+<h3 id="learning-experience">Learning experience</h3>
+<p>A proposed study session:</p>
+<ol>
+<li>Choose a level, goal, and available study time.</li>
+<li>Open a structured lesson with vocabulary, grammar, dialogue, and objectives.</li>
+<li>Ask the tutor a question without leaving the lesson.</li>
+<li>Complete targeted exercises and receive immediate feedback.</li>
+<li>Save difficult vocabulary to spaced-repetition flashcards.</li>
+<li>Write or speak a short response, revise it, and revisit recurring errors.</li>
+<li>At the appropriate stage, practise a specific exam task under timed conditions.</li>
+</ol>
+<p>A familiar chat layout reduces navigation friction, but chat is the interface—not the curriculum. Every lesson should have a measurable “can do” outcome and a suggested next step.</p>
+<hr />
+<h2 id="3-scope-current-application-versus-planned-product">3. Scope: current application versus planned product</h2>
+<p>Repository reviewed: <code>sazaan/parlez</code>, working tree on <code>arena/01a10baa-parlez</code>, 5 October 2026. Findings below supersede broader claims in the older README.</p>
+<table>
+<thead>
+<tr>
+<th>Capability</th>
+<th>Observed implementation</th>
+<th>Required improvement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Accounts and conversations</td>
+<td>Signup/login, JWT authentication, persistent conversation history</td>
+<td>Password recovery, verification, account deletion, session management and abuse controls</td>
+</tr>
+<tr>
+<td>Chat tutor</td>
+<td>Lesson/scenario context, level-sensitive prompts, recent history, adaptive prompt additions</td>
+<td>Provider abstraction, streaming, quality evaluation, reliable usage metering</td>
+</tr>
+<tr>
+<td>Course modules</td>
+<td>Active registry contains <strong>A1 only: 8 units, 24 lessons</strong></td>
+<td>Review, restructure, and enable A2–B2; validate all levels against learning outcomes</td>
+</tr>
+<tr>
+<td>Higher levels</td>
+<td>A2/B1/B2 files and C1 material exist; inactive in public registry</td>
+<td>C1 expansion after core validation; C2 requires new curriculum</td>
+</tr>
+<tr>
+<td>Exercises</td>
+<td>Multiple-choice, fill-blank, translation, conjugation, matching, dictation and other formats</td>
+<td>Audit accepted answers, ambiguity, error feedback and item difficulty</td>
+</tr>
+<tr>
+<td>Flashcards</td>
+<td>SM-2-style scheduling, due cards, ratings and statistics</td>
+<td>Validate scheduling UX; better leech/difficult-card handling</td>
+</tr>
+<tr>
+<td>Adaptive practice</td>
+<td>Rule-based weak-exercise-type detection and trend analysis</td>
+<td>Not a trained learner model; add reliable skill/grammar tagging and mastery evidence</td>
+</tr>
+<tr>
+<td>Writing feedback</td>
+<td>Model-generated correction with parsing and display</td>
+<td>Rubric validation, structured-output enforcement, uncertainty and appeals/reporting</td>
+</tr>
+<tr>
+<td>TEF/TCF practice</td>
+<td>Static question banks, timed-practice metadata, grading, history</td>
+<td>Correct Canada formats, add productive-skill tasks, validate audio and score claims</td>
+</tr>
+<tr>
+<td>Voice</td>
+<td>Browser speech recognition for dictation; browser speech synthesis and server TTS</td>
+<td>Not an oral examiner or pronunciation assessment; replace unsupported TTS dependency</td>
+</tr>
+<tr>
+<td>Content ingestion</td>
+<td>Pasted-text vocabulary extraction, flashcard/quiz generation using local heuristics</td>
+<td>Not a general document RAG pipeline; improve vocabulary coverage and review quality</td>
+</tr>
+<tr>
+<td>Progress and sharing</td>
+<td>XP, streaks, results, comments, shared conversation snapshots, export endpoints</td>
+<td>Privacy controls, retention, anti-gaming and deletion propagation</td>
+</tr>
+<tr>
+<td>Subscription</td>
+<td>No payment/entitlement system observed</td>
+<td>Checkout, billing webhooks, plan limits, cancellation and refund workflows</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Non-goals at launch:</strong> immigration advice, official certification, guaranteed NCLC/CEFR scores, unlimited human tutoring, unrestricted video/media processing, and fully validated C2 instruction.</p>
+<hr />
+<h2 id="4-curriculum-and-exam-integrity">4. Curriculum and exam integrity</h2>
+<p>The Council of Europe's CEFR distinguishes basic users (A1/A2), independent users (B1/B2), and proficient users (C1/C2). It is a framework of abilities, not merely six labels to attach to lesson collections. <a href="https://rm.coe.int/common-european-framework-of-reference-for-languages-learning-teaching/16809ea0d4">1</a></p>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>Proposed curriculum emphasis</th>
+<th>Release gate</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A1</td>
+<td>Introductions, everyday needs, core sounds, simple questions and sentences</td>
+<td>Teacher-reviewed lessons and beginner usability pilot</td>
+</tr>
+<tr>
+<td>A2</td>
+<td>Routine transactions, descriptions, past events, short messages</td>
+<td>Four-skill tasks and spaced cumulative review</td>
+</tr>
+<tr>
+<td>B1</td>
+<td>Connected narration, practical opinions, familiar discussions</td>
+<td>Unseen comprehension and supported writing/speaking assessments</td>
+</tr>
+<tr>
+<td>B2</td>
+<td>Arguments, formal correspondence, inference, sustained interaction</td>
+<td>Independent rubric review and exam-task calibration</td>
+</tr>
+<tr>
+<td>C1–C2</td>
+<td>Nuance, synthesis, register, complex discourse and precise expression</td>
+<td>Separate advanced content program and qualified reviewers</td>
+</tr>
+</tbody>
+</table>
+<p>No fixed “zero to B2 in six weeks” promise should be made. Progress depends on prior knowledge, study intensity, feedback, and opportunities for interaction.</p>
+<h3 id="canada-specific-formats-to-implement">Canada-specific formats to implement</h3>
+<table>
+<thead>
+<tr>
+<th>Skill</th>
+<th>TEF Canada</th>
+<th>TCF Canada</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Reading</td>
+<td>40 questions; 60 minutes</td>
+<td>39 questions; 60 minutes</td>
+</tr>
+<tr>
+<td>Listening</td>
+<td>40 questions; 40 minutes</td>
+<td>39 questions; 35 minutes</td>
+</tr>
+<tr>
+<td>Writing</td>
+<td>2 sections; 60 minutes</td>
+<td>3 tasks; 60 minutes</td>
+</tr>
+<tr>
+<td>Speaking</td>
+<td>2 sections; 15 minutes</td>
+<td>3 tasks; 12 minutes, including preparation</td>
+</tr>
+</tbody>
+</table>
+<p>Sources: official TEF provider and France Éducation international. These are the immigration versions, not generic TEF/TCF variants. <a href="https://www.lefrancaisdesaffaires.fr/en/candidate/test-evaluation-francais/tef-canada/examination/">2</a> <a href="https://www.france-education-international.fr/test/tcf-canada?langue=en">TCF Canada official format</a></p>
+<p><strong>Current gap:</strong> <code>mock_tests/data.py</code> describes TEF reading/listening as 50/60 questions and includes a vocabulary/grammar section. Its TCF metadata uses 29 listening questions, 18 language-structure questions and 29 reading questions—different from TCF Canada. Neither listed exam format includes the complete Canada writing/speaking sequence.</p>
+<p><code>main.py</code> also converts raw percentages into level labels using simple thresholds. This is a practice heuristic, <strong>not a validated CEFR assessment or official score conversion</strong>. Replace public readiness claims with skill-specific practice feedback until independent validation exists.</p>
+<p><strong>Content policy:</strong> use original or properly licensed questions, passages, images and recordings. Do not reproduce textbooks, leaked exams, or paid preparation banks without permission. Maintain a rights/provenance register and human approval history. Describe Parlez as independent and unaffiliated with IRCC, Alliance Française, the Council of Europe, and the test owners unless formal agreements exist.</p>
+<hr />
+<h2 id="5-competitive-position">5. Competitive position</h2>
+<table>
+<thead>
+<tr>
+<th>Alternative</th>
+<th>Strength</th>
+<th>Opportunity for Parlez</th>
+<th>Parlez's disadvantage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Alliance Française / teachers</td>
+<td>Human interaction, accountability and feedback</td>
+<td>Affordable between-class practice</td>
+<td>AI cannot reliably replace an expert teacher</td>
+</tr>
+<tr>
+<td>Duolingo / general learning apps</td>
+<td>Habit building and broad language practice; Duolingo documents advanced tasks and AI conversation <a href="https://blog.duolingo.com/duolingo-updates/">2</a></td>
+<td>Explicit Canada-exam workflow and error-to-lesson connections</td>
+<td>Larger competitors have established distribution and content teams</td>
+</tr>
+<tr>
+<td>General AI chat</td>
+<td>Flexible explanations and conversation</td>
+<td>Curated progression, persistent study goals and reviewed practice</td>
+<td>A generic chatbot is easy to imitate; users can prompt alternatives themselves</td>
+</tr>
+<tr>
+<td>Official exam resources</td>
+<td>Authoritative format information and examples <a href="https://www.lefrancaisdesaffaires.fr/en/candidate/test-evaluation-francais/tef-canada/examination/">2</a> <a href="https://www.france-education-international.fr/test/tcf-canada?langue=en">TCF resources</a></td>
+<td>Daily structured progression and revision workflow</td>
+<td>Parlez has no official assessment authority</td>
+</tr>
+<tr>
+<td>Specialist preparation providers</td>
+<td>Direct exam focus; evaluate individual providers during customer research</td>
+<td>Transparent low price and a foundation-to-exam journey</td>
+<td>Specialist competitors may have stronger banks and examiner feedback</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Defensible advantage to build:</strong> reviewed content, reliable feedback, useful longitudinal learning data, and trusted learner outcomes. Low token prices and a chat screen alone are not a durable advantage.</p>
+<hr />
+<h2 id="6-technical-architecture">6. Technical architecture</h2>
+<h3 id="current-stack">Current stack</h3>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Technology and repository location</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Runtime</td>
+<td>Python; Docker and CI target Python 3.12</td>
+</tr>
+<tr>
+<td>Web/API</td>
+<td>FastAPI 0.104.1, Uvicorn 0.24.0, Pydantic request models; <code>main.py</code></td>
+</tr>
+<tr>
+<td>Frontend</td>
+<td>Vanilla JavaScript, HTML and CSS; <code>static/app.js</code>, <code>index.html</code>, <code>styles.css</code>, separate landing files; no React/Next.js build required</td>
+</tr>
+<tr>
+<td>Persistence</td>
+<td>SQLAlchemy 2.0.25; default SQLite database <code>data/parlez.db</code>, WAL mode; <code>db.py</code></td>
+</tr>
+<tr>
+<td>Data shape</td>
+<td>Users plus JSON learning state; shared links and comment groups in separate tables</td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td>bcrypt password hashes, PyJWT HS256 tokens, cookie or bearer authentication</td>
+</tr>
+<tr>
+<td>AI transport</td>
+<td>HTTPX to NVIDIA's chat-completions endpoint; model configured in code as <code>nvidia/nemotron-3-nano-30b-a3b</code></td>
+</tr>
+<tr>
+<td>Learning engine</td>
+<td>Python prompt construction, answer checking, quizzes, adaptive rules, flashcards and writing helpers in <code>engine/</code></td>
+</tr>
+<tr>
+<td>Course/test content</td>
+<td>Python dataclasses and in-repository data in <code>courses/</code> and <code>mock_tests/</code></td>
+</tr>
+<tr>
+<td>Rate limiting</td>
+<td>SlowAPI; optional Redis via <code>REDIS_URL</code>, otherwise process-local counters</td>
+</tr>
+<tr>
+<td>Speech</td>
+<td>Browser Web Speech APIs; <code>/api/tts</code> calls Google Translate's <code>translate_tts</code> endpoint—not a contracted Google Cloud TTS integration</td>
+</tr>
+<tr>
+<td>Operations</td>
+<td>Docker Compose, Caddy production proxy, <code>/health</code>, request logging, SQLite backup script and backup sidecar configuration</td>
+</tr>
+<tr>
+<td>Tests and CI</td>
+<td>pytest, Ruff, GitHub Actions; configured Bandit, dependency audit, coverage and secret scanning</td>
+</tr>
+</tbody>
+</table>
+<p>Other pinned dependencies include PyPDF2, PyMuPDF, Pillow, aiofiles and scikit-learn. Their presence does not prove that the current app exposes the old README's image/video/PDF upload workflow.</p>
+<h3 id="request-flow">Request flow</h3>
+<pre><code class="language-text">Browser: chat / lesson / exercise / flashcard
+                    |
+          FastAPI + authentication
+                    |
+       +------------+------------------+
+       |                               |
+Local course/practice engine     Tutor prompt builder
+       |                         + recent conversation
+       |                         + lesson + weak areas
+       |                               |
+       |                         Hosted model API
+       +---------------+---------------+
+                       |
+             SQLAlchemy / SQLite
+                       |
+             response + saved progress
+</code></pre>
+<p>Chat currently sends up to the last 15 conversation messages plus the system prompt, lesson context and current message. Responses are returned after the upstream call completes rather than streamed token-by-token. Long histories still increase recurring input costs.</p>
+<h3 id="repository-map">Repository map</h3>
+<ul>
+<li><code>main.py</code>: API routes, middleware, orchestration, auth, progress and AI integration.</li>
+<li><code>db.py</code>: persistence interface and SQLAlchemy models.</li>
+<li><code>engine/</code>: reusable educational logic.</li>
+<li><code>courses/data.py</code>: active course registry; the key place to verify actual course availability.</li>
+<li><code>mock_tests/data.py</code>, <code>expanded_data.py</code>: practice formats and question banks.</li>
+<li><code>static/</code>: browser UI and public landing page.</li>
+<li><code>tests/</code>: API, security, course, landing, rate-limit and startup regression coverage.</li>
+<li><code>backup.py</code>, <code>migrate_to_sqlite.py</code>: data administration helpers.</li>
+<li><code>Dockerfile</code>, Compose files, <code>Caddyfile</code>, shell scripts: deployment.</li>
+</ul>
+<h3 id="api-groups">API groups</h3>
+<p>Accounts: <code>/api/auth/*</code>; courses: <code>/api/courses/*</code>; tutor: <code>/api/chat</code> and <code>/api/conversations/*</code>; exercises: <code>/api/check-exercise</code> and <code>/api/practice/*</code>; flashcards: <code>/api/flashcards/*</code>; exams: <code>/api/mock-tests/*</code> and <code>/api/exam/*</code>; feedback: <code>/api/writing/correct</code>, <code>/api/adaptive/analysis</code>; content: <code>/api/content/ingest</code>; progress: <code>/api/progress</code>, <code>/api/streaks</code>; sharing/export: <code>/api/share/*</code>, <code>/api/comments/*</code>, <code>/api/export</code>; audio: <code>/api/tts</code>. FastAPI also supplies interactive API documentation at <code>/docs</code>.</p>
+<hr />
+<h2 id="7-ai-model-strategy-can-it-serve-thousands-of-users">7. AI model strategy: can it serve thousands of users?</h2>
+<p><strong>Yes, in principle, with paid production APIs, a constrained workload, approved quotas and measured quality.</strong> User count alone does not determine cost or capacity. Active users, turns, context length, output length, peak concurrency, audio and retries do.</p>
+<h3 id="candidate-shortlist">Candidate shortlist</h3>
+<p>Rates below are published <strong>USD per one million text tokens</strong>, input/output, standard online inference—not consumer chatbot subscriptions or free-tier assumptions. Prices are a research snapshot, not a commercial quote. Qualitative fit is a recommendation to test, not a French-teaching benchmark result.</p>
+<table>
+<thead>
+<tr>
+<th>Candidate</th>
+<th style="text-align: right;">Input / output</th>
+<th>Proposed role</th>
+<th>Pros</th>
+<th>Cons / validation needed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 2.5 Flash-Lite</td>
+<td style="text-align: right;">$0.10 / $0.40 <a href="https://ai.google.dev/gemini-api/docs/pricing">1</a></td>
+<td>Low-cost routine tutor candidate</td>
+<td>Very low published text cost</td>
+<td>Lifecycle/deprecation checks; grammar and feedback quality must be tested</td>
+</tr>
+<tr>
+<td>Mistral Small 4 (<code>mistral-small-2603</code>)</td>
+<td style="text-align: right;">$0.15 / $0.60 <a href="https://docs.mistral.ai/models/model-selection-guide?models=mistral-small-4-0-26-03">2</a></td>
+<td>Primary paid-pilot candidate</td>
+<td>Low price; published Apache 2.0 weights offer deployment flexibility</td>
+<td>“Small” is not a hardware sizing guarantee; French accuracy and production quotas need measurement</td>
+</tr>
+<tr>
+<td>Gemini 3.1 Flash-Lite</td>
+<td style="text-align: right;">$0.25 / $1.50 <a href="https://ai.google.dev/gemini-api/docs/pricing">1</a></td>
+<td>Alternative primary/fallback candidate</td>
+<td>Another economical API route</td>
+<td>Output/thinking costs higher than the older Lite model; paid-tier privacy terms need review</td>
+</tr>
+<tr>
+<td>GPT-4.1 mini</td>
+<td style="text-align: right;">$0.40 / $1.60 <a href="https://developers.openai.com/api/docs/models/gpt-4.1-mini">OpenAI model card</a></td>
+<td>Writing-review / difficult-answer comparison candidate</td>
+<td>Structured outputs, snapshot versioning and no reasoning step documented</td>
+<td>Higher cost than the cheapest routes; no direct audio support; not an official examiner</td>
+</tr>
+<tr>
+<td>Claude Haiku 4.5</td>
+<td style="text-align: right;">$1.00 / $5.00 <a href="https://www.anthropic.com/claude/haiku">1</a></td>
+<td>Additional quality benchmark or selective review</td>
+<td>Alternative vendor; useful evaluation candidate</td>
+<td>More expensive for frequent tutoring at a $4.99 retail price</td>
+</tr>
+<tr>
+<td>Current NVIDIA Build/NIM route</td>
+<td style="text-align: right;">No production per-token quote verified</td>
+<td>Development baseline</td>
+<td>Already integrated in the repo</td>
+<td>Developer access is for prototyping/testing; production path, licensing and capacity must be confirmed <a href="https://docs.api.nvidia.com/nim/docs/product">2</a></td>
+</tr>
+</tbody>
+</table>
+<p>This is a targeted shortlist, not an exhaustive ranking of every model available. Include newly available successors in the evaluation rather than selecting solely by launch date or price.</p>
+<h3 id="nvidia-specific-commercial-caution">NVIDIA-specific commercial caution</h3>
+<p>NVIDIA's documentation distinguishes Developer Program access from production use and quotes AI Enterprise starting at <strong>$4,500/GPU/year</strong>, or approximately <strong>$1/GPU/hour in the cloud</strong>. Infrastructure and deployment terms still matter. This is not a token price for the currently configured endpoint. <a href="https://docs.api.nvidia.com/nim/docs/product">2</a></p>
+<p>NVIDIA also describes production partner endpoints as an option. Do not assume a free developer key provides the rights, support, throughput or availability required for a paid consumer app. Do not build a business plan around a universal “40 requests/minute” limit without account-specific confirmation. <a href="https://forums.developer.nvidia.com/t/nvidia-nim-faq/300317">5</a></p>
+<h3 id="recommended-routing">Recommended routing</h3>
+<ul>
+<li>Serve existing lessons, explanations approved for reuse, quizzes and flashcard scheduling <strong>without an LLM call</strong>.</li>
+<li>Trial Mistral Small 4 and Gemini Flash-Lite candidates for ordinary tutoring.</li>
+<li>Use a separately benchmarked model selectively for difficult corrections; higher price does not automatically mean better French teaching.</li>
+<li>Prefer structured outputs for feedback; validate schema and refuse malformed grading payloads.</li>
+<li>Ground explanations in reviewed lesson material, not unrestricted web search on every turn.</li>
+<li>Keep provider/model/version configurable. Add bounded retries, jitter, timeouts, circuit breakers, concurrency limits and cost ceilings.</li>
+<li>Use paid tiers with reviewed data-processing terms. Google lists different product-improvement treatment for free and paid usage; verify the applicable service terms rather than assuming all free APIs protect learner data identically. <a href="https://ai.google.dev/gemini-api/docs/pricing">1</a></li>
+</ul>
+<h3 id="evaluation-before-choosing-a-winner">Evaluation before choosing a winner</h3>
+<p>Build at least 200 teacher-reviewed cases across A1–B2: grammatical corrections, acceptable alternative answers, explanations at the requested level, code-switching, writing task fulfillment, ambiguous exercises, and prompt-injection attempts. Use two qualified reviewers for a subset, resolve disagreements, and score blindly.</p>
+<p>Track correction precision, incorrect-correction rate, level appropriateness, actionable feedback, schema validity, p50/p95 latency, tokens per turn and cost. Set release thresholds before running the comparison. No live provider benchmark or comparative French assessment was performed for this document.</p>
+<h3 id="api-versus-self-hosting">API versus self-hosting</h3>
+<p>Start with managed APIs: low initial expense, no GPU operation, flexible vendor evaluation. Downsides are vendor dependence, rate limits, privacy review and price changes. Self-hosting provides more control but adds GPU rental, idle capacity, patching, scaling, monitoring, failover and staffing.</p>
+<p>An illustrative—not quoted—GPU cost of $1/hour is approximately $730/month at 730 hours, before redundancy and operations. Compare against the complete measured API bill and required throughput. “Open weights” does not mean free inference or that one GPU can serve the target concurrency.</p>
+<hr />
+<h2 id="8-proposed-pricing-and-unit-economics">8. Proposed pricing and unit economics</h2>
+<h3 id="offer-design">Offer design</h3>
+<table>
+<thead>
+<tr>
+<th>Plan</th>
+<th>Proposed price</th>
+<th>Scope</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Starter</td>
+<td>Free</td>
+<td>Selected beginner lessons and a small lifetime AI trial, e.g. 20 turns per verified account; abuse-limited</td>
+</tr>
+<tr>
+<td>Parlez Core</td>
+<td><strong>US$4.99/month</strong></td>
+<td>All released core lessons, reusable practice and flashcards; <strong>300 standard AI turns/month</strong>, including up to 20 longer writing reviews within that allowance</td>
+</tr>
+<tr>
+<td>Annual option</td>
+<td>Consider only after retention is measured</td>
+<td>Avoid deep launch discounts until support, refunds and model costs are understood</td>
+</tr>
+<tr>
+<td>Optional extras</td>
+<td>Price after measurement</td>
+<td>Live voice, unusually long writing, teacher review or additional AI credits; not silently subsidized by Core</td>
+</tr>
+</tbody>
+</table>
+<p>Display remaining allowance before use. Define maximum input/output sizes; long tasks may consume more credits, disclosed beforehand. Do not market unreleased A2–B2 content as available. “All released lessons” does not mean unlimited storage, automation, API access, or unlimited AI generation.</p>
+<h3 id="text-inference-calculation">Text inference calculation</h3>
+<p><strong>Planning workload, not a measurement:</strong> 300 monthly AI turns per paying user; 2,500 billed input tokens and 500 billed output tokens per turn, including prompt/history. No caching or batch discounts assumed. Thinking tokens, where billed, must fit the output budget or be added separately.</p>
+<pre><code class="language-text">Monthly input  = 300 × 2,500 = 750,000 tokens
+Monthly output = 300 ×   500 = 150,000 tokens
+Cost = 0.75 × input price per million + 0.15 × output price per million
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>All turns on one candidate</th>
+<th style="text-align: right;">Text inference/user/month</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 2.5 Flash-Lite</td>
+<td style="text-align: right;">$0.135</td>
+</tr>
+<tr>
+<td>Mistral Small 4</td>
+<td style="text-align: right;">$0.203</td>
+</tr>
+<tr>
+<td>Gemini 3.1 Flash-Lite</td>
+<td style="text-align: right;">$0.413</td>
+</tr>
+<tr>
+<td>GPT-4.1 mini</td>
+<td style="text-align: right;">$0.540</td>
+</tr>
+<tr>
+<td>Claude Haiku 4.5</td>
+<td style="text-align: right;">$1.500</td>
+</tr>
+</tbody>
+</table>
+<p>Calculated from the cited rates in Section 7; excludes infrastructure, audio, payments and staff.</p>
+<p><strong>Illustrative blended route:</strong> 90% Mistral Small 4 + 10% GPT-4.1 mini, assuming the same token volumes for both: <strong>$0.236/user/month</strong>; add a 20% inference contingency → <strong>$0.284</strong>. The 10% review share is an assumption, not a demonstrated optimal allocation.</p>
+<h3 id="sensitivity-where-the-plan-can-fail">Sensitivity: where the plan can fail</h3>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th style="text-align: right;">Blended inference including 20% contingency</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>100 turns, normal context</td>
+<td style="text-align: right;">$0.095/user/month</td>
+</tr>
+<tr>
+<td>300 turns, normal context</td>
+<td style="text-align: right;">$0.284</td>
+</tr>
+<tr>
+<td>900 turns, normal context</td>
+<td style="text-align: right;">$0.851</td>
+</tr>
+<tr>
+<td>3,000 turns, normal context</td>
+<td style="text-align: right;">$2.835</td>
+</tr>
+<tr>
+<td>300 turns, 10,000 input + 1,000 output tokens each</td>
+<td style="text-align: right;">$0.882</td>
+</tr>
+<tr>
+<td>Every turn uses Haiku at the normal 300-turn workload</td>
+<td style="text-align: right;">$1.800</td>
+</tr>
+</tbody>
+</table>
+<p>The repo's current cap is <strong>100 LLM requests/day</strong>, potentially 3,000/month—not the proposed 300-turn subscription allowance. It counts requests rather than billed tokens, and read/modify/write persistence is not an atomic spending control. Implement token metering and reserved budget before exposing paid capacity.</p>
+<h3 id="illustrative-operating-contribution">Illustrative operating contribution</h3>
+<p>Assumptions: all subscribers pay monthly; every subscriber consumes the standard allocation; payment allowance <strong>$0.50/charge</strong>; refunds/support provision <strong>$0.20/user</strong>; inference as above. Payment allowance is a planning estimate, not a Stripe or Nepal merchant quote. Infrastructure allowances are not vendor quotes or tested sizing.</p>
+<table>
+<thead>
+<tr>
+<th>Monthly item</th>
+<th style="text-align: right;">1,000 paying users</th>
+<th style="text-align: right;">10,000 paying users</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gross subscription receipts</td>
+<td style="text-align: right;">$4,990</td>
+<td style="text-align: right;">$49,900</td>
+</tr>
+<tr>
+<td>Payment processing allowance</td>
+<td style="text-align: right;">−$500</td>
+<td style="text-align: right;">−$5,000</td>
+</tr>
+<tr>
+<td>AI inference + contingency</td>
+<td style="text-align: right;">−$284</td>
+<td style="text-align: right;">−$2,835</td>
+</tr>
+<tr>
+<td>App/database/cache/monitoring allowance</td>
+<td style="text-align: right;">−$200</td>
+<td style="text-align: right;">−$1,000</td>
+</tr>
+<tr>
+<td>Refund/support provision</td>
+<td style="text-align: right;">−$200</td>
+<td style="text-align: right;">−$2,000</td>
+</tr>
+<tr>
+<td><strong>Contribution before excluded costs</strong></td>
+<td style="text-align: right;"><strong>$3,806</strong></td>
+<td style="text-align: right;"><strong>$39,065</strong></td>
+</tr>
+<tr>
+<td>Contribution / gross receipts</td>
+<td style="text-align: right;">76.3%</td>
+<td style="text-align: right;">78.3%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Not net profit.</strong> Excludes founder/employee pay, teacher review, acquisition, free users, legal/accounting, tax, payment FX/cross-border surcharges, chargebacks beyond the provision and uncapped audio. At only 100 paid users, the same $200 infrastructure allowance would consume $2 per subscriber.</p>
+<p>Using the 1,000-user case, contribution is about $3.81 per paid user after the shown allocations. An additional $3,000/month in fixed payroll/content overhead would require roughly <strong>789 equivalent subscribers</strong> at that contribution; $10,000 would require roughly <strong>2,628</strong>. This is a simplified sensitivity, not a cash-flow forecast, and must be recalculated as infrastructure and staffing change.</p>
+<h3 id="voice-payments-and-affordability">Voice, payments and affordability</h3>
+<p>OpenAI lists <code>gpt-4o-mini-transcribe</code> at an estimated <strong>$0.003/minute</strong>; 60 minutes is $0.18 for transcription alone. Synthesis and tutoring are extra. Its listed GPT-Live session rate of <strong>$0.05/minute</strong> would be $3 for 60 minutes before separately billed backend usage. This illustrates why unlimited live voice should not be included at $4.99. <a href="https://developers.openai.com/api/docs/pricing">OpenAI audio pricing</a></p>
+<p>Reuse licensed/pre-generated lesson audio; use browser synthesis where suitable but disclose voice/browser variation. Replace the current Translate endpoint with a supported commercial speech service before relying on server speech at scale.</p>
+<p>For a Nepal-based business, verify merchant eligibility, settlement currency, recurring-payment support, tax collection and customer card access <strong>before</strong> selecting a gateway. Compare a local gateway, eligible international processor, or merchant-of-record arrangement using written terms. Do not assume US merchant fees or that availability to buyers means availability to Nepal-based sellers.</p>
+<p>At $4.99 monthly, twelve payments total $59.88 before tax. Do not claim a precise percentage saving versus local instruction without a dated exchange rate and a like-for-like comparison; self-study and 45 hours of teacher-led learning are different products.</p>
+<hr />
+<h2 id="9-scaling-plan-and-operational-risks">9. Scaling plan and operational risks</h2>
+<h3 id="capacity-example">Capacity example</h3>
+<p>At 10,000 paid users × 300 turns/month, the app handles <strong>3 million AI requests/month</strong>. Over a 30-day month this averages <strong>69.4 requests/minute</strong>. A planning peak of 10× average is approximately <strong>694 requests/minute</strong>, <strong>1.74 million input tokens/minute</strong>, and <strong>347,000 output tokens/minute</strong> at the assumed payload.</p>
+<p>At a 10-second average upstream response time, the peak would imply roughly <strong>116 simultaneous AI requests</strong>. These are assumptions for quota discussions and load tests—not observed performance. Check requests, tokens, daily quotas, burst rules and concurrency independently; include fallback capacity and retries.</p>
+<h3 id="architecture-progression">Architecture progression</h3>
+<p><strong>Pilot:</strong> one app replica, SQLite, strict concurrency controls, verified backups and measured API costs. A single process can still have overlapping asynchronous requests; it does not remove lost-update risk.</p>
+<p><strong>Paid growth:</strong> managed PostgreSQL, normalized conversation/message/review/usage tables, transactional updates, shared Redis limits, reusable HTTP clients, bounded background jobs, monitoring and documented restore procedures.</p>
+<p><strong>Thousands of active learners:</strong> horizontally scaled stateless API services behind a trusted proxy, connection pooling, durable queues, object storage/CDN for reviewed audio, centralized billing/usage ledger, quota headroom and failover tests.</p>
+<p>PostgreSQL is <strong>not</strong> a drop-in scaling guarantee. Although <code>db.py</code> accepts a database URL, the current requirements do not include a PostgreSQL driver, and whole-user JSON updates can overwrite concurrent changes on any database. Add a driver, migrations, transactional/optimistic concurrency controls and tests.</p>
+<h3 id="launch-blockers-and-mitigations">Launch blockers and mitigations</h3>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Why it matters</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Inaccurate instruction or false grading</td>
+<td>Can teach errors or mislead exam decisions</td>
+<td>Teacher-reviewed evaluation, reporting, correction logs, no official-score claims</td>
+</tr>
+<tr>
+<td>Misaligned exam formats</td>
+<td>Undermines the core positioning</td>
+<td>Canada-specific four-skill implementation and expert sign-off</td>
+</tr>
+<tr>
+<td>Curriculum/IP uncertainty</td>
+<td>Textbook conversion utilities and legacy materials warrant provenance review</td>
+<td>Audit source rights; replace unlicensed content</td>
+</tr>
+<tr>
+<td>Provider terms / outage</td>
+<td>Free developer access is not a production contract</td>
+<td>Paid provider approval, fallback, budgets and graceful offline practice</td>
+</tr>
+<tr>
+<td>Concurrent JSON saves</td>
+<td>Can lose history, XP or quota updates</td>
+<td>Normalize records and use atomic writes before multi-replica deployment</td>
+</tr>
+<tr>
+<td>Payment and subscription abuse</td>
+<td>$4.99 leaves limited room for fraud/support</td>
+<td>Signed idempotent webhooks, server-side entitlements, trial abuse limits</td>
+</tr>
+<tr>
+<td>Proxy/security configuration</td>
+<td>App trusts forwarded IPs; direct access can undermine rate limits</td>
+<td>Restrict backend ingress and trust only known proxies; review auth and dependency advisories</td>
+</tr>
+<tr>
+<td>Privacy</td>
+<td>Conversations may contain personal or immigration-related information</td>
+<td>Minimize collection; no passport uploads; consent, retention, deletion and vendor disclosures</td>
+</tr>
+<tr>
+<td>Backup reliability</td>
+<td>A separate volume is not necessarily an off-site backup</td>
+<td>Verify sidecar permissions/read-only WAL behavior, restore drills, encrypted off-host copies</td>
+</tr>
+<tr>
+<td>Policy changes</td>
+<td>Could weaken acquisition messaging</td>
+<td>Date policy guidance; quarterly review; retain broader language-learning value</td>
+</tr>
+</tbody>
+</table>
+<p>The production Compose file currently exposes port 8000 as well as Caddy. Remove direct public backend exposure when deploying behind the proxy. The backup sidecar mounts app data read-only while <code>backup.py</code> constructs the storage layer; verify startup and restore behavior rather than assuming the configured sidecar is proven. No security certification, full compliance review or production load test is claimed.</p>
+<hr />
+<h2 id="10-development-and-deployment-guide">10. Development and deployment guide</h2>
+<h3 id="local-docker-setup">Local Docker setup</h3>
+<p>Prerequisites: current Docker Engine/Compose, an NVIDIA key for the current prototype route, and an independently generated JWT secret.</p>
+<pre><code class="language-bash">cp .env.example .env
+openssl rand -hex 32
+# Edit .env: set NVIDIA_API_KEY and JWT_SECRET to your own values.
+# Keep COOKIE_SECURE=false only for local HTTP development.
+./run.sh
+</code></pre>
+<p>Open <code>http://localhost:8000</code>; the public landing page is <code>/</code>, with the login/application entry at <code>/login</code>. For health and logs:</p>
+<pre><code class="language-bash">docker compose logs --tail=100 chatbot data-init
+curl http://localhost:8000/health
+</code></pre>
+<p>The working tree's Compose configuration includes a one-shot root <code>data-init</code> service that repairs ownership of the <code>./data</code> bind mount, followed by the non-root app. Initializer exit code 0 is expected. Preserve <code>data/parlez.db</code>; do not delete it to repair permissions. An explicit SQLite URL inside Docker should use the container path: <code>sqlite:////app/data/parlez.db</code>.</p>
+<h3 id="manual-development">Manual development</h3>
+<pre><code class="language-bash">python3.12 -m venv .venv
+. .venv/bin/activate
+pip install -r requirements-dev.txt
+# Configure .env as above, then:
+python main.py
+</code></pre>
+<p>Run tests against the isolated test database configured by <code>tests/conftest.py</code>:</p>
+<pre><code class="language-bash">JWT_SECRET=this-is-a-test-secret-that-is-32-chars-long \
+NVIDIA_API_KEY=dummy python -m pytest tests/ -q
+ruff check main.py db.py engine migrate_to_sqlite.py
+</code></pre>
+<p>These are operating instructions, not a claim that the full suite was executed while preparing this document. Never use real user data for testing.</p>
+<h3 id="configuration-checklist">Configuration checklist</h3>
+<ul>
+<li><code>NVIDIA_API_KEY</code>: current upstream credential; keep server-side.</li>
+<li><code>JWT_SECRET</code>: required, at least 32 characters; generate securely, never commit.</li>
+<li><code>TOKEN_EXPIRY_HOURS</code>: token lifetime, default 24.</li>
+<li><code>COOKIE_SECURE</code>: false only for local HTTP; true for production HTTPS.</li>
+<li><code>COOKIE_SAMESITE</code>: default <code>lax</code>; review alongside CSRF protections.</li>
+<li><code>DATABASE_URL</code>: optional; default SQLite storage.</li>
+<li><code>REDIS_URL</code>: optional shared rate-limit store; no Redis service is automatically provisioned by this setting.</li>
+<li><code>PARLEZ_HOST</code>: Caddy host setting for the production Compose configuration.</li>
+</ul>
+<p>Before production: review secrets, domain/TLS, trusted proxy settings, data ownership, backup restores, rate limits, upstream production rights, privacy notices and payment eligibility. Separate deployment readiness from educational readiness.</p>
+<hr />
+<h2 id="11-delivery-roadmap-and-success-measures">11. Delivery roadmap and success measures</h2>
+<p>Indicative phases assume engineering capacity plus a qualified French curriculum reviewer; they are planning ranges, not delivery commitments.</p>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Indicative duration</th>
+<th>Acceptance criteria</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Foundation audit</td>
+<td>2–3 weeks</td>
+<td>Content inventory, IP review, A1 accuracy review, corrected exam labels, basic observability</td>
+</tr>
+<tr>
+<td>Learning beta</td>
+<td>4–8 additional weeks</td>
+<td>A1/A2 reviewed, model comparison completed, 30–50 consented pilot learners, metered costs</td>
+</tr>
+<tr>
+<td>Paid Core readiness</td>
+<td>6–10 additional weeks</td>
+<td>Billing and cancellation tested, privacy/security review, reliable backups, approved API quotas</td>
+</tr>
+<tr>
+<td>B1/B2 and Canada preparation</td>
+<td>Separate content-led workstream</td>
+<td>Reviewed four-skill lessons, exact task formats, unseen assessments, qualified reviewer sign-off</td>
+</tr>
+<tr>
+<td>C1/C2 expansion</td>
+<td>After core outcomes and retention are demonstrated</td>
+<td>Dedicated advanced curriculum, specialist review and sustainable economics</td>
+</tr>
+</tbody>
+</table>
+<h3 id="metrics">Metrics</h3>
+<ul>
+<li><strong>Activation:</strong> account → first lesson → first completed practice session.</li>
+<li><strong>Learning:</strong> unseen-question performance, recurring-error reduction, rubric-based writing/speaking improvement; not just XP.</li>
+<li><strong>Retention:</strong> day 7/day 30 and paid cohort retention, study days per week, voluntary churn reasons.</li>
+<li><strong>Economics:</strong> paid conversion, net revenue, AI cost at median/p95, support minutes, refunds, acquisition cost and payback.</li>
+<li><strong>Reliability:</strong> tutor error rate, p95 latency, malformed feedback, quota failures and restore success.</li>
+<li><strong>Evidence:</strong> optional, consent-based before/after official scores; report sample size and selection bias. Never imply the app alone caused immigration success.</li>
+</ul>
+<p>For initial planning, target AI cost below $0.75 for a typical Core subscriber and below $1.50 for most subscribers within the promised allowance. These are proposed guardrails, not achieved metrics. Evaluate acquisition payback against measured contribution; a three-month payback budget at approximately $3.81 contribution is only about $11.43 per acquired paid user.</p>
+<h3 id="go-to-market">Go-to-market</h3>
+<p>Start with the founder's learner community and a transparent paid pilot. Publish source-linked explanations of exam formats and learning strategies; build referral loops around useful free exercises, not immigration guarantees. Explore teacher partnerships for supplemental practice. Add Nepal-friendly payment options only after merchant and settlement validation. Avoid expensive paid acquisition until retention and conversion are known.</p>
+<hr />
+<h2 id="12-recommendation-and-decisions-required">12. Recommendation and decisions required</h2>
+<p><strong>Proceed with a focused, text-first pilot—not an “unlimited AI immigration coach.”</strong> A $4.99 subscription is plausible on inference economics, but product-market fit and validated learning outcomes remain unproven.</p>
+<p>Priorities:</p>
+<ol>
+<li>Confirm USD pricing and the currency/details of the founder's fee example.</li>
+<li>Audit course accuracy and content rights; publish only reviewed levels.</li>
+<li>Correct TEF Canada/TCF Canada positioning and build all four skills.</li>
+<li>Benchmark paid production models, then choose on educational quality and measured cost.</li>
+<li>Implement transactional usage metering, billing, privacy controls and restore-tested storage.</li>
+<li>Run a small paid cohort and decide whether to expand from evidence.</li>
+</ol>
+<p><strong>Product summary:</strong> Parlez is an affordable French study companion connecting a structured curriculum, conversational explanations, repeated practice and progress feedback. Its long-term ambition is A1–C2 learning; its near-term promise should be a credible, reviewed foundation and a progressively validated path toward Canada-specific exam preparation.</p>
+<hr />
+<h2 id="research-notes-and-source-register">Research notes and source register</h2>
+<p>Inline links identify the evidence behind external claims. Primary government, exam-owner and provider documentation is preferred; third-party news is explicitly identified. All sources were consulted for this document on <strong>5 October 2026</strong>. Rates and public pages may change. Numerical projections are calculations from stated assumptions, not provider performance guarantees.</p>
+<h3 id="immigration-and-demand">Immigration and demand</h3>
+<ul>
+<li>IRCC — French-speaking skilled workers and additional points: https://www.canada.ca/en/immigration-refugees-citizenship/campaigns/francophone-immigration-outside-quebec/francophone-immigration-express-entry.html</li>
+<li>IRCC — current CRS criteria: https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry/check-score/crs-criteria.html</li>
+<li>IRCC — February 2026 announcement: https://www.canada.ca/en/immigration-refugees-citizenship/news/2026/02/canada-prioritizes-top-talent-in-2026-immigration-express-entry-categories.html</li>
+<li>IRCC — May 2026 Francophone briefing: https://www.canada.ca/en/immigration-refugees-citizenship/corporate/transparency/committees/cimm-may-04-2026/francophone-immigration.html</li>
+<li>IRCC — Express Entry 2024 report: https://www.canada.ca/en/immigration-refugees-citizenship/corporate/publications-manuals/express-entry-year-end-report-2024.html</li>
+<li>IRCC — 2025 annual report, covering 2024 admissions: https://www.canada.ca/en/immigration-refugees-citizenship/corporate/publications-manuals/annual-report-parliament-immigration-2025.html</li>
+<li>Parliamentary Budget Officer — 2026–2028 plan analysis: https://www.pbo-dpb.ca/en/publications/RP-2526-025-S--demographic-implications-2026-2028-immigration-levels-plan--implications-demographiques-plan-niveaux-immigration-2026-2028</li>
+<li>CIC News — secondary reporting: https://www.cicnews.com/2026/02/three-new-express-entry-categories-0271729.html</li>
+</ul>
+<h3 id="teaching-tests-and-alternatives">Teaching, tests and alternatives</h3>
+<ul>
+<li>Alliance Française de Katmandou fees: https://www.alliancefrancaise.org.np/french-classes/</li>
+<li>Council of Europe CEFR companion volume: https://rm.coe.int/common-european-framework-of-reference-for-languages-learning-teaching/16809ea0d4</li>
+<li>TEF Canada examination: https://www.lefrancaisdesaffaires.fr/en/candidate/test-evaluation-francais/tef-canada/examination/</li>
+<li>TCF Canada: https://www.france-education-international.fr/test/tcf-canada?langue=en</li>
+<li>IRCC accepted language tests and validity: https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry/documents/language-test.html</li>
+<li>Duolingo product description: https://blog.duolingo.com/duolingo-updates/</li>
+</ul>
+<h3 id="ai-and-pricing">AI and pricing</h3>
+<ul>
+<li>Google Gemini API pricing: https://ai.google.dev/gemini-api/docs/pricing</li>
+<li>Mistral model comparison: https://docs.mistral.ai/models/model-selection-guide?models=mistral-small-4-0-26-03</li>
+<li>OpenAI GPT-4.1 mini: https://developers.openai.com/api/docs/models/gpt-4.1-mini</li>
+<li>OpenAI audio and service pricing: https://developers.openai.com/api/docs/pricing</li>
+<li>Anthropic Haiku: https://www.anthropic.com/claude/haiku</li>
+<li>NVIDIA NIM product FAQ: https://docs.api.nvidia.com/nim/docs/product</li>
+<li>NVIDIA developer/production FAQ: https://forums.developer.nvidia.com/t/nvidia-nim-faq/300317</li>
+</ul>
+<h3 id="evidence-still-required">Evidence still required</h3>
+<p>An all-pathway annual PR application series; primary customer interviews; willingness to pay; content ownership clearance; teacher-reviewed learning and model benchmarks; actual token distributions; provider quotas and commercial terms; payment settlement eligibility; production load and restore tests; and a legal/privacy review. No speculative market size, PR approval rate, or AI teaching accuracy is presented as an established fact.</p><footer>Parlez · Project description and feasibility research · 5 October 2026<br>Editable source: PROJECT_OVERVIEW.md · Independent educational product; no immigration or exam outcome guarantee.</footer></main></div></body></html>

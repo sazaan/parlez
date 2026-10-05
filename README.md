@@ -1,3 +1,10 @@
+> **Project documentation:** See [Parlez — Project Overview](docs/PROJECT_OVERVIEW.md)
+> for the current product scope, Canadian immigration research, architecture,
+> AI-provider comparison, pricing analysis, and roadmap. A formatted, printable
+> version is available in [docs/PROJECT_OVERVIEW.html](docs/PROJECT_OVERVIEW.html).
+> The older setup guide below contains historical product descriptions; the
+> overview distinguishes implemented features from proposed functionality.
+
 # Learning Chatbot - Powered by NVIDIA NIM
 
 A self-study chatbot that helps you learn from images, videos, PDFs, and other media using NVIDIA's Nemotron 3 Nano Omni model.
@@ -175,6 +182,9 @@ docker compose build --no-cache
 ## Troubleshooting
 
 ### Common Issues
+
+For Listen-button playback and microphone problems, see
+[Voice troubleshooting](docs/VOICE_TROUBLESHOOTING.md).
 
 1. **"NVIDIA API error: 401"**
    - Check your API key is valid

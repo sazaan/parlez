@@ -209,6 +209,8 @@ class SecurityHeadersMiddleware:
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com; "
         "connect-src 'self' https://translate.google.com; "
+        # TTS is fetched from our API and played through a local object URL.
+        "media-src 'self' blob:; "
         "frame-ancestors 'none'"
     )
 
@@ -1733,7 +1735,7 @@ async def export_conversation_get(conv_id: str, format: str = "markdown", user=D
 @app.post("/api/tts")
 @limiter.limit("30/minute")
 async def text_to_speech(request: Request, req: TTSRequest, user=Depends(require_auth)):
-    if not req.text or len(req.text) > 3000:
+    if not req.text.strip() or len(req.text) > 3000:
         raise HTTPException(400, "Text must be between 1 and 3000 characters")
     if req.lang not in {"fr", "en", "es", "de", "it"}:
         req.lang = "fr"
@@ -1752,6 +1754,9 @@ async def text_to_speech(request: Request, req: TTSRequest, user=Depends(require
             if r.status_code != 200:
                 logger.warning("TTS chunk request failed: status=%s url=%s", r.status_code, url[:80])
                 raise HTTPException(502, f"TTS provider returned status {r.status_code}")
+            if not r.content or not r.headers.get("content-type", "").lower().startswith("audio/"):
+                logger.warning("TTS provider returned empty or non-audio content")
+                raise HTTPException(502, "TTS provider did not return valid audio")
             return r.content
 
         try:

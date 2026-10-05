@@ -282,151 +282,245 @@ const LEVEL_NAMES = { 'A1': 'Débutant' };
 // TTS
 // ============================================================
 let currentAudio = null;
+let currentAudioUrl = null;
+let currentUtterance = null; // Keep a reference while native speech is active.
 let currentSpeakingText = '';
+let currentSpeakingLang = '';
+let speechRequestId = 0;
+let speechController = null;
 
 async function loadVoices() {
     if (!window.speechSynthesis) return [];
+    const synth = window.speechSynthesis;
+    const voices = synth.getVoices();
+    if (voices.length) return voices;
     return new Promise((resolve) => {
-        let voices = window.speechSynthesis.getVoices();
-        if (voices && voices.length) {
-            resolve(voices);
-            return;
-        }
-        const handler = () => {
-            voices = window.speechSynthesis.getVoices();
-            window.speechSynthesis.removeEventListener('voiceschanged', handler);
-            resolve(voices);
+        let timer;
+        const finish = () => {
+            clearTimeout(timer);
+            synth.removeEventListener('voiceschanged', handler);
+            resolve(synth.getVoices());
         };
-        window.speechSynthesis.addEventListener('voiceschanged', handler);
-        // Fallback if voicesnever load
-        setTimeout(() => {
-            window.speechSynthesis.removeEventListener('voiceschanged', handler);
-            resolve(window.speechSynthesis.getVoices());
-        }, 1000);
+        const handler = () => { if (synth.getVoices().length) finish(); };
+        synth.addEventListener('voiceschanged', handler);
+        timer = setTimeout(finish, 1000);
     });
 }
 
-function isHighQualityVoice(voice) {
-    if (!voice) return false;
-    const name = voice.name.toLowerCase();
-    return /google|microsoft|apple|samantha|daniel|amélie|amelie|aurelie|audrey|thomas/i.test(name);
+function pickVoice(voices, lang) {
+    const language = lang.toLowerCase().split('-')[0];
+    const matches = voices.filter(v => v.lang && v.lang.toLowerCase().split('-')[0] === language);
+    return matches.find(v => /google|microsoft|apple/i.test(v.name)) || matches[0] || null;
 }
 
-function pickFrenchVoice(voices) {
-    const preferred = ['Google français', 'Google French', 'Microsoft Julie', 'Microsoft Pauline', 'Amélie', 'Thomas', 'Audrey', 'Aurelie'];
-    for (const name of preferred) {
-        const v = voices.find(voice => voice.name.includes(name));
-        if (v) return v;
+function releaseAudio() {
+    if (currentAudio) {
+        currentAudio.onended = null;
+        currentAudio.onerror = null;
+        currentAudio.pause();
+        currentAudio = null;
     }
-    const frVoice = voices.find(voice => voice.lang && voice.lang.toLowerCase().startsWith('fr'));
-    if (frVoice) return frVoice;
-    // Some voices report lang as empty; try name matching
-    const nameMatch = voices.find(voice => /fran|french|français|francais/i.test(voice.name));
-    return nameMatch || voices[0];
-}
-
-async function speakWithBrowserTTS(text, lang = 'fr') {
-    if (!window.speechSynthesis) {
-        showToast('Audio unavailable. Please try again.', { kind: 'error' });
-        return;
-    }
-    window.speechSynthesis.cancel();
-    const voices = await loadVoices();
-    const voice = pickFrenchVoice(voices);
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = lang === 'fr' ? 'fr-FR' : lang;
-    utterance.voice = voice;
-    // Slightly slower and warmer to reduce robotic feel on system voices
-    utterance.rate = 0.92;
-    utterance.pitch = 1.02;
-    utterance.onerror = () => showToast('Audio unavailable. Please try again.', { kind: 'error' });
-
-    if (voice) {
-        console.log('[TTS] Using browser voice:', voice.name, voice.lang);
-        if (!isHighQualityVoice(voice) && !window.__ttsQualityWarned) {
-            window.__ttsQualityWarned = true;
-            showToast('For the best French voice, use Chrome or Edge. Firefox system voices can sound robotic.', { kind: 'info', timeout: 6000 });
-        }
-    }
-
-    window.speechSynthesis.speak(utterance);
-    currentSpeakingText = text;
-}
-
-async function speakText(text, lang = 'fr') {
-    try {
-        if (window.speechSynthesis) window.speechSynthesis.cancel();
-
-        // If same text is playing, stop it (toggle behavior)
-        if (currentAudio && currentSpeakingText === text) {
-            currentAudio.pause();
-            currentAudio = null;
-            currentSpeakingText = '';
-            return;
-        }
-
-        // Stop any currently playing audio
-        if (currentAudio) {
-            currentAudio.pause();
-            currentAudio = null;
-        }
-
-        currentSpeakingText = text;
-        // Task 4.10 (F4): route through apiFetch so a 401 triggers logout
-        // instead of silently failing for an expired session.
-        const response = await apiFetch('/api/tts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: text.substring(0, 500), lang })
-        });
-
-        if (!response.ok) {
-            throw new Error('API TTS failed: ' + response.status);
-        }
-
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        currentAudio = new Audio(url);
-        currentAudio.onended = () => { currentAudio = null; currentSpeakingText = ''; };
-        currentAudio.onerror = () => { currentAudio = null; currentSpeakingText = ''; };
-        await currentAudio.play();
-    } catch (e) {
-        console.warn('TTS API failed, falling back to browser TTS:', e);
-        await speakWithBrowserTTS(text, lang);
+    if (currentAudioUrl) {
+        URL.revokeObjectURL(currentAudioUrl);
+        currentAudioUrl = null;
     }
 }
 
 function stopSpeaking() {
-    if (currentAudio) {
-        currentAudio.pause();
-        currentAudio = null;
-        currentSpeakingText = '';
+    // Invalidate pending fetches/voice loading as well as active playback.
+    speechRequestId += 1;
+    if (speechController) speechController.abort();
+    speechController = null;
+    releaseAudio();
+    currentUtterance = null;
+    currentSpeakingText = '';
+    currentSpeakingLang = '';
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+}
+
+function finishSpeaking(requestId) {
+    if (requestId !== speechRequestId) return;
+    releaseAudio();
+    currentUtterance = null;
+    currentSpeakingText = '';
+    currentSpeakingLang = '';
+    speechController = null;
+}
+
+async function speakWithBrowserTTS(text, lang, requestId) {
+    if (!window.speechSynthesis) {
+        finishSpeaking(requestId);
+        showToast('Audio unavailable. Check your connection and try again.', { kind: 'error' });
+        return;
     }
-    if (window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-        currentSpeakingText = '';
+    const voices = await loadVoices();
+    if (requestId !== speechRequestId) return;
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = lang === 'fr' ? 'fr-FR' : lang;
+    const voice = pickVoice(voices, lang);
+    // Let the browser select by language if no matching voice is installed;
+    // never force an English voice to read French (or vice versa).
+    if (voice) utterance.voice = voice;
+    utterance.rate = 0.92;
+    utterance.onend = () => finishSpeaking(requestId);
+    utterance.onerror = (event) => {
+        if (requestId !== speechRequestId) return;
+        finishSpeaking(requestId);
+        if (!['canceled', 'interrupted'].includes(event.error)) {
+            showToast('Browser speech failed. Check audio permissions and install a voice for this language.', { kind: 'error' });
+        }
+    };
+    currentUtterance = utterance;
+    try {
+        window.speechSynthesis.speak(utterance);
+    } catch (error) {
+        finishSpeaking(requestId);
+        showToast('Browser speech could not start. Allow sound for this site and try again.', { kind: 'error' });
+    }
+}
+
+async function speakText(text, lang = 'fr') {
+    text = String(text || '').trim();
+    if (!text) return;
+    const isSame = currentSpeakingText === text && currentSpeakingLang === lang;
+    stopSpeaking();
+    if (isSame) return; // Toggle pending, server, and browser speech alike.
+
+    const requestId = speechRequestId;
+    currentSpeakingText = text;
+    currentSpeakingLang = lang;
+    const controller = new AbortController();
+    speechController = controller;
+    let fallbackStarted = false;
+    const fallback = async () => {
+        if (requestId !== speechRequestId || fallbackStarted) return;
+        fallbackStarted = true;
+        releaseAudio();
+        await speakWithBrowserTTS(text, lang, requestId);
+    };
+    try {
+        const response = await apiFetch('/api/tts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: text.substring(0, 3000), lang }),
+            signal: controller.signal
+        });
+        if (requestId !== speechRequestId) return;
+        if (!response.ok) throw new Error('API TTS failed: ' + response.status);
+        const blob = await response.blob();
+        if (requestId !== speechRequestId) return;
+        if (!blob.size || !blob.type.startsWith('audio/')) throw new Error('Invalid TTS audio response');
+        currentAudioUrl = URL.createObjectURL(blob);
+        const audio = new Audio(currentAudioUrl);
+        currentAudio = audio;
+        audio.onended = () => finishSpeaking(requestId);
+        // Decode errors may happen after play() resolves; don't fail silently.
+        audio.onerror = () => {
+            if (requestId !== speechRequestId) return;
+            void fallback();
+        };
+        await audio.play();
+    } catch (error) {
+        if (requestId !== speechRequestId || error.name === 'AbortError') return;
+        releaseAudio();
+        if (error.message === 'Session expired') {
+            finishSpeaking(requestId);
+            return;
+        }
+        if (error.name === 'NotAllowedError') {
+            finishSpeaking(requestId);
+            showToast('Audio playback was blocked. Allow sound for this site, then click Listen again.', { kind: 'error' });
+            return;
+        }
+        console.warn('TTS API failed, falling back to browser TTS:', error);
+        await fallback();
     }
 }
 
 // ============================================================
 // Voice Input
 // ============================================================
+let isVoiceStarting = false;
+
+function setVoiceRecording(active) {
+    isRecording = active;
+    voiceButton.classList.toggle('recording', active);
+    voiceButton.setAttribute('aria-pressed', String(active));
+    document.getElementById('voiceStatus').style.display = active ? 'inline' : 'none';
+}
+
+function voiceErrorMessage(error) {
+    const messages = {
+        'not-allowed': 'Microphone access was blocked. Use HTTPS and allow microphone access in your browser’s site settings.',
+        'service-not-allowed': 'Speech recognition is blocked by your browser. Try Chrome or Edge and check site permissions.',
+        'audio-capture': 'No microphone is available. Connect a microphone and check your device settings.',
+        'network': 'Speech recognition could not connect. Check your connection; your browser may require an online speech service.',
+        'no-speech': 'No speech detected. Click the microphone and try speaking again.',
+        'language-not-supported': 'French speech recognition is unavailable in this browser.'
+    };
+    return messages[error] || 'Voice input failed. Check microphone permissions and try again.';
+}
+
 function initVoice() {
+    if (recognition) return;
+    voiceButton.setAttribute('aria-pressed', 'false');
+    if (!window.isSecureContext) {
+        voiceButton.title = 'Microphone input requires HTTPS (or localhost on your own computer)';
+        return;
+    }
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) return;
-    recognition = new SR();
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.lang = 'fr-FR';
-    recognition.onstart = () => { isRecording = true; document.getElementById('voiceButton').classList.add('recording'); document.getElementById('voiceStatus').style.display = 'inline'; };
-    recognition.onresult = (e) => { messageInput.value = Array.from(e.results).map(r => r[0].transcript).join(''); autoResize(); updateSendButton(); };
-    recognition.onend = () => { isRecording = false; document.getElementById('voiceButton').classList.remove('recording'); document.getElementById('voiceStatus').style.display = 'none'; };
-    recognition.onerror = () => { isRecording = false; document.getElementById('voiceButton').classList.remove('recording'); document.getElementById('voiceStatus').style.display = 'none'; };
+    if (!SR) {
+        voiceButton.title = 'Speech recognition is not supported in this browser';
+        return;
+    }
+    try {
+        recognition = new SR();
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.lang = 'fr-FR';
+        recognition.onstart = () => { isVoiceStarting = false; setVoiceRecording(true); };
+        recognition.onresult = (event) => {
+            messageInput.value = Array.from(event.results).map(r => r[0].transcript).join('');
+            autoResize();
+            updateSendButton();
+        };
+        recognition.onend = () => { isVoiceStarting = false; setVoiceRecording(false); };
+        recognition.onerror = (event) => {
+            isVoiceStarting = false;
+            setVoiceRecording(false);
+            if (event.error !== 'aborted') showToast(voiceErrorMessage(event.error), { kind: 'error', timeout: 7000 });
+        };
+    } catch (error) {
+        recognition = null;
+        voiceButton.title = 'Speech recognition could not be initialized';
+        console.warn('Voice initialization failed:', error);
+    }
 }
 
 function toggleVoice() {
-    if (!recognition) { alert('Voice not supported. Use Chrome or Edge.'); return; }
-    isRecording ? recognition.stop() : recognition.start();
+    if (!window.isSecureContext) {
+        showToast('Microphone input requires HTTPS. Open the secure site URL; HTTP on a server IP does not allow microphone access.', { kind: 'error', timeout: 7000 });
+        return;
+    }
+    if (!recognition) {
+        showToast('Voice input is not supported here. Try Chrome or Edge, or type your message.', { kind: 'error' });
+        return;
+    }
+    try {
+        if (isRecording || isVoiceStarting) {
+            recognition.abort();
+            isVoiceStarting = false;
+            setVoiceRecording(false);
+        } else {
+            stopSpeaking(); // Avoid transcribing the app's own audio.
+            isVoiceStarting = true;
+            recognition.start();
+        }
+    } catch (error) {
+        isVoiceStarting = false;
+        setVoiceRecording(false);
+        showToast(voiceErrorMessage(error.name === 'NotAllowedError' ? 'not-allowed' : error.name), { kind: 'error' });
+    }
 }
 
 // ============================================================
