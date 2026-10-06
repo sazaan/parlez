@@ -1,34 +1,37 @@
 :root {
-    --bg: #faf9f6;
-    --bg-gradient: radial-gradient(ellipse at 50% 0%, #faf9f6 0%, #f3f1ec 100%);
-    --card: #ffffff;
-    --card-elevated: #ffffff;
-    --foreground: #18181b;
-    --muted-foreground: #6b6b74;
-    --primary: #7c2d3f;
-    --primary-light: #9e3b52;
-    --primary-dark: #5e2130;
-    --secondary: #c9a35c;
-    --secondary-light: #e0be7a;
-    --accent: #2d6a4f;
-    --accent-light: #40916c;
-    --border: rgba(0,0,0,0.06);
-    --border-strong: rgba(0,0,0,0.1);
-    --user-bubble: #7c2d3f;
-    --user-text: #ffffff;
-    --assistant-bubble: #ffffff;
-    --assistant-text: #18181b;
-    --correct: #16a34a;
-    --incorrect: #dc2626;
-    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
-    --shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.04);
-    --shadow-md: 0 10px 15px -3px rgba(0,0,0,0.07), 0 4px 6px -4px rgba(0,0,0,0.05);
-    --shadow-lg: 0 20px 25px -5px rgba(0,0,0,0.08), 0 8px 10px -6px rgba(0,0,0,0.04);
-    --radius-sm: 8px;
-    --radius-md: 12px;
-    --radius-lg: 16px;
-    --radius-xl: 24px;
+    --bg: #FBF8F3;
+    --bg-gradient: radial-gradient(ellipse at 74% 0%, #FFFDFA 0%, #FBF8F3 62%);
+    --paper-deep: #F4EEE4;
+    --card: #FFFDFA;
+    --card-elevated: #FFFFFF;
+    --foreground: #1D1815;
+    --muted-foreground: #6F645B;
+    --primary: #7C2D3F;
+    --primary-light: #914354;
+    --primary-dark: #5E2130;
+    --secondary: #C0934A;
+    --secondary-light: #E9CD97;
+    --accent: #6E8574;
+    --accent-light: #819989;
+    --border: rgba(29, 24, 21, 0.09);
+    --border-strong: rgba(29, 24, 21, 0.16);
+    --user-bubble: #7C2D3F;
+    --user-text: #FFF8F5;
+    --assistant-bubble: #FFFDFA;
+    --assistant-text: #1D1815;
+    --correct: #52745E;
+    --incorrect: #B44444;
+    --shadow-sm: 0 1px 2px rgba(29, 24, 21, 0.035);
+    --shadow: 0 6px 20px -14px rgba(29, 24, 21, 0.28);
+    --shadow-md: 0 14px 36px -24px rgba(29, 24, 21, 0.34);
+    --shadow-lg: 0 28px 70px -40px rgba(29, 24, 21, 0.48);
+    --radius-sm: 10px;
+    --radius-md: 14px;
+    --radius-lg: 18px;
+    --radius-xl: 26px;
     --radius-full: 9999px;
+    --font-display: 'Fraunces', 'Playfair Display', Georgia, serif;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
     --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
     --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -42,7 +45,7 @@ html, body {
 }
 
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: var(--font-sans);
     background: var(--bg-gradient);
     color: var(--foreground);
     height: 100vh;
@@ -152,7 +155,7 @@ body {
     color: var(--secondary);
     border-radius: 12px;
     display: flex; align-items: center; justify-content: center;
-    font-family: 'Playfair Display', serif;
+    font-family: var(--font-display);
     font-style: italic;
     font-weight: 600;
     font-size: 1.5rem;
@@ -160,7 +163,7 @@ body {
 }
 
 .auth-logo .logo-text {
-    font-family: 'Playfair Display', serif;
+    font-family: var(--font-display);
     font-size: 1.75rem;
     font-weight: 600;
     color: var(--primary);
@@ -327,14 +330,14 @@ body {
     color: var(--secondary);
     border-radius: 8px;
     display: flex; align-items: center; justify-content: center;
-    font-family: 'Playfair Display', serif;
+    font-family: var(--font-display);
     font-style: italic;
     font-weight: 600;
     font-size: 1.1rem;
 }
 
 .logo-text {
-    font-family: 'Playfair Display', serif;
+    font-family: var(--font-display);
     font-size: 1.25rem;
     font-weight: 600;
     color: var(--primary);
@@ -615,7 +618,7 @@ body {
 }
 
 .lesson-title-fr-large {
-    font-family: 'Playfair Display', serif;
+    font-family: var(--font-display);
     font-size: 1.3rem;
     font-weight: 600;
     color: var(--primary);
@@ -663,7 +666,7 @@ body {
 }
 
 .lesson-section h3 {
-    font-family: 'Playfair Display', serif;
+    font-family: var(--font-display);
     font-size: 1.1rem;
     color: var(--primary);
     margin: 0.5rem 0 0.75rem;
@@ -729,7 +732,7 @@ body {
     position: relative;
 }
 .lesson-vocab-fr {
-    font-family: 'Playfair Display', serif;
+    font-family: var(--font-display);
     font-size: 1.1rem;
     font-weight: 600;
     color: var(--primary);
@@ -1038,7 +1041,7 @@ body {
 }
 
 .tool-header h2 {
-    font-family: 'Playfair Display', serif;
+    font-family: var(--font-display);
     font-size: 1.5rem;
     font-weight: 600;
     flex: 1;
@@ -1089,7 +1092,7 @@ body {
 
 .main-header h1 {
     flex: 1;
-    font-family: 'Playfair Display', serif;
+    font-family: var(--font-display);
     font-size: 1.1rem;
     font-weight: 600;
     letter-spacing: -0.01em;
@@ -1158,7 +1161,7 @@ body {
 }
 
 .welcome-message h2 {
-    font-family: 'Playfair Display', serif;
+    font-family: var(--font-display);
     font-size: 1.75rem;
     margin-bottom: 0.75rem;
     color: var(--primary);
@@ -1628,7 +1631,7 @@ textarea {
 .flashcard-front .flashcard-word {
     font-size: 1.5rem;
     font-weight: 700;
-    font-family: 'Playfair Display', serif;
+    font-family: var(--font-display);
 }
 
 .flashcard-front .flashcard-ipa {
@@ -2129,7 +2132,7 @@ textarea {
 }
 
 .modal-header h3 {
-    font-family: 'Playfair Display', serif;
+    font-family: var(--font-display);
     font-size: 1.25rem;
     color: var(--primary);
 }

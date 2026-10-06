@@ -150,10 +150,8 @@ authForm?.addEventListener('submit', async (e) => {
             setupDelegatedHandlers();
             window.__parlezHandlersInstalled = true;
         }
-        // Initialize app after auth
+        // Initialize the authenticated app and load user settings.
         initApp();
-        // Load user settings so the level badge and selector match the logged-in user
-        loadUser();
     } catch(e) {
         authError.textContent = 'Network error. Please try again.';
         authError.style.display = 'block';
@@ -1029,8 +1027,9 @@ function addMessage(content, role) {
         actions.className = 'message-actions';
         const speakBtn = document.createElement('button');
         speakBtn.className = 'btn-speak';
-        speakBtn.innerHTML = '🔊';
+        speakBtn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg>';
         speakBtn.title = 'Listen';
+        speakBtn.setAttribute('aria-label', 'Listen to this response');
         speakBtn.addEventListener('click', () => {
             const t = content.replace(/```[\s\S]*?```/g, '').replace(/[*_#`]/g, '').trim();
             speakText(t);
@@ -1093,7 +1092,7 @@ function showToolView(title, html) {
     document.getElementById('toolView').style.display = 'flex';
     getToolContent().innerHTML = `<div class="tool-header"><h2>${title}</h2></div>` + html;
     document.getElementById('chatTitle').textContent = title;
-    document.getElementById('btnBackToChat').style.display = 'inline';
+    document.getElementById('btnBackToChat').style.display = 'flex';
     // Reset scroll so the user sees the top of the new view
     getToolContent().scrollTop = 0;
     window.scrollTo(0, 0);
@@ -1118,7 +1117,19 @@ btnBackToChat?.addEventListener('click', showChatView);
 // ============================================================
 // Welcome message (single source of truth)
 // ============================================================
-const WELCOME_HTML = '<div class="welcome-message"><div class="welcome-icon">🇫🇷</div><h2>Bonjour! Ready to learn French?</h2><p>I\'m your personal French tutor. I can teach you vocabulary, grammar, pronunciation, and help you practice conversations.</p><div class="quick-actions"><button class="quick-action" data-action="send-quick-message" data-text="Teach me French greetings">👋 Learn Greetings</button><button class="quick-action" data-action="send-quick-message" data-text="Show me numbers 1-20 in French">🔢 Numbers 1-20</button><button class="quick-action" data-action="send-quick-message" data-text="Practice conversation at a café">☕ Café Roleplay</button><button class="quick-action" data-action="send-quick-message" data-text="Give me a French quiz">📝 Take a Quiz</button></div></div>';
+const WELCOME_HTML = `
+<div class="welcome-message">
+    <div class="welcome-icon" aria-hidden="true"><span>P</span></div>
+    <p class="welcome-eyebrow">Your A1 French companion</p>
+    <h2>Bonjour. Let’s make French feel natural.</h2>
+    <p>Practise a little at a time with friendly explanations, useful lessons and conversations that meet you where you are.</p>
+    <div class="quick-actions">
+        <button class="quick-action" data-action="send-quick-message" data-text="Teach me French greetings"><span class="quick-index">01</span> Learn greetings</button>
+        <button class="quick-action" data-action="send-quick-message" data-text="Show me numbers 1-20 in French"><span class="quick-index">02</span> Numbers 1–20</button>
+        <button class="quick-action" data-action="send-quick-message" data-text="Practice conversation at a café"><span class="quick-index">03</span> Café conversation</button>
+        <button class="quick-action" data-action="send-quick-message" data-text="Give me a French quiz"><span class="quick-index">04</span> Try a quick quiz</button>
+    </div>
+</div>`;
 
 function resetChatToWelcome() {
     currentConvId = null;
@@ -1685,14 +1696,26 @@ function isMobile() {
     return window.innerWidth <= 768;
 }
 
+function syncSidebarToggleLabel() {
+    const expanded = isMobile()
+        ? sidebar.classList.contains('open')
+        : !sidebar.classList.contains('collapsed');
+    toggleSidebar.setAttribute('aria-expanded', String(expanded));
+    toggleSidebar.setAttribute('aria-label', expanded
+        ? (isMobile() ? 'Close navigation' : 'Collapse navigation')
+        : 'Open navigation');
+}
+
 function openMobileSidebar() {
     sidebar.classList.add('open');
     if (sidebarBackdrop) sidebarBackdrop.classList.add('open');
+    syncSidebarToggleLabel();
 }
 
 function closeMobileSidebar() {
     sidebar.classList.remove('open');
     if (sidebarBackdrop) sidebarBackdrop.classList.remove('open');
+    syncSidebarToggleLabel();
 }
 
 function toggleSidebarState() {
@@ -1702,11 +1725,13 @@ function toggleSidebarState() {
     } else {
         sidebar.classList.toggle('collapsed');
     }
+    syncSidebarToggleLabel();
 }
 
 // ============================================================
 // Event Listeners
 // ============================================================
+syncSidebarToggleLabel();
 toggleSidebar.addEventListener('click', toggleSidebarState);
 if (sidebarBackdrop) {
     sidebarBackdrop.addEventListener('click', closeMobileSidebar);
@@ -1722,6 +1747,15 @@ sidebar.addEventListener('click', (e) => {
 window.addEventListener('resize', () => {
     if (!isMobile()) {
         closeMobileSidebar();
+    } else {
+        syncSidebarToggleLabel();
+    }
+});
+
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && isMobile() && sidebar.classList.contains('open')) {
+        closeMobileSidebar();
+        toggleSidebar.focus();
     }
 });
 
@@ -1774,8 +1808,8 @@ messageInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shif
 // Init
 // ============================================================
 updateSendButton();
-loadUser();
 function initApp() {
+    loadUser();
     loadCourses();
     loadScenarios();
     loadConversations();
