@@ -3,219 +3,342 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Parlez — French AI Tutor</title>
-    <meta name="description" content="Learn French with an AI tutor: spaced-repetition flashcards, adaptive weak-area analysis, TEF/TCF mock exams, and a personal chatbot tutor.">
-    <meta name="theme-color" content="#5a8a6e">
+    <title>Parlez — Learn French with a personal AI tutor</title>
+    <meta name="description" content="Start French with A1 lessons, adaptive AI conversations, spaced-repetition vocabulary and writing feedback — plus TEF/TCF-style practice questions.">
+    <meta name="theme-color" content="#7C2D3F">
     <link rel="canonical" href="/">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <meta property="og:type" content="website">
-    <meta property="og:title" content="Parlez — Learn French with an AI Tutor">
-    <meta property="og:description" content="Spaced-repetition flashcards, adaptive exercises, and mock TEF/TCF exams. Learn French with a personal AI tutor.">
+    <meta property="og:title" content="Parlez — Learn French with a personal AI tutor">
+    <meta property="og:description" content="Build a French foundation with A1 lessons, adaptive practice, vocabulary review and TEF/TCF-style questions.">
     <meta property="og:url" content="/">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Parlez — Learn French with an AI Tutor">
-    <meta name="twitter:description" content="Spaced-repetition flashcards, adaptive exercises, and mock TEF/TCF exams. Learn French with a personal AI tutor.">
+    <meta name="twitter:title" content="Parlez — Learn French with a personal AI tutor">
+    <meta name="twitter:description" content="A1 foundations, adaptive practice and TEF/TCF-style question sets, guided by an AI tutor.">
     <link rel="stylesheet" href="/static/landing.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%235a8a6e'/%3E%3Ctext x='50' y='68' font-size='58' font-family='Georgia,serif' fill='%23e4c49a' text-anchor='middle' font-style='italic'%3EP%3C/text%3E%3C/svg%3E">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%237C2D3F'/%3E%3Ctext x='50' y='70' font-size='60' font-family='Georgia,serif' fill='%23E8C88A' text-anchor='middle' font-style='italic'%3EP%3C/text%3E%3C/svg%3E">
 </head>
 <body>
+
+    <a class="skip-link" href="#main">Skip to content</a>
+
     <nav class="navbar" id="navbar">
-        <div class="nav-brand">
-            <span class="logo-mark">P</span>
-            <span class="logo-text">Parlez</span>
-        </div>
-        <div class="nav-links" id="navLinks">
-            <a href="#features">Features</a>
-            <a href="#about">About</a>
-            <div class="nav-links-actions">
-                <a href="/login" class="btn btn-ghost">Log In</a>
-                <a href="/login?mode=signup" class="btn btn-primary">Get Started</a>
+        <div class="nav-inner">
+            <a class="brand" href="/" aria-label="Parlez home">
+                <span class="brand-mark" aria-hidden="true">P</span>
+                <span class="brand-name">Parlez</span>
+            </a>
+
+            <div class="nav-links" id="navLinks">
+                <a href="#how">How it works</a>
+                <a href="#features">Features</a>
+                <a href="#about">About</a>
+                <div class="nav-links-actions">
+                    <a href="/login" class="btn btn-quiet">Log in</a>
+                    <a href="/login?mode=signup" class="btn btn-solid">Start free</a>
+                </div>
             </div>
+
+            <div class="nav-actions">
+                <a href="/login" class="btn btn-quiet">Log in</a>
+                <a href="/login?mode=signup" class="btn btn-solid">Start free</a>
+            </div>
+
+            <button class="nav-toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false" aria-controls="navLinks">
+                <span></span><span></span>
+            </button>
         </div>
-        <div class="nav-actions">
-            <a href="/login" class="btn btn-ghost">Log In</a>
-            <a href="/login?mode=signup" class="btn btn-primary">Get Started</a>
-        </div>
-        <button class="nav-toggle" id="navToggle" aria-label="Toggle menu">
-            <span></span><span></span><span></span>
-        </button>
     </nav>
 
+    <main id="main">
+
     <header class="hero">
-        <div class="hero-bg" aria-hidden="true">
-            <div class="hero-gradient"></div>
-            <div class="hero-light"></div>
-        </div>
+        <div class="hero-wash" aria-hidden="true"></div>
 
-        <div class="hero-content">
+        <div class="container hero-grid">
             <div class="hero-copy">
-                <div class="hero-tag">
-                    <span class="tag-icon">✨</span>
-                    <span>AI-Powered French Tutor</span>
-                </div>
-                <h1 class="hero-title">
-                    Speak French with <span class="accent">confidence.</span>
-                </h1>
-                <p class="hero-subtitle">
-                    Personalized conversations, adaptive lessons, flashcards, and TEF/TCF mock tests — all guided by your own AI tutor.
+                <p class="eyebrow reveal">
+                    <span class="eyebrow-dot" aria-hidden="true"></span>
+                    Start with A1 · build confidence one lesson at a time
                 </p>
-                <div class="hero-actions">
-                    <a href="/login?mode=signup" class="btn btn-cta">Start Learning Free</a>
-                    <a href="#features" class="btn btn-secondary">See How It Works</a>
-                </div>
-                <p class="hero-proof">Free to start · No credit card required</p>
 
+                <h1 class="hero-title reveal">
+                    <span class="title-line">Speak French</span>
+                    <span class="title-line">with <em>confidence.</em></span>
+                </h1>
+
+                <p class="hero-lede reveal">
+                    One conversation at a time. Study French with structured A1 lessons,
+                    adaptive practice, spaced-repetition vocabulary and writing feedback —
+                    with an AI tutor that explains every mistake.
+                </p>
+
+                <div class="hero-actions reveal">
+                    <a href="/login?mode=signup" class="btn btn-solid btn-lg">Start learning free</a>
+                    <a href="#how" class="btn btn-outline btn-lg">See how it works</a>
+                </div>
+
+                <p class="hero-note reveal">
+                    Free to start
+                    <span aria-hidden="true">·</span>
+                    No credit card required
+                </p>
             </div>
 
-            <div class="hero-visual">
-                <div class="phone-mockup" aria-hidden="true">
-                    <div class="phone-frame">
-                        <div class="phone-button phone-button-mute" aria-hidden="true"></div>
-                        <div class="phone-button phone-button-volume-up" aria-hidden="true"></div>
-                        <div class="phone-button phone-button-volume-down" aria-hidden="true"></div>
-                        <div class="phone-button phone-button-power" aria-hidden="true"></div>
-                        <div class="phone-notch" aria-hidden="true">
-                            <div class="phone-speaker"></div>
-                            <div class="phone-camera"></div>
+            <div class="hero-visual" aria-hidden="true">
+                <div class="mosaic">
+
+                    <article class="tile tile-lesson">
+                        <header class="tile-top">
+                            <span class="pill pill-wine">A1 · Unité 1</span>
+                            <span class="tile-min">25 min</span>
+                        </header>
+                        <h3 class="tile-title">Les salutations</h3>
+                        <p class="tile-sub">Greetings &amp; introductions</p>
+                        <div class="progress"><span style="width:62%"></span></div>
+                        <p class="tile-meta">62% complete</p>
+                    </article>
+
+                    <article class="tile tile-vocab">
+                        <span class="pill pill-gold">Flashcard</span>
+                        <p class="vocab-fr">le marché</p>
+                        <p class="vocab-en">the market</p>
+                        <span class="vocab-audio">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M16 9a4 4 0 0 1 0 6"/></svg>
+                            Écouter
+                        </span>
+                    </article>
+
+                    <article class="tile tile-chat">
+                        <div class="bubble bubble-user">Comment dit-on « hello » ?</div>
+                        <div class="bubble bubble-ai">
+                            On dit <strong>« Bonjour »</strong>. Le soir, on utilise plutôt
+                            <em>« Bonsoir »</em>.
                         </div>
-                        <div class="phone-screen">
-                            <div class="phone-header">
-                                <span class="phone-title">Parlez</span>
-                            </div>
-                            <div class="chat-preview">
-                                <div class="message user">Comment dit-on "hello"?</div>
-                                <div class="message ai">On dit "Bonjour" en français.</div>
-                                <div class="message user">Merci beaucoup!</div>
-                                <div class="message ai">Avec plaisir! Prêt pour la suite? 🎉</div>
-                            </div>
-                            <div class="phone-input">
-                                <span>Type a message...</span>
-                                <span class="send-icon">➤</span>
-                            </div>
-                            <div class="phone-home-indicator" aria-hidden="true"></div>
+                    </article>
+
+                    <article class="tile tile-exam">
+                        <span class="pill pill-sage">TEF-style practice</span>
+                        <p class="exam-name">Compréhension orale</p>
+                        <div class="exam-row">
+                            <span class="exam-score">32<span>/40</span></span>
+                            <span class="exam-trend">+6 this week</span>
                         </div>
-                    </div>
-                    <div class="phone-glow"></div>
+                        <div class="bars" aria-hidden="true">
+                            <span style="height:38%"></span><span style="height:52%"></span>
+                            <span style="height:44%"></span><span style="height:68%"></span>
+                            <span style="height:80%"></span>
+                        </div>
+                    </article>
+
+                    <article class="tile tile-streak">
+                        <svg class="streak-flame" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12.3 2.5c.7 3.2-.4 4.6-2 6.2-1.4 1.3-2.7 2.6-2.7 5.1a4.4 4.4 0 0 0 8.8 0c0-1.3-.5-2.4-1.2-3.4-.1 2-1.1 2.8-1.9 3.2.3-4.8-1.3-8.2-1-11.1Z" fill="#C0934A" stroke="#8A6520" stroke-width="1.1" stroke-linejoin="round"/><path d="M11.9 13.7c.8 1.1.4 2.2-.4 3" stroke="#fff3d8" stroke-width="1.2" stroke-linecap="round"/></svg>
+                        <p class="streak-num">12</p>
+                        <p class="streak-label">day streak</p>
+                    </article>
+
+                    <article class="tile tile-writing">
+                        <span class="pill pill-wine">Correction</span>
+                        <p class="write-line"><del>Je suis allé au marché hier.</del></p>
+                        <p class="write-line write-fix">Je <mark>suis allée</mark> au marché hier.</p>
+                        <p class="write-note">Accord du participe passé with <em>être</em>.</p>
+                    </article>
+
                 </div>
             </div>
         </div>
     </header>
 
-    <section class="how-it-works">
-        <div class="container">
-            <span class="section-label">How It Works</span>
-            <div class="steps">
-                <div class="step">
-                    <span class="step-number">1</span>
-                    <h3>Chat with your AI tutor</h3>
-                    <p>Practice real French conversation anytime.</p>
-                </div>
-                <div class="step">
-                    <span class="step-number">2</span>
-                    <h3>Practice with adaptive exercises</h3>
-                    <p>Lessons and drills tailored to your level.</p>
-                </div>
-                <div class="step">
-                    <span class="step-number">3</span>
-                    <h3>Track progress & take mock exams</h3>
-                    <p>XP, streaks, and TEF/TCF practice tests.</p>
-                </div>
-            </div>
+    <section class="strip" aria-hidden="true">
+        <div class="strip-track">
+            <span>A1 French foundations</span><span class="dot" aria-hidden="true">•</span>
+            <span>TEF-style questions</span><span class="dot" aria-hidden="true">•</span>
+            <span>TCF-style questions</span><span class="dot" aria-hidden="true">•</span>
+            <span>Spaced repetition</span><span class="dot" aria-hidden="true">•</span>
+            <span>Writing correction</span><span class="dot" aria-hidden="true">•</span>
+            <span>Adaptive practice</span><span class="dot" aria-hidden="true">•</span>
+            <span>A1 French foundations</span><span class="dot" aria-hidden="true">•</span>
+            <span>TEF-style questions</span><span class="dot" aria-hidden="true">•</span>
+            <span>TCF-style questions</span><span class="dot" aria-hidden="true">•</span>
+            <span>Spaced repetition</span><span class="dot" aria-hidden="true">•</span>
+            <span>Writing correction</span><span class="dot" aria-hidden="true">•</span>
+            <span>Adaptive practice</span><span class="dot" aria-hidden="true">•</span>
         </div>
     </section>
 
-    <section class="features" id="features">
+    <section class="section how" id="how">
         <div class="container">
-            <span class="section-label">Why Parlez</span>
-            <h2 class="section-title">Everything you need to master French</h2>
-
-            <div class="features-grid">
-                <article class="feature-card">
-                    <div class="feature-icon">💬</div>
-                    <h3>AI Conversations</h3>
-                    <p>Practice real dialogue in any scenario, from café orders to job interviews.</p>
-                </article>
-
-                <article class="feature-card">
-                    <div class="feature-icon">📝</div>
-                    <h3>Adaptive Lessons</h3>
-                    <p>Lessons and exercises that adjust to your level and weak areas.</p>
-                </article>
-
-                <article class="feature-card">
-                    <div class="feature-icon">🧪</div>
-                    <h3>Mock Exams</h3>
-                    <p>TEF and TCF practice tests with timed sections and detailed results.</p>
-                </article>
-
-                <article class="feature-card">
-                    <div class="feature-icon">🃏</div>
-                    <h3>Smart Flashcards</h3>
-                    <p>Spaced-repetition flashcards built from your own vocabulary.</p>
-                </article>
-
-                <article class="feature-card">
-                    <div class="feature-icon">📊</div>
-                    <h3>Progress Tracking</h3>
-                    <p>XP, streaks, accuracy, and personalized weak-area analysis.</p>
-                </article>
-
-                <article class="feature-card">
-                    <div class="feature-icon">🎧</div>
-                    <h3>Native Audio</h3>
-                    <p>Listen to French pronunciations and train your ear naturally.</p>
-                </article>
+            <div class="section-head reveal">
+                <span class="section-label">How it works</span>
+                <h2 class="section-title">A routine you can actually keep</h2>
+                <p class="section-lede">
+                    Three steps, repeated daily. Parlez keeps track of the rest.
+                </p>
             </div>
+
+            <ol class="steps">
+                <li class="step reveal">
+                    <span class="step-num">01</span>
+                    <h3>Talk like you mean it</h3>
+                    <p>Practise real dialogue in café, workplace or interview scenarios. Ask anything, in English or French.</p>
+                </li>
+                <li class="step reveal">
+                    <span class="step-num">02</span>
+                    <h3>Practise what's weak</h3>
+                    <p>Lessons and drills shaped by your level and the mistakes you keep making — then saved as flashcards.</p>
+                </li>
+                <li class="step reveal">
+                    <span class="step-num">03</span>
+                    <h3>Build test familiarity</h3>
+                    <p>Explore timed TEF/TCF-style questions, then use your results to choose what to practise next.</p>
+                </li>
+            </ol>
         </div>
     </section>
 
-    <section class="about" id="about">
+    <section class="section features" id="features">
         <div class="container">
-            <div class="about-grid">
-                <div class="about-copy">
-                    <span class="section-label">About Parlez</span>
-                    <h2 class="section-title">Your personal path to French fluency</h2>
+            <div class="section-head reveal">
+                <span class="section-label">Why Parlez</span>
+                <h2 class="section-title">A thoughtful toolkit for learning French</h2>
+                <p class="section-lede">
+                    Practise, review and build your French foundations in one calm, focused space.
+                </p>
+            </div>
+
+            <div class="bento">
+                <article class="f-card f-card-lg reveal">
+                    <span class="f-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.8a8 8 0 0 1-11.7 7.1L4.2 20.4l1.5-4.9A8 8 0 1 1 21 11.8Z"/></svg></span>
+                    <h3>A tutor for the tricky bits</h3>
                     <p>
-                        Parlez is an AI-powered French tutor that adapts to your level, learns from your mistakes, and keeps you motivated with streaks, XP, and personalized practice. Whether you're preparing for TEF or TCF, building vocabulary, or just want to hold a real conversation, Parlez meets you where you are and helps you progress every day.
+                        Ask why a sentence is wrong, how a tense really works, or to slow down.
+                        Parlez adapts its explanations to your level and remembers the conversation.
                     </p>
-                </div>
-                <div class="about-stats">
-                    <div class="stat">
-                        <span class="stat-value">A1</span>
-                        <span class="stat-label">and other levels coming soon</span>
+                    <div class="mini-chat" aria-hidden="true">
+                        <span class="mini-user">Pourquoi « je suis allée » ?</span>
+                        <span class="mini-ai">Avec <em>être</em>, le participe s'accorde avec le sujet. Tu es une femme → « allée ».</span>
                     </div>
+                </article>
+
+                <article class="f-card f-card-wide reveal">
+                    <span class="f-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6a3 3 0 0 1 3-3h12v14H7a3 3 0 0 0-3 3V6Z"/><path d="M4 20a3 3 0 0 1 3-3h12v3H7"/><path d="M9 8h6"/></svg></span>
+                    <h3>Adaptive lessons</h3>
+                    <p>Structured A1 units that combine vocabulary, grammar, dialogue and exercises.</p>
+                </article>
+
+                <article class="f-card reveal">
+                    <span class="f-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="14" height="14" rx="2.5"/><path d="M8 4.5h9A2.5 2.5 0 0 1 19.5 7v8"/><path d="M8 14h4"/></svg></span>
+                    <h3>Smart flashcards</h3>
+                    <p>Spaced repetition that schedules reviews right before you'd forget.</p>
+                </article>
+
+                <article class="f-card reveal">
+                    <span class="f-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 3.5h5"/><path d="M10.5 3.5v5.2L6.6 16a2.6 2.6 0 0 0 2.2 4h6.4a2.6 2.6 0 0 0 2.2-4l-3.9-7.3V3.5"/><path d="M8.2 14.5h7.6"/></svg></span>
+                    <h3>TEF &amp; TCF-style practice</h3>
+                    <p>Timed question sets inspired by exam formats, with feedback to guide your next revision.</p>
+                </article>
+
+                <article class="f-card reveal">
+                    <span class="f-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 20.5h15"/><path d="M7 20V12"/><path d="M12 20V4.5"/><path d="M17 20v-5.5"/></svg></span>
+                    <h3>Progress you can see</h3>
+                    <p>XP, accuracy and a weak-area analysis that tells you what to study next.</p>
+                </article>
+
+                <article class="f-card f-card-half reveal">
+                    <span class="f-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 14.5v-2.8a7.5 7.5 0 0 1 15 0v2.8"/><rect x="3" y="13.5" width="4" height="6.5" rx="1.8"/><rect x="17" y="13.5" width="4" height="6.5" rx="1.8"/></svg></span>
+                    <h3>Listen and repeat</h3>
+                    <p>Hear French pronunciation as you read, and practise speaking out loud.</p>
+                </article>
+
+                <article class="f-card f-card-half reveal">
+                    <span class="f-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20.5l1-4.6L15.6 5.1a2.15 2.15 0 0 1 3.1 3L8.6 19.5 4 20.5Z"/><path d="m14.2 6.6 3.4 3.4"/></svg></span>
+                    <h3>Writing correction</h3>
+                    <p>Write freely and get inline corrections with the reason behind each change.</p>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section class="section about" id="about">
+        <div class="container about-grid">
+            <div class="about-copy reveal">
+                <span class="section-label">About Parlez</span>
+                <h2 class="section-title">Your personal path to French fluency</h2>
+                <p>
+                    Parlez is an AI-powered French tutor that adapts to your level, learns from your
+                    mistakes, and keeps you motivated with streaks, XP and personalized practice.
+                    Whether you're building vocabulary, starting with French foundations, or exploring
+                    TEF/TCF-style question practice, Parlez meets you where you are.
+                </p>
+                <p>
+                    Today, the focus is a solid A1 foundation, conversational explanations, and useful
+                    practice tools. A broader, reviewed learning path is a goal we are building toward.
+                </p>
+                <a href="/login?mode=signup" class="arrow-link">
+                    Create your free account
+                    <span aria-hidden="true">→</span>
+                </a>
+            </div>
+
+            <div class="about-side reveal">
+                <div class="journey">
+                    <span class="journey-label">Learning path · A1 available today</span>
+                    <ol class="journey-list">
+                        <li><span class="j-level">A1</span><span class="j-desc">Lessons available</span></li>
+                        <li><span class="j-level">A2</span><span class="j-desc">Next stage · planned</span></li>
+                        <li><span class="j-level">B1–B2</span><span class="j-desc">Future course levels</span></li>
+                        <li class="j-target"><span class="j-level">TEF / TCF</span><span class="j-desc">Style question practice</span></li>
+                    </ol>
+                </div>
+
+                <div class="stat-grid">
                     <div class="stat">
                         <span class="stat-value">24/7</span>
                         <span class="stat-label">AI tutor access</span>
                     </div>
                     <div class="stat">
-                        <span class="stat-value">TEF/TCF</span>
-                        <span class="stat-label">Mock exams</span>
+                        <span class="stat-value">A1</span>
+                        <span class="stat-label">course currently available</span>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <section class="cta-strip">
-        <div class="container">
-            <h2>Start your French journey today</h2>
-            <p>Speak French with confidence, one conversation at a time.</p>
-            <a href="/login?mode=signup" class="btn btn-cta">Create Free Account</a>
+    <section class="cta">
+        <div class="container cta-inner reveal">
+            <h2 class="cta-title">Your French journey starts with bonjour.</h2>
+            <p class="cta-lede">Create a free account and start with A1 foundations.</p>
+            <a href="/login?mode=signup" class="btn btn-gold btn-lg">Create free account</a>
         </div>
     </section>
 
+    </main>
+
     <footer class="footer">
-        <div class="footer-brand">
-            <span class="footer-logo">P</span>
-            <span>© 2026 Parlez. All rights reserved.</span>
+        <div class="container footer-inner">
+            <div class="footer-brand">
+                <span class="brand-mark brand-mark-sm" aria-hidden="true">P</span>
+                <div>
+                    <p class="footer-name">Parlez</p>
+                    <p class="footer-copy">© 2026 Parlez. All rights reserved.</p>
+                </div>
+            </div>
+            <nav class="footer-links" aria-label="Footer">
+                <a href="#features">Features</a>
+                <a href="#about">About</a>
+                <a href="/login">Log in</a>
+                <a href="/login?mode=signup">Get started</a>
+            </nav>
         </div>
-        <div class="footer-links">
-            <a href="#">Privacy</a>
-            <a href="#">Terms</a>
-            <a href="#">Contact</a>
+        <div class="container">
+            <p class="footer-fine">
+                Parlez is an independent learning tool and is not affiliated with or endorsed by
+                IRCC, the Council of Europe, France Éducation international, or the owners of the
+                TEF or TCF exams. Parlez provides question practice, not a complete exam simulator; practice results are not official scores.
+            </p>
         </div>
     </footer>
 
