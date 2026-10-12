@@ -195,7 +195,7 @@ Sources: official TEF provider and France Éducation international. These are th
 | Persistence | SQLAlchemy 2.0.25; default SQLite database `data/parlez.db`, WAL mode; `db.py` |
 | Data shape | Users plus JSON learning state; shared links and comment groups in separate tables |
 | Authentication | bcrypt password hashes, PyJWT HS256 tokens, cookie or bearer authentication |
-| AI transport | HTTPX to NVIDIA's chat-completions endpoint; model configured in code as `nvidia/nemotron-3-nano-30b-a3b` |
+| AI transport | HTTPX to NVIDIA's chat-completions endpoint; model selected with `NVIDIA_MODEL` (default: `nvidia/nemotron-3.5-lightning-30b-a3b`); current requests are text-only |
 | Learning engine | Python prompt construction, answer checking, quizzes, adaptive rules, flashcards and writing helpers in `engine/` |
 | Course/test content | Python dataclasses and in-repository data in `courses/` and `mock_tests/` |
 | Rate limiting | SlowAPI; optional Redis via `REDIS_URL`, otherwise process-local counters |

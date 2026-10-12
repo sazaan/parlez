@@ -258,7 +258,17 @@ class XP:
 
 NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY")
 INVOKE_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
-MODEL = "nvidia/nemotron-3-nano-30b-a3b"
+DEFAULT_NVIDIA_MODEL = "nvidia/nemotron-3.5-lightning-30b-a3b"
+
+
+def resolve_nvidia_model(configured_model: str | None = None) -> str:
+    """Use NVIDIA_MODEL or the current text-model default."""
+    if configured_model is None:
+        configured_model = os.getenv("NVIDIA_MODEL")
+    return (configured_model or "").strip() or DEFAULT_NVIDIA_MODEL
+
+
+MODEL = resolve_nvidia_model()
 
 MAX_CHUNK_LENGTH = 190
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB

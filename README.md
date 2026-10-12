@@ -7,7 +7,7 @@
 
 # Learning Chatbot - Powered by NVIDIA NIM
 
-A self-study chatbot that helps you learn from images, videos, PDFs, and other media using NVIDIA's Nemotron 3 Nano Omni model.
+Parlez is a self-study French-learning app using NVIDIA NIM for text-based tutoring and writing feedback. Its default model is `nvidia/nemotron-3.5-lightning-30b-a3b`; set `NVIDIA_MODEL` in `.env` to choose another NVIDIA chat-completions model.
 
 ## Features
 
@@ -15,7 +15,7 @@ A self-study chatbot that helps you learn from images, videos, PDFs, and other m
 - **Video Analysis** - MP4, AVI, MOV, MKV, WebM (analyzes video content)
 - **PDF Processing** - Extract and discuss document content
 - **Text/Code Analysis** - Explain code, notes, articles
-- **Omni-modal Reasoning** - Nemotron 3 understands images, video, speech, and text
+- **Text-based AI tutor** - Current chat and writing-correction requests send text to NVIDIA NIM; media input requires additional application support
 
 ## Quick Start
 
@@ -85,24 +85,27 @@ Server starts at `http://localhost:8000`
 
 ```
 Frontend (HTML/JS)  →  Backend (FastAPI)  →  NVIDIA NIM API
-                            ↓                 (Nemotron 3 Nano Omni)
+                            ↓                 (NVIDIA_MODEL; default: Nemotron 3.5 Lightning)
                     Document Processing
                     - PDF extraction (PyPDF2)
                     - Image/Video base64 encoding
                     - Text parsing
 ```
 
-## Model: Nemotron 3 Nano Omni
+## Current AI model
 
-- **Model ID**: `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`
-- **Capabilities**: Images, Video, Speech, Text
-- **Reasoning**: Built-in thinking/reasoning mode
-- **Provider**: NVIDIA NIM
+- **Default model ID**: `nvidia/nemotron-3.5-lightning-30b-a3b` ([NVIDIA Build](https://build.nvidia.com/nvidia/nemotron-3.5-lightning-30b-a3b))
+- **Model I/O**: text in, text out; the current Parlez chat and writing-correction code sends text-only payloads
+- **Configuration**: set `NVIDIA_MODEL` in `.env`, then restart the app
+- **Availability**: NVIDIA Build currently lists a free endpoint for this model; free-tier access and limits can change
+- **Previous default**: `nvidia/nemotron-3-nano-30b-a3b` still has a partner endpoint, but its free endpoint is marked deprecated ([NVIDIA Build](https://build.nvidia.com/nvidia/nemotron-3-nano-30b-a3b))
+
+Choosing a multimodal model ID does not itself add image, audio, or video support—the application must send those modalities in the request payload.
 
 ## How It Works
 
 1. **Upload a file** (image, video, PDF, or text)
-2. **Nemotron 3 Nano Omni analyzes** the content using omni-modal reasoning
+2. **The configured NVIDIA model processes** the text prompt using the NVIDIA chat-completions endpoint
 3. **Ask questions** about the content - "Explain this", "Summarize", "What does X mean?"
 4. **Get learning responses** - The chatbot provides educational explanations
 
@@ -133,11 +136,11 @@ Frontend (HTML/JS)  →  Backend (FastAPI)  →  NVIDIA NIM API
 
 | Feature | NVIDIA NIM | OpenAI |
 |---------|-----------|--------|
-| Model | Nemotron 3 Nano Omni | GPT-4 Vision |
-| Video | ✅ Native support | ❌ Not supported |
-| Reasoning | Built-in thinking mode | Standard |
+| Model | Nemotron 3.5 Lightning (default) | GPT-4 Vision |
+| Video in current Parlez flow | Not sent by this app | API-dependent |
+| Reasoning | Depends on selected model; no special reasoning budget is sent | Provider-dependent |
 | Cost | Free tier available | Pay per token |
-| Omni-modal | ✅ Images, Video, Speech, Text | Limited |
+| Input modalities in current app | Text only | Text and image capabilities vary by API |
 
 ## Cost Considerations
 
@@ -149,12 +152,11 @@ Frontend (HTML/JS)  →  Backend (FastAPI)  →  NVIDIA NIM API
 
 Tip: Use the free tier for experimentation!
 
-## Features Enabled
+## Current model integration
 
-- **Thinking Mode**: Model shows reasoning process
-- **Reasoning Budget**: Configurable thinking depth
-- **Omni-modal**: Single model handles all media types
-- **High Resolution**: Detailed image/video analysis
+- **Text chat completions**: The current app sends text-only messages to NVIDIA NIM.
+- **Model selection**: `NVIDIA_MODEL` in `.env` controls which compatible NVIDIA model receives requests.
+- **Model-specific capabilities**: Reasoning and supported modalities depend on the selected endpoint; they are not enabled solely by changing the model ID.
 
 ## Limitations
 

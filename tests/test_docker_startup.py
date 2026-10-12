@@ -45,7 +45,7 @@ class DockerStartupTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             shutil.copy(ROOT / "run.sh", root / "run.sh")
-            (root / ".env").write_text("NVIDIA_API_KEY=dummy\n")
+            (root / ".env").write_text("NVIDIA_API_KEY=dummy\nNVIDIA_MODEL=nvidia/test-model\n")
             executable = root / "docker"
             executable.write_text(
                 '#!/bin/sh\n'
@@ -53,7 +53,7 @@ class DockerStartupTests(unittest.TestCase):
                 'case "$*" in\n'
                 '  "compose version") exit 0 ;;\n'
                 f'  "compose build") exit {build_status} ;;\n'
-                '  "compose up") exit 0 ;;\n'
+                '  "compose up -d") exit 0 ;;\n'
                 '  *) exit 1 ;;\n'
                 'esac\n'
             )
@@ -66,7 +66,9 @@ class DockerStartupTests(unittest.TestCase):
             self.assertEqual(result.returncode, expected_status, result.stdout + result.stderr)
             calls = log.read_text().splitlines()
             self.assertIn("compose build", calls)
-            self.assertEqual("compose up" in calls, expect_up)
+            self.assertEqual("compose up -d" in calls, expect_up)
+            if expect_up:
+                self.assertIn("Model: nvidia/test-model", result.stdout)
 
 
 if __name__ == "__main__":
