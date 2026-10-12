@@ -62,10 +62,11 @@ echo "🐳 Building Docker container..."
 "${COMPOSE[@]}" build
 
 echo ""
-echo "🚀 Starting Learning Chatbot..."
+echo "🚀 Starting Learning Chatbot in the background..."
 echo "📖 Open http://localhost:8000 in your browser"
 echo "🤖 Model: NVIDIA Nemotron 3 Nano Omni"
-echo "Press Ctrl+C to stop"
+echo "📋 Follow logs: ${COMPOSE[*]} logs -f"
+echo "🛑 Stop services: ${COMPOSE[*]} down"
 echo ""
 
-"${COMPOSE[@]}" up
+"${COMPOSE[@]}" up -d
