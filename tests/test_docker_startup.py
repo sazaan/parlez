@@ -48,6 +48,7 @@ class DockerStartupTests(unittest.TestCase):
             (root / ".env").write_text(
                 "NVIDIA_API_KEY=dummy\n"
                 "NVIDIA_MODEL=nvidia/test-model\n"
+                "ADMIN_PATH=/private-admin\n"
                 "ADMIN_USERNAME=parlez-admin\n"
                 "ADMIN_PASSWORD_HASH='$2b$12$abcdefghijklmnopqrstuv0123456789ABCDEFGHIJKLMNOPQRSTUV'\n"
                 "ADMIN_TOTP_SECRET=ABCDEFGHIJKLMNOPQRSTUVWXYZ234567\n"
@@ -76,6 +77,7 @@ class DockerStartupTests(unittest.TestCase):
             self.assertEqual("compose up -d" in calls, expect_up)
             if expect_up:
                 self.assertIn("Bootstrap provider/model: nvidia · nvidia/test-model", result.stdout)
+                self.assertIn("Admin console: http://localhost:8000/private-admin", result.stdout)
 
 
 if __name__ == "__main__":

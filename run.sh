@@ -120,7 +120,9 @@ case "$BOOTSTRAP_PROVIDER" in
     *) BOOTSTRAP_PROVIDER=nvidia; MODEL_ID="$(env_value NVIDIA_MODEL)"; MODEL_ID="${MODEL_ID:-nvidia/nemotron-3.5-lightning-30b-a3b}" ;;
 esac
 echo "🤖 Bootstrap provider/model: ${BOOTSTRAP_PROVIDER} · ${MODEL_ID}"
-echo "🔐 Admin console: http://localhost:8000/parlez-admin"
+ADMIN_PATH_VALUE="$(env_value ADMIN_PATH)"
+ADMIN_PATH_VALUE="${ADMIN_PATH_VALUE:-/parlez-admin}"
+echo "🔐 Admin console: http://localhost:8000${ADMIN_PATH_VALUE}"
 echo "📋 Follow logs: ${COMPOSE[*]} logs -f chatbot"
 echo "🛑 Stop services: ${COMPOSE[*]} down"
 echo ""
