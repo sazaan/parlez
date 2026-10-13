@@ -104,17 +104,13 @@ Choosing a multimodal model ID does not itself add image, audio, or video suppor
 
 ## Admin panel and provider management
 
-The admin console is served by the same Parlez backend at `/parlez-admin` (override with `ADMIN_PATH` in `.env`). The path is not a security control; admin APIs require a dedicated username, bcrypt password hash, TOTP authenticator code, and a short-lived signed admin session. The console is disabled until all admin credentials are configured.
+The admin console is served by the same Parlez backend at `/parlez-admin` (override with `ADMIN_PATH` in `.env`). The path is not a security control; admin APIs require a dedicated username, bcrypt password hash, TOTP authenticator code, and a short-lived signed admin session.
 
-1. Install the project dependencies in the local environment, then run:
+Run `./run.sh` from an interactive terminal to start Docker Compose. If `.env` does not exist, the script creates it from `.env.example`. On the first run—or whenever one of the four admin credentials is missing—it builds the app image and runs `scripts/generate_admin_credentials.py` inside that image. Choose an admin username and password when prompted; the generated hash, TOTP secret, and session-signing key are written directly into the ignored `.env` file, which is restricted to owner-only permissions. The authenticator enrollment URI is displayed once; add it to your authenticator app and keep it private. Existing complete admin credentials are retained on later runs.
 
-   ```bash
-   python scripts/generate_admin_credentials.py
-   ```
+Add at least one provider key to `.env`: `NVIDIA_API_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, and/or `OPENCODE_ZEN_API_KEY`. The portal only permits selecting providers with a server-side key present; keys are never sent back to the browser. `OPENCODE_API_KEY` is also accepted as an alias. If no supported provider key is set, `run.sh` saves the admin credentials and then asks you to add a key before running it again. For manual setup outside Docker, install the app dependencies and run `python scripts/generate_admin_credentials.py --env-file .env`.
 
-2. Put the generated values in the backend's ignored `.env` file. Keep it private. Set `COOKIE_SECURE=true` in production and serve the app over HTTPS.
-3. Add whichever provider keys you want to use: `NVIDIA_API_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, and/or `OPENCODE_ZEN_API_KEY`. The portal only permits selecting providers with a server-side key present; keys are never sent back to the browser. `OPENCODE_API_KEY` is also accepted as an alias.
-4. Restart Parlez, then visit `https://your-host/parlez-admin`. The portal tests a provider/model using a synthetic prompt before activation, keeps the ten most recent previous configurations, and can restore them without editing `.env`.
+Set `COOKIE_SECURE=true` in production and serve the app over HTTPS. Then visit `https://your-host/parlez-admin`. The portal tests a provider/model using a synthetic prompt before activation, keeps the ten most recent previous configurations, and can restore them without editing `.env`.
 
 The selected provider/model and course publication flags are stored in the configured database. The `.env` file supplies secrets and bootstrap defaults; the web panel does not rewrite it. Provider endpoints are fixed in backend code rather than admin-editable URLs. Use database backups when operating the panel.
 

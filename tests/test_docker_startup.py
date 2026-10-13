@@ -45,14 +45,21 @@ class DockerStartupTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             shutil.copy(ROOT / "run.sh", root / "run.sh")
-            (root / ".env").write_text("NVIDIA_API_KEY=dummy\nNVIDIA_MODEL=nvidia/test-model\n")
+            (root / ".env").write_text(
+                "NVIDIA_API_KEY=dummy\n"
+                "NVIDIA_MODEL=nvidia/test-model\n"
+                "ADMIN_USERNAME=parlez-admin\n"
+                "ADMIN_PASSWORD_HASH='$2b$12$abcdefghijklmnopqrstuv0123456789ABCDEFGHIJKLMNOPQRSTUV'\n"
+                "ADMIN_TOTP_SECRET=ABCDEFGHIJKLMNOPQRSTUVWXYZ234567\n"
+                "ADMIN_SESSION_SECRET=admin-session-secret-12345678901234567890\n"
+            )
             executable = root / "docker"
             executable.write_text(
                 '#!/bin/sh\n'
                 'echo "$*" >> "$CALL_LOG"\n'
                 'case "$*" in\n'
                 '  "compose version") exit 0 ;;\n'
-                f'  "compose build") exit {build_status} ;;\n'
+                f'  "compose build chatbot") exit {build_status} ;;\n'
                 '  "compose up -d") exit 0 ;;\n'
                 '  *) exit 1 ;;\n'
                 'esac\n'
@@ -65,10 +72,10 @@ class DockerStartupTests(unittest.TestCase):
                                     env=env, capture_output=True, text=True)
             self.assertEqual(result.returncode, expected_status, result.stdout + result.stderr)
             calls = log.read_text().splitlines()
-            self.assertIn("compose build", calls)
+            self.assertIn("compose build chatbot", calls)
             self.assertEqual("compose up -d" in calls, expect_up)
             if expect_up:
-                self.assertIn("Model: nvidia/test-model", result.stdout)
+                self.assertIn("Bootstrap provider/model: nvidia · nvidia/test-model", result.stdout)
 
 
 if __name__ == "__main__":
