@@ -7,7 +7,7 @@
 
 # Learning Chatbot - Powered by NVIDIA NIM
 
-Parlez is a self-study French-learning app using NVIDIA NIM for text-based tutoring and writing feedback. Its default model is `nvidia/nemotron-3.5-lightning-30b-a3b`; set `NVIDIA_MODEL` in `.env` to choose another NVIDIA chat-completions model.
+Parlez is a self-study French-learning app for text-based tutoring and writing feedback. It defaults to NVIDIA NIM model `nvidia/nemotron-3.5-lightning-30b-a3b`; a same-origin admin console can switch the active provider and model among configured NVIDIA, Gemini, OpenRouter, and OpenCode Zen chat-completions endpoints.
 
 ## Features
 
@@ -84,8 +84,8 @@ Server starts at `http://localhost:8000`
 ## Architecture
 
 ```
-Frontend (HTML/JS)  →  Backend (FastAPI)  →  NVIDIA NIM API
-                            ↓                 (NVIDIA_MODEL; default: Nemotron 3.5 Lightning)
+Frontend (HTML/JS)  →  Backend (FastAPI)  →  Active AI provider
+                            ↓                 (default: NVIDIA Nemotron 3.5 Lightning)
                     Document Processing
                     - PDF extraction (PyPDF2)
                     - Image/Video base64 encoding
@@ -96,16 +96,35 @@ Frontend (HTML/JS)  →  Backend (FastAPI)  →  NVIDIA NIM API
 
 - **Default model ID**: `nvidia/nemotron-3.5-lightning-30b-a3b` ([NVIDIA Build](https://build.nvidia.com/nvidia/nemotron-3.5-lightning-30b-a3b))
 - **Model I/O**: text in, text out; the current Parlez chat and writing-correction code sends text-only payloads
-- **Configuration**: set `NVIDIA_MODEL` in `.env`, then restart the app
+- **Bootstrap configuration**: `NVIDIA_MODEL` selects the NVIDIA default; the admin console can switch the active provider/model at runtime
 - **Availability**: NVIDIA Build currently lists a free endpoint for this model; free-tier access and limits can change
 - **Previous default**: `nvidia/nemotron-3-nano-30b-a3b` still has a partner endpoint, but its free endpoint is marked deprecated ([NVIDIA Build](https://build.nvidia.com/nvidia/nemotron-3-nano-30b-a3b))
 
 Choosing a multimodal model ID does not itself add image, audio, or video support—the application must send those modalities in the request payload.
 
+## Admin panel and provider management
+
+The admin console is served by the same Parlez backend at `/parlez-admin` (override with `ADMIN_PATH` in `.env`). The path is not a security control; admin APIs require a dedicated username, bcrypt password hash, TOTP authenticator code, and a short-lived signed admin session. The console is disabled until all admin credentials are configured.
+
+1. Install the project dependencies in the local environment, then run:
+
+   ```bash
+   python scripts/generate_admin_credentials.py
+   ```
+
+2. Put the generated values in the backend's ignored `.env` file. Keep it private. Set `COOKIE_SECURE=true` in production and serve the app over HTTPS.
+3. Add whichever provider keys you want to use: `NVIDIA_API_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, and/or `OPENCODE_ZEN_API_KEY`. The portal only permits selecting providers with a server-side key present; keys are never sent back to the browser. `OPENCODE_API_KEY` is also accepted as an alias.
+4. Restart Parlez, then visit `https://your-host/parlez-admin`. The portal tests a provider/model using a synthetic prompt before activation, keeps the ten most recent previous configurations, and can restore them without editing `.env`.
+
+The selected provider/model and course publication flags are stored in the configured database. The `.env` file supplies secrets and bootstrap defaults; the web panel does not rewrite it. Provider endpoints are fixed in backend code rather than admin-editable URLs. Use database backups when operating the panel.
+
+The course panel can publish A2, B1, and B2 levels and individual modules. These levels remain off by default. Their current source data is sparse compared with A1, so review lesson coverage and public-facing course copy before enabling them. Publication controls are enforced at both the learner UI and course API.
+
+
 ## How It Works
 
 1. **Upload a file** (image, video, PDF, or text)
-2. **The configured NVIDIA model processes** the text prompt using the NVIDIA chat-completions endpoint
+2. **The configured AI provider/model processes** the text prompt through its chat-completions endpoint
 3. **Ask questions** about the content - "Explain this", "Summarize", "What does X mean?"
 4. **Get learning responses** - The chatbot provides educational explanations
 
@@ -154,8 +173,8 @@ Tip: Use the free tier for experimentation!
 
 ## Current model integration
 
-- **Text chat completions**: The current app sends text-only messages to NVIDIA NIM.
-- **Model selection**: `NVIDIA_MODEL` in `.env` controls which compatible NVIDIA model receives requests.
+- **Text chat completions**: The current app sends text-only messages to the active configured provider.
+- **Model selection**: `NVIDIA_MODEL` is the NVIDIA fallback/default; the admin console can set the active provider/model at runtime.
 - **Model-specific capabilities**: Reasoning and supported modalities depend on the selected endpoint; they are not enabled solely by changing the model ID.
 
 ## Limitations

@@ -11,7 +11,7 @@ import os
 import json
 import bcrypt
 from typing import Optional
-from sqlalchemy import create_engine, Column, String, Text, JSON, text, inspect, Index
+from sqlalchemy import create_engine, Column, String, Text, JSON, Integer, Float, text, inspect, Index
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 Base = declarative_base()
@@ -57,6 +57,32 @@ class CommentGroup(Base):
     __tablename__ = "comments"
     conv_id = Column(String, primary_key=True)
     data = Column(JSON, nullable=False, default=list)
+
+
+class SystemSetting(Base):
+    """Persistent runtime settings managed by trusted server-side controls."""
+    __tablename__ = "system_settings"
+    key = Column(String, primary_key=True)
+    value = Column(JSON, nullable=False)
+    updated_at = Column(Float, nullable=False)
+
+
+class AdminAudit(Base):
+    """Small, non-sensitive audit trail for privileged administrative actions."""
+    __tablename__ = "admin_audit"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String, nullable=False)
+    action = Column(String, nullable=False)
+    details = Column(JSON, nullable=False, default=dict)
+    created_at = Column(Float, nullable=False)
+
+
+class AdminSession(Base):
+    """Short-lived server-side admin sessions, revocable on logout."""
+    __tablename__ = "admin_sessions"
+    id = Column(String, primary_key=True)
+    username = Column(String, nullable=False)
+    expires_at = Column(Float, nullable=False, index=True)
 
 
 class Storage:
@@ -176,6 +202,98 @@ class Storage:
                     row.data = data
                 else:
                     session.add(User(id=user_id, username=username, email=user.get("email"), password_hash=password_hash, data=data))
+
+    # ------------------------------------------------------------------
+    # Runtime settings and administrator audit trail
+    # ------------------------------------------------------------------
+
+    def get_setting(self, key: str, default=None):
+        with self.Session() as session:
+            row = session.query(SystemSetting).filter_by(key=key).first()
+            return row.value if row else default
+
+    def set_setting(self, key: str, value):
+        self.set_settings({key: value})
+        return value
+
+    def set_settings(self, settings: dict):
+        import time
+        updated_at = time.time()
+        with self.Session() as session:
+            with session.begin():
+                for key, value in settings.items():
+                    row = session.query(SystemSetting).filter_by(key=key).first()
+                    if row:
+                        row.value = value
+                        row.updated_at = updated_at
+                    else:
+                        session.add(SystemSetting(key=key, value=value, updated_at=updated_at))
+
+    def delete_setting(self, key: str) -> None:
+        with self.Session() as session:
+            with session.begin():
+                session.query(SystemSetting).filter_by(key=key).delete(synchronize_session=False)
+
+    def create_admin_session(self, session_id: str, username: str, expires_at: float) -> None:
+        import time
+        with self.Session() as session:
+            with session.begin():
+                session.query(AdminSession).filter(AdminSession.expires_at <= time.time()).delete(synchronize_session=False)
+                session.add(AdminSession(id=session_id, username=username, expires_at=expires_at))
+
+    def admin_session_is_active(self, session_id: str, username: str) -> bool:
+        import time
+        with self.Session() as session:
+            return session.query(AdminSession.id).filter(
+                AdminSession.id == session_id,
+                AdminSession.username == username,
+                AdminSession.expires_at > time.time(),
+            ).first() is not None
+
+    def revoke_admin_session(self, session_id: str) -> None:
+        with self.Session() as session:
+            with session.begin():
+                session.query(AdminSession).filter_by(id=session_id).delete(synchronize_session=False)
+
+    def add_admin_audit(self, username: str, action: str, details: Optional[dict] = None):
+        import time
+        with self.Session() as session:
+            with session.begin():
+                session.add(AdminAudit(
+                    username=username,
+                    action=action,
+                    details=details or {},
+                    created_at=time.time(),
+                ))
+                stale_ids = [
+                    row[0]
+                    for row in session.query(AdminAudit.id)
+                    .order_by(AdminAudit.id.desc())
+                    .offset(1000)
+                    .all()
+                ]
+                if stale_ids:
+                    session.query(AdminAudit).filter(AdminAudit.id.in_(stale_ids)).delete(synchronize_session=False)
+
+    def list_admin_audit(self, limit: int = 100) -> list[dict]:
+        bounded_limit = max(1, min(int(limit), 200))
+        with self.Session() as session:
+            rows = (
+                session.query(AdminAudit)
+                .order_by(AdminAudit.id.desc())
+                .limit(bounded_limit)
+                .all()
+            )
+            return [
+                {
+                    "id": row.id,
+                    "username": row.username,
+                    "action": row.action,
+                    "details": row.details or {},
+                    "created_at": row.created_at,
+                }
+                for row in rows
+            ]
 
     # ------------------------------------------------------------------
     # Shared links

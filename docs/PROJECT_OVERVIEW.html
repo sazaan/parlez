@@ -41,7 +41,7 @@ header{max-width:1440px;margin:auto;padding:26px 44px;display:flex;justify-conte
 <p>Parlez is a French-learning web application combining a familiar, ChatGPT-style conversation interface with structured lessons, practice exercises, spaced-repetition flashcards, writing feedback, and test-practice workflows. Its intended launch curriculum is <strong>A1–B2</strong>, organized around the Common European Framework of Reference for Languages (CEFR), followed by an eventual <strong>C1–C2</strong> expansion.</p>
 <p>The opportunity is specific: learners need more than a vocabulary habit, but many cannot repeatedly pay for classroom instruction or individual feedback. Canadian immigration provides a strong motivation. IRCC continues to prioritize French-language candidates, and qualifying French proficiency can provide up to 50 additional Express Entry ranking points. These benefits depend on approved test results and broader program eligibility; learning French does not guarantee permanent residence. <a href="https://www.canada.ca/en/immigration-refugees-citizenship/campaigns/francophone-immigration-outside-quebec/francophone-immigration-express-entry.html">1</a> <a href="https://www.canada.ca/en/immigration-refugees-citizenship/news/2026/02/canada-prioritizes-top-talent-in-2026-immigration-express-entry-categories.html">1</a></p>
 <p><strong>Recommended business:</strong> a US$4.99/month, text-first study companion with substantial reusable course content and a transparent AI allowance—not unlimited live voice or guaranteed exam scores. Public API rates suggest text inference can fit this price at thousands of paying users. The larger uncertainties are educational quality, acquisition cost, retention, support, payment access, and production reliability.</p>
-<p><strong>Important implementation findings:</strong> only A1 is currently enabled in the course registry; higher-level source material is present but not an active complete offering. Current TEF/TCF practice is not yet an accurate four-skill Canada-exam simulator. Billing and production usage accounting are not implemented. These are launch requirements, not reasons to abandon the project.</p>
+<p><strong>Important implementation findings:</strong> A1 is enabled by default; the same-origin admin console can publish higher levels, but their existing content is still sparse and is not a complete offering. Current TEF/TCF practice is not yet an accurate four-skill Canada-exam simulator. Billing and production usage accounting are not implemented. These are launch requirements, not reasons to abandon the project.</p>
 <hr />
 <h2 id="1-problem-statement">1. Problem statement</h2>
 <h3 id="11-french-is-a-strategic-skill-for-canadian-immigration">1.1 French is a strategic skill for Canadian immigration</h3>
@@ -171,17 +171,17 @@ header{max-width:1440px;margin:auto;padding:26px 44px;display:flex;justify-conte
 </tr>
 <tr>
 <td>Chat tutor</td>
-<td>Lesson/scenario context, level-sensitive prompts, recent history, adaptive prompt additions</td>
-<td>Provider abstraction, streaming, quality evaluation, reliable usage metering</td>
+<td>Lesson/scenario context, level-sensitive prompts, recent history, adaptive prompt additions; admin-selectable NVIDIA, Gemini, OpenRouter, and OpenCode Zen endpoints</td>
+<td>Streaming, quality evaluation, reliable usage metering, and provider failover</td>
 </tr>
 <tr>
 <td>Course modules</td>
-<td>Active registry contains <strong>A1 only: 8 units, 24 lessons</strong></td>
-<td>Review, restructure, and enable A2–B2; validate all levels against learning outcomes</td>
+<td>Default publication is <strong>A1: 8 units, 24 lessons</strong>; A2–B2 can be published by an administrator after review</td>
+<td>Review and restructure A2–B2; validate all levels against learning outcomes before publication</td>
 </tr>
 <tr>
 <td>Higher levels</td>
-<td>A2/B1/B2 files and C1 material exist; inactive in public registry</td>
+<td>A2/B1/B2 files and C1 material exist; higher levels remain unpublished by default and require content review</td>
 <td>C1 expansion after core validation; C2 requires new curriculum</td>
 </tr>
 <tr>
@@ -382,15 +382,15 @@ header{max-width:1440px;margin:auto;padding:26px 44px;display:flex;justify-conte
 </tr>
 <tr>
 <td>Data shape</td>
-<td>Users plus JSON learning state; shared links and comment groups in separate tables</td>
+<td>Users plus JSON learning state; shared links, comments, runtime settings and admin audit/session records in separate tables</td>
 </tr>
 <tr>
 <td>Authentication</td>
-<td>bcrypt password hashes, PyJWT HS256 tokens, cookie or bearer authentication</td>
+<td>bcrypt password hashes, PyJWT HS256 user tokens; dedicated admin password + TOTP, CSRF-protected short-lived admin sessions</td>
 </tr>
 <tr>
 <td>AI transport</td>
-<td>HTTPX to NVIDIA's chat-completions endpoint; model selected with <code>NVIDIA_MODEL</code> (default: <code>nvidia/nemotron-3.5-lightning-30b-a3b</code>); current requests are text-only</td>
+<td>HTTPX to an admin-selected OpenAI-compatible NVIDIA, Gemini, OpenRouter, or OpenCode Zen endpoint; active model stored in database; current requests are text-only</td>
 </tr>
 <tr>
 <td>Learning engine</td>
@@ -440,7 +440,8 @@ Local course/practice engine     Tutor prompt builder
 <p>Chat currently sends up to the last 15 conversation messages plus the system prompt, lesson context and current message. Responses are returned after the upstream call completes rather than streamed token-by-token. Long histories still increase recurring input costs.</p>
 <h3 id="repository-map">Repository map</h3>
 <ul>
-<li><code>main.py</code>: API routes, middleware, orchestration, auth, progress and AI integration.</li>
+<li><code>main.py</code>: API routes, middleware, orchestration, auth, progress, AI integration and protected admin control APIs.</li>
+<li><code>static/admin.html</code>, <code>admin.js</code>, <code>admin.css</code>: same-origin management console at <code>/parlez-admin</code>.</li>
 <li><code>db.py</code>: persistence interface and SQLAlchemy models.</li>
 <li><code>engine/</code>: reusable educational logic.</li>
 <li><code>courses/data.py</code>: active course registry; the key place to verify actual course availability.</li>
@@ -451,7 +452,7 @@ Local course/practice engine     Tutor prompt builder
 <li><code>Dockerfile</code>, Compose files, <code>Caddyfile</code>, shell scripts: deployment.</li>
 </ul>
 <h3 id="api-groups">API groups</h3>
-<p>Accounts: <code>/api/auth/*</code>; courses: <code>/api/courses/*</code>; tutor: <code>/api/chat</code> and <code>/api/conversations/*</code>; exercises: <code>/api/check-exercise</code> and <code>/api/practice/*</code>; flashcards: <code>/api/flashcards/*</code>; exams: <code>/api/mock-tests/*</code> and <code>/api/exam/*</code>; feedback: <code>/api/writing/correct</code>, <code>/api/adaptive/analysis</code>; content: <code>/api/content/ingest</code>; progress: <code>/api/progress</code>, <code>/api/streaks</code>; sharing/export: <code>/api/share/*</code>, <code>/api/comments/*</code>, <code>/api/export</code>; audio: <code>/api/tts</code>. FastAPI also supplies interactive API documentation at <code>/docs</code>.</p>
+<p>Accounts: <code>/api/auth/*</code>; admin control: <code>/api/admin/*</code> (console at <code>/parlez-admin</code>); courses: <code>/api/courses/*</code>; tutor: <code>/api/chat</code> and <code>/api/conversations/*</code>; exercises: <code>/api/check-exercise</code> and <code>/api/practice/*</code>; flashcards: <code>/api/flashcards/*</code>; exams: <code>/api/mock-tests/*</code> and <code>/api/exam/*</code>; feedback: <code>/api/writing/correct</code>, <code>/api/adaptive/analysis</code>; content: <code>/api/content/ingest</code>; progress: <code>/api/progress</code>, <code>/api/streaks</code>; sharing/export: <code>/api/share/*</code>, <code>/api/comments/*</code>, <code>/api/export</code>; audio: <code>/api/tts</code>. FastAPI also supplies interactive API documentation at <code>/docs</code>.</p>
 <hr />
 <h2 id="7-ai-model-strategy-can-it-serve-thousands-of-users">7. AI model strategy: can it serve thousands of users?</h2>
 <p><strong>Yes, in principle, with paid production APIs, a constrained workload, approved quotas and measured quality.</strong> User count alone does not determine cost or capacity. Active users, turns, context length, output length, peak concurrency, audio and retries do.</p>

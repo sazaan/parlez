@@ -25,12 +25,15 @@ import main
 @pytest.fixture(autouse=True)
 def reset_storage_and_limits():
     """Clear storage and slowapi rate-limit counters before each test."""
-    from db import User, SharedLink, CommentGroup
+    from db import User, SharedLink, CommentGroup, SystemSetting, AdminAudit, AdminSession
     with main.storage.Session() as session:
         with session.begin():
             session.query(User).delete()
             session.query(SharedLink).delete()
             session.query(CommentGroup).delete()
+            session.query(SystemSetting).delete()
+            session.query(AdminAudit).delete()
+            session.query(AdminSession).delete()
     # Reset in-memory rate limit counters so tests don't trip each other.
     if hasattr(main.app.state, "limiter"):
         main.app.state.limiter.reset()

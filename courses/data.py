@@ -253,8 +253,27 @@ conversation_scenarios = [
 # Course registry
 # ============================================================
 
-# Only A1 is enabled for now. A2-C1 courses are kept imported below for gradual
-# re-enabling once their content is restructured.
+# Runtime publication starts with A1, but the admin control plane can publish
+# the currently authored A2-B2 material after review. Keep this catalog separate
+# from `courses`, which remains the legacy default/public registry.
+COURSE_CATALOG = {
+    course.level: course
+    for course in (a1_course, a2_course, b1_course, b2_course)
+}
+
+COURSE_LEVEL_CATALOG = [
+    {
+        'level': course.level,
+        'color': course.color,
+        'book': course.book,
+        'title': course.title.split('—', 1)[-1].strip(),
+        'description': course.description,
+    }
+    for course in COURSE_CATALOG.values()
+]
+
+# Only A1 is enabled by default. The admin control plane stores runtime
+# publication state separately; it never mutates course source data.
 courses = [a1_course]
 
 course_levels = [

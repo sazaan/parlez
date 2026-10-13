@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex,nofollow,noarchive">
+    <meta name="referrer" content="same-origin">
+    <meta name="description" content="Parlez system administration">
+    <title>Parlez Admin</title>
+    <link rel="stylesheet" href="/static/admin.css">
+    <script src="/static/admin.js" defer></script>
+</head>
+<body>
+    <div class="ambient ambient-one" aria-hidden="true"></div>
+    <div class="ambient ambient-two" aria-hidden="true"></div>
+    <main class="page-shell">
+        <section class="login-card" id="loginView" aria-labelledby="loginTitle" hidden>
+            <div class="brand-lockup">
+                <div class="brand-mark">P</div>
+                <div><span class="eyebrow">PARLEZ · CONTROL PLANE</span><h1 id="loginTitle">Admin sign in</h1></div>
+            </div>
+            <p class="login-intro">This area is restricted to the configured administrator. Sign in with your password and authenticator code.</p>
+            <form id="loginForm" autocomplete="on">
+                <label for="adminUsername">Admin username</label>
+                <input id="adminUsername" name="username" autocomplete="username" required maxlength="80" autofocus>
+                <label for="adminPassword">Password</label>
+                <input id="adminPassword" name="password" type="password" autocomplete="current-password" required maxlength="72">
+                <label for="adminTotp">Authenticator code</label>
+                <input id="adminTotp" name="totp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" placeholder="000000" required>
+                <button class="button button-primary login-submit" type="submit">Sign in securely <span aria-hidden="true">↗</span></button>
+                <p class="form-message" id="loginMessage" role="status" aria-live="polite"></p>
+            </form>
+            <div class="security-note"><span class="status-dot"></span> Protected admin session · never share verification codes</div>
+        </section>
+
+        <section class="setup-card" id="setupView" hidden aria-live="polite">
+            <div class="brand-mark">P</div>
+            <span class="eyebrow">ADMIN ACCESS NOT CONFIGURED</span>
+            <h1>Set up the administrator first.</h1>
+            <p>Admin access is disabled until the server has an admin username, bcrypt password hash, TOTP secret, and separate session secret in its environment configuration.</p>
+            <p class="setup-hint">See the README section “Admin panel setup” and run the local credential generator. Do not put credentials in frontend files.</p>
+        </section>
+
+        <section class="dashboard" id="dashboardView" hidden>
+            <header class="topbar">
+                <a class="brand-lockup brand-link" href="/" aria-label="Parlez home">
+                    <div class="brand-mark">P</div>
+                    <div><span class="eyebrow">PARLEZ · CONTROL PLANE</span><strong>Administration</strong></div>
+                </a>
+                <div class="topbar-actions">
+                    <span class="admin-identity"><span class="status-dot"></span><span id="adminIdentity">Administrator</span></span>
+                    <button class="button button-quiet" id="logoutButton" type="button">Sign out</button>
+                </div>
+            </header>
+
+            <div class="hero-row">
+                <div>
+                    <p class="eyebrow">SYSTEM SETTINGS</p>
+                    <h1>Keep the learning system in tune.</h1>
+                    <p class="hero-copy">Choose the AI service behind Parlez and publish course content when it is ready.</p>
+                </div>
+                <div class="secure-chip"><span class="status-dot"></span> Admin session protected</div>
+            </div>
+
+            <section class="status-grid" aria-label="Current system status">
+                <article class="status-card"><span class="status-label">ACTIVE AI</span><strong id="statusProvider">—</strong><small id="statusModel">—</small></article>
+                <article class="status-card"><span class="status-label">PUBLISHED LEVELS</span><strong id="statusLevels">—</strong><small>Course access for learners</small></article>
+                <article class="status-card"><span class="status-label">BACKEND</span><strong class="status-good" id="statusBackend">Healthy</strong><small id="statusDatabase">Database status loading…</small></article>
+            </section>
+
+            <nav class="tabs" aria-label="Admin sections">
+                <button class="tab active" type="button" data-section="ai">AI providers</button>
+                <button class="tab" type="button" data-section="courses">Course publishing</button>
+                <button class="tab" type="button" data-section="audit">Change log</button>
+            </nav>
+
+            <p class="page-message" id="pageMessage" role="status" aria-live="polite"></p>
+
+            <section class="panel-section active" id="section-ai">
+                <div class="section-heading">
+                    <div><p class="eyebrow">MODEL ROUTING</p><h2>AI provider and model</h2><p>Switch the server’s active text model. Provider credentials are read from server environment settings and are never returned here.</p></div>
+                    <span class="section-icon" aria-hidden="true">✳</span>
+                </div>
+                <div class="panel-card model-card">
+                    <div class="form-grid">
+                        <div class="field-block">
+                            <label for="providerSelect">Provider</label>
+                            <select id="providerSelect"></select>
+                            <small class="field-help" id="providerHelp">Select a provider with a server-side key configured.</small>
+                        </div>
+                        <div class="field-block">
+                            <label for="modelId">Model ID</label>
+                            <input id="modelId" maxlength="200" autocomplete="off" spellcheck="false" placeholder="e.g. provider/model-name">
+                            <small class="field-help">Use the model ID accepted by that provider. Free model catalogs and limits can change.</small>
+                        </div>
+                    </div>
+                    <div class="credential-row">
+                        <div class="credential-status"><span class="key-icon" aria-hidden="true">⌁</span><div><strong id="keyStatusTitle">Checking server key…</strong><small id="keyStatusText">The key itself is never shown in this portal.</small></div></div>
+                        <span class="pill pill-neutral" id="activePill">Current default</span>
+                    </div>
+                    <div class="card-actions">
+                        <button class="button button-secondary" id="testProviderButton" type="button">Test connection</button>
+                        <button class="button button-quiet" id="rollbackProviderButton" type="button" disabled>Restore previous model</button>
+                        <button class="button button-primary" id="saveProviderButton" type="button">Save active model <span aria-hidden="true">→</span></button>
+                    </div>
+                    <p class="inline-message" id="aiMessage" role="status" aria-live="polite"></p>
+                </div>
+                <div class="info-callout"><strong>Provider privacy & reliability</strong><p>Parlez sends tutor prompts to the selected hosted provider. Review its data terms and rate limits before using it with learner data. A free endpoint may throttle, change models, or be temporarily unavailable.</p></div>
+            </section>
+
+            <section class="panel-section" id="section-courses" hidden>
+                <div class="section-heading">
+                    <div><p class="eyebrow">LEARNING PATH</p><h2>Publish course levels</h2><p>Choose which CEFR levels and modules appear in the learner app. These controls also gate course APIs—not just the visible menu.</p></div>
+                    <span class="section-icon" aria-hidden="true">⌘</span>
+                </div>
+                <div class="course-warning"><strong>Content readiness matters.</strong><span>Publishing exposes existing lessons; it does not create or complete a curriculum. Review lesson coverage and public marketing copy before enabling a new level.</span></div>
+                <div class="course-grid" id="courseGrid"></div>
+                <div class="course-actions"><p class="inline-message" id="courseMessage" role="status" aria-live="polite"></p><button class="button button-primary" id="saveCoursesButton" type="button">Save publication settings <span aria-hidden="true">→</span></button></div>
+            </section>
+
+            <section class="panel-section" id="section-audit" hidden>
+                <div class="section-heading">
+                    <div><p class="eyebrow">ACCOUNTABILITY</p><h2>Recent admin changes</h2><p>Only administrative actions and model identifiers are recorded; API keys and learner prompts are not.</p></div>
+                    <span class="section-icon" aria-hidden="true">◷</span>
+                </div>
+                <div class="panel-card audit-card"><div class="audit-list" id="auditList"><p class="empty-state">Loading change history…</p></div></div>
+            </section>
+
+            <footer class="page-footer"><span>Parlez administration</span><span>Use HTTPS in production · <a href="/">Return to Parlez</a></span></footer>
+        </section>
+    </main>
+</body>
+</html>

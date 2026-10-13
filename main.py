@@ -7,6 +7,8 @@ import datetime
 import urllib.parse
 import logging
 import logging.handlers
+import re
+from dataclasses import replace
 from typing import Optional
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Depends, Response, Request
@@ -28,6 +30,7 @@ logger = logging.getLogger("parlez")
 import httpx
 import bcrypt
 import jwt
+import pyotp
 import db
 from email_validator import validate_email, EmailNotValidError
 from sqlalchemy.exc import IntegrityError
@@ -47,14 +50,53 @@ TOKEN_EXPIRY_HOURS = int(os.getenv('TOKEN_EXPIRY_HOURS', '24'))
 COOKIE_SECURE = os.getenv('COOKIE_SECURE', 'true').lower() in ('1', 'true', 'yes')
 COOKIE_SAMESITE = os.getenv('COOKIE_SAMESITE', 'lax')
 
-from courses import courses, get_course, course_levels, conversation_scenarios
+# The admin URL stays on this origin. Changing the path is only a discovery
+# deterrent; authorization is enforced independently on every admin API.
+ADMIN_PATH = os.getenv("ADMIN_PATH", "/parlez-admin").strip() or "/parlez-admin"
+if (
+    not ADMIN_PATH.startswith("/")
+    or ADMIN_PATH == "/"
+    or ADMIN_PATH in {"/api", "/login", "/static"}
+    or not re.fullmatch(r"/[A-Za-z0-9/_-]+", ADMIN_PATH)
+    or ADMIN_PATH.startswith("/api/")
+):
+    logger.error("Invalid ADMIN_PATH; using /parlez-admin")
+    ADMIN_PATH = "/parlez-admin"
+if ADMIN_PATH != "/" and ADMIN_PATH.endswith("/"):
+    ADMIN_PATH = ADMIN_PATH.rstrip("/")
+
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "").strip()
+ADMIN_PASSWORD_HASH = os.getenv("ADMIN_PASSWORD_HASH", "").strip()
+ADMIN_TOTP_SECRET = os.getenv("ADMIN_TOTP_SECRET", "").replace(" ", "").strip().upper()
+ADMIN_SESSION_SECRET = os.getenv("ADMIN_SESSION_SECRET", "").strip()
+try:
+    ADMIN_SESSION_TTL_MINUTES = max(5, min(60, int(os.getenv("ADMIN_SESSION_TTL_MINUTES", "15"))))
+except ValueError:
+    ADMIN_SESSION_TTL_MINUTES = 15
+try:
+    ADMIN_TOTP_SECRET_VALID = bool(ADMIN_TOTP_SECRET and pyotp.TOTP(ADMIN_TOTP_SECRET).now())
+except (ValueError, TypeError):
+    ADMIN_TOTP_SECRET_VALID = False
+ADMIN_PASSWORD_HASH_VALID = bool(
+    re.fullmatch(r"\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}", ADMIN_PASSWORD_HASH)
+)
+ADMIN_AUTH_CONFIGURED = bool(
+    ADMIN_USERNAME
+    and ADMIN_PASSWORD_HASH_VALID
+    and ADMIN_TOTP_SECRET_VALID
+    and len(ADMIN_SESSION_SECRET) >= 32
+)
+if any((ADMIN_USERNAME, ADMIN_PASSWORD_HASH, ADMIN_TOTP_SECRET, ADMIN_SESSION_SECRET)) and not ADMIN_AUTH_CONFIGURED:
+    logger.error("Admin panel is disabled: complete all ADMIN_* authentication settings in .env")
+
+from courses import conversation_scenarios, COURSE_CATALOG, COURSE_LEVEL_CATALOG
 from engine import build_system_prompt, detect_mode, find_lesson_context, LEVEL_NAMES
 
 # Task 4.3 (A3 fix): build a {lesson_id: (course, unit, lesson)} index once
 # at import time so handlers don't do full nested scans of all courses ×
 # units × lessons on every request.
 LESSON_INDEX: dict = {}
-for _c in courses:
+for _c in COURSE_CATALOG.values():
     for _u in _c.units:
         for _l in _u.lessons:
             LESSON_INDEX[_l.id] = (_c, _u, _l)
@@ -211,6 +253,9 @@ class SecurityHeadersMiddleware:
         "connect-src 'self' https://translate.google.com; "
         # TTS is fetched from our API and played through a local object URL.
         "media-src 'self' blob:; "
+        "base-uri 'self'; "
+        "object-src 'none'; "
+        "form-action 'self'; "
         "frame-ancestors 'none'"
     )
 
@@ -259,6 +304,7 @@ class XP:
 NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY")
 INVOKE_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
 DEFAULT_NVIDIA_MODEL = "nvidia/nemotron-3.5-lightning-30b-a3b"
+DEFAULT_AI_PROVIDER = os.getenv("AI_PROVIDER", "nvidia").strip().lower() or "nvidia"
 
 
 def resolve_nvidia_model(configured_model: str | None = None) -> str:
@@ -269,6 +315,126 @@ def resolve_nvidia_model(configured_model: str | None = None) -> str:
 
 
 MODEL = resolve_nvidia_model()
+
+# Provider endpoints are deliberately fixed in server code. The admin API
+# accepts provider/model IDs, never arbitrary URLs (which would create an SSRF
+# surface). API keys remain server-side in environment/secret configuration.
+AI_PROVIDER_SPECS = {
+    "nvidia": {
+        "label": "NVIDIA NIM",
+        "base_url": INVOKE_URL,
+        "key_env": "NVIDIA_API_KEY",
+        "default_model": MODEL,
+    },
+    "gemini": {
+        "label": "Google Gemini API",
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        "key_env": "GEMINI_API_KEY",
+        "default_model": os.getenv("GEMINI_MODEL", "gemini-3.8-flash").strip() or "gemini-3.8-flash",
+    },
+    "openrouter": {
+        "label": "OpenRouter",
+        "base_url": "https://openrouter.ai/api/v1/chat/completions",
+        "key_env": "OPENROUTER_API_KEY",
+        "default_model": os.getenv("OPENROUTER_MODEL", "openrouter/free").strip() or "openrouter/free",
+    },
+    "opencode_zen": {
+        "label": "OpenCode Zen",
+        "base_url": "https://opencode.ai/zen/v1/chat/completions",
+        "key_env": "OPENCODE_ZEN_API_KEY",
+        "default_model": os.getenv("OPENCODE_ZEN_MODEL", "big-pickle").strip() or "big-pickle",
+    },
+}
+
+
+def _provider_key(provider: str) -> str | None:
+    spec = AI_PROVIDER_SPECS.get(provider)
+    if not spec:
+        return None
+    if provider == "nvidia":
+        key = NVIDIA_API_KEY or ""
+    else:
+        key = os.getenv(spec["key_env"], "").strip()
+    if provider == "opencode_zen" and not key:
+        key = os.getenv("OPENCODE_API_KEY", "").strip()
+    return key or None
+
+
+def _default_ai_config() -> dict:
+    provider = DEFAULT_AI_PROVIDER if DEFAULT_AI_PROVIDER in AI_PROVIDER_SPECS else "nvidia"
+    model = MODEL if provider == "nvidia" else AI_PROVIDER_SPECS[provider]["default_model"]
+    return {"provider": provider, "model": model}
+
+
+def get_active_ai_config() -> dict:
+    """Read the DB-managed active model, falling back to deployment defaults."""
+    saved = storage.get_setting("ai_config")
+    if isinstance(saved, dict):
+        provider = str(saved.get("provider", "")).strip().lower()
+        model = str(saved.get("model", "")).strip()
+        if provider in AI_PROVIDER_SPECS and model:
+            return {"provider": provider, "model": model}
+    return _default_ai_config()
+
+
+def get_course_access_config() -> dict:
+    """Load publication flags; only A1 is public until an admin enables more."""
+    saved = storage.get_setting("course_access")
+    if not isinstance(saved, dict):
+        return {"enabled_levels": ["A1"], "enabled_units": {}}
+    enabled = [
+        str(level).upper()
+        for level in saved.get("enabled_levels", ["A1"])
+        if str(level).upper() in COURSE_CATALOG
+    ]
+    if "A1" not in enabled:
+        enabled.insert(0, "A1")
+    units = saved.get("enabled_units", {})
+    return {"enabled_levels": list(dict.fromkeys(enabled)), "enabled_units": units if isinstance(units, dict) else {}}
+
+
+def get_enabled_courses() -> list:
+    """Return published course objects with only published units attached."""
+    access = get_course_access_config()
+    enabled = set(access["enabled_levels"])
+    unit_flags = access["enabled_units"]
+    result = []
+    for level, course in COURSE_CATALOG.items():
+        if level not in enabled:
+            continue
+        configured_units = unit_flags.get(level)
+        if not isinstance(configured_units, list):
+            configured_units = [unit.id for unit in course.units]
+        configured_units = set(configured_units)
+        visible_units = [unit for unit in course.units if unit.id in configured_units]
+        if visible_units:
+            result.append(replace(course, units=visible_units))
+    return result
+
+
+def get_public_course(level: str):
+    normalized = str(level or "").upper()
+    return next((course for course in get_enabled_courses() if course.level == normalized), None)
+
+
+def require_public_course(level: str):
+    course = get_public_course(level)
+    if course is None:
+        raise HTTPException(status_code=404, detail="Course level is not available")
+    return course
+
+
+def get_public_course_levels() -> list[dict]:
+    enabled = {course.level: course for course in get_enabled_courses()}
+    return [
+        {
+            **meta,
+            "unitCount": len(enabled[meta["level"]].units),
+            "lessonCount": sum(len(unit.lessons) for unit in enabled[meta["level"]].units),
+        }
+        for meta in COURSE_LEVEL_CATALOG
+        if meta["level"] in enabled
+    ]
 
 MAX_CHUNK_LENGTH = 190
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
@@ -364,6 +530,27 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class AdminLoginRequest(BaseModel):
+    username: str
+    password: str
+    totp: str
+
+
+class AdminAIConfigUpdate(BaseModel):
+    provider: str
+    model: str
+
+
+class AdminAITestRequest(BaseModel):
+    provider: str
+    model: str
+
+
+class AdminCourseAccessUpdate(BaseModel):
+    enabled_levels: list[str]
+    enabled_units: dict[str, list[str]]
+
+
 # SQLite-backed storage. See db.py for the implementation.
 storage = db.Storage()
 
@@ -411,6 +598,53 @@ def require_auth(request: Request):
         raise HTTPException(status_code=401, detail="Not authenticated")
     return user
 
+
+def _admin_origin_is_same(request: Request) -> bool:
+    """Reject explicit cross-origin admin requests; same-origin UI needs no CORS."""
+    origin = request.headers.get("origin")
+    if not origin:
+        return True
+    try:
+        supplied = urllib.parse.urlsplit(origin)
+        expected = urllib.parse.urlsplit(str(request.base_url))
+        return supplied.scheme == expected.scheme and supplied.netloc == expected.netloc
+    except ValueError:
+        return False
+
+
+def _decode_admin_session(request: Request):
+    if not ADMIN_AUTH_CONFIGURED:
+        raise HTTPException(status_code=503, detail="Admin access is not configured on this server.")
+    token = request.cookies.get("parlez_admin")
+    if not token:
+        raise HTTPException(status_code=401, detail="Admin sign-in required.")
+    try:
+        payload = jwt.decode(token, ADMIN_SESSION_SECRET, algorithms=[JWT_ALGORITHM])
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Admin session expired. Sign in again.")
+    if payload.get("scope") != "parlez_admin" or not secrets.compare_digest(
+        str(payload.get("sub", "")), ADMIN_USERNAME
+    ):
+        raise HTTPException(status_code=401, detail="Admin session expired. Sign in again.")
+    session_id = str(payload.get("jti", ""))
+    if not session_id or not storage.admin_session_is_active(session_id, ADMIN_USERNAME):
+        raise HTTPException(status_code=401, detail="Admin session expired. Sign in again.")
+    return payload
+
+
+def require_admin(request: Request):
+    """Authorize admin APIs with a dedicated session and per-request CSRF check."""
+    payload = _decode_admin_session(request)
+    if request.method.upper() in {"POST", "PUT", "PATCH", "DELETE"}:
+        supplied_csrf = request.headers.get("X-CSRF-Token", "")
+        expected_csrf = str(payload.get("csrf", ""))
+        if not expected_csrf or not secrets.compare_digest(supplied_csrf, expected_csrf):
+            raise HTTPException(status_code=403, detail="Admin request could not be verified.")
+        if not _admin_origin_is_same(request):
+            raise HTTPException(status_code=403, detail="Cross-origin admin requests are not allowed.")
+    return {"username": ADMIN_USERNAME, "csrf": payload["csrf"], "session_id": payload["jti"]}
+
+
 DAILY_LLM_BUDGET = 100  # Task 3.9: per-user LLM request cap
 
 def check_daily_llm_budget(user):
@@ -433,38 +667,58 @@ def check_daily_llm_budget(user):
     return llm_daily['count']
 
 
-async def call_nvidia(messages, max_tokens=2048):
-    """Call NVIDIA NIM with retries and graceful degradation."""
-    if not NVIDIA_API_KEY:
-        raise HTTPException(status_code=503, detail="AI service is not configured.")
+async def call_ai_provider(messages, provider: str, model: str, max_tokens: int = 2048):
+    """Call a configured OpenAI-compatible provider without exposing its key."""
+    spec = AI_PROVIDER_SPECS.get(provider)
+    api_key = _provider_key(provider)
+    if not spec or not api_key:
+        raise HTTPException(status_code=503, detail="The selected AI provider is not configured.")
+    if not model or len(model) > 200:
+        raise HTTPException(status_code=503, detail="The selected AI model is not configured correctly.")
 
+    payload = {
+        "model": model,
+        "messages": messages,
+        "max_tokens": max_tokens,
+        "temperature": 0.6,
+        "top_p": 0.95,
+    }
     async with httpx.AsyncClient(timeout=60.0) as client:
-        last_error = None
+        last_error = "provider unavailable"
         for attempt in range(3):
             try:
-                r = await client.post(
-                    INVOKE_URL,
-                    headers={"Authorization": f"Bearer {NVIDIA_API_KEY}", "Content-Type": "application/json"},
-                    json={"model": MODEL, "messages": messages, "max_tokens": max_tokens, "temperature": 0.6, "top_p": 0.95}
+                response = await client.post(
+                    spec["base_url"],
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json=payload,
                 )
-                if r.status_code == 200:
-                    return r.json()
-                if r.status_code >= 500:
-                    # Retry on server-side errors
-                    last_error = f"NVIDIA API error {r.status_code}: {r.text}"
-                    logger.warning("NVIDIA API attempt %s failed: %s", attempt + 1, last_error)
+                if response.status_code == 200:
+                    return response.json()
+                if response.status_code == 429 or response.status_code >= 500:
+                    # Retry transient capacity/rate errors, but never log prompt or provider body.
+                    last_error = f"{provider} returned HTTP {response.status_code}"
+                    logger.warning("AI provider attempt %s failed: %s", attempt + 1, last_error)
                 else:
-                    # Don't retry client errors (e.g., 400, 401)
-                    raise HTTPException(status_code=502, detail=f"AI request failed: {r.status_code}")
+                    logger.warning("AI provider rejected request: provider=%s status=%s", provider, response.status_code)
+                    raise HTTPException(status_code=502, detail=f"AI request failed ({response.status_code}).")
             except httpx.RequestError as exc:
-                last_error = str(exc)
-                logger.warning("NVIDIA API request attempt %s failed: %s", attempt + 1, last_error)
+                last_error = f"{provider} request failed: {type(exc).__name__}"
+                logger.warning("AI provider attempt %s failed: %s", attempt + 1, last_error)
 
             if attempt < 2:
                 await asyncio.sleep(2 ** attempt)
 
-        logger.error("NVIDIA API failed after 3 attempts: %s", last_error)
+        logger.error("AI provider failed after retries: %s", last_error)
         raise HTTPException(status_code=503, detail="AI service is temporarily unavailable. Please try again in a moment.")
+
+
+async def call_nvidia(messages, max_tokens=2048):
+    """Legacy call-site name; dispatches through the admin-selected provider."""
+    config = get_active_ai_config()
+    return await call_ai_provider(messages, config["provider"], config["model"], max_tokens)
 
 
 # ============================================================
@@ -476,6 +730,320 @@ async def call_nvidia(messages, max_tokens=2048):
 # revalidate, but the server-side cost is now a single file read at boot.
 _LANDING_HTML = open("static/landing.html").read()
 _INDEX_HTML = open("static/index.html").read()
+_ADMIN_HTML = open("static/admin.html").read()
+
+
+@app.get(ADMIN_PATH, response_class=HTMLResponse, include_in_schema=False)
+async def admin_page():
+    """Serve the same-origin admin shell; every sensitive action uses admin APIs."""
+    return Response(
+        content=_ADMIN_HTML,
+        media_type="text/html",
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate", "X-Robots-Tag": "noindex, nofollow, noarchive"},
+    )
+
+
+@app.post("/api/admin/login", include_in_schema=False)
+@limiter.limit("5/minute")
+async def admin_login(request: Request, credentials: AdminLoginRequest, response: Response):
+    """Password + TOTP login for the dedicated, environment-bootstrapped admin."""
+    if not ADMIN_AUTH_CONFIGURED:
+        raise HTTPException(status_code=503, detail="Admin access is not configured on this server.")
+    if not _admin_origin_is_same(request) or request.headers.get("sec-fetch-site") == "cross-site":
+        raise HTTPException(status_code=403, detail="Cross-origin admin sign-in is not allowed.")
+
+    username_ok = secrets.compare_digest(credentials.username.strip(), ADMIN_USERNAME)
+    password_ok = False
+    totp_ok = False
+    try:
+        password_ok = bcrypt.checkpw(
+            credentials.password.encode("utf-8"), ADMIN_PASSWORD_HASH.encode("utf-8")
+        )
+    except (ValueError, TypeError):
+        password_ok = False
+    try:
+        code = credentials.totp.strip()
+        if re.fullmatch(r"\d{6}", code):
+            totp_ok = pyotp.TOTP(ADMIN_TOTP_SECRET).verify(code, valid_window=1)
+    except (ValueError, TypeError):
+        totp_ok = False
+
+    if not (username_ok and password_ok and totp_ok):
+        raise HTTPException(status_code=401, detail="Invalid admin credentials or verification code.")
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    expires_at = now + datetime.timedelta(minutes=ADMIN_SESSION_TTL_MINUTES)
+    csrf_token = secrets.token_urlsafe(32)
+    session_id = secrets.token_urlsafe(24)
+    storage.create_admin_session(
+        session_id,
+        ADMIN_USERNAME,
+        expires_at.timestamp(),
+    )
+    session_token = jwt.encode(
+        {
+            "sub": ADMIN_USERNAME,
+            "scope": "parlez_admin",
+            "csrf": csrf_token,
+            "jti": session_id,
+            "iat": now,
+            "exp": expires_at,
+        },
+        ADMIN_SESSION_SECRET,
+        algorithm=JWT_ALGORITHM,
+    )
+    response.set_cookie(
+        key="parlez_admin",
+        value=session_token,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite="strict",
+        path="/api/admin",
+        max_age=ADMIN_SESSION_TTL_MINUTES * 60,
+    )
+    storage.add_admin_audit(ADMIN_USERNAME, "admin_login", {})
+    return {"ok": True}
+
+
+@app.get("/api/admin/session", include_in_schema=False)
+async def admin_session(admin=Depends(require_admin)):
+    return {"username": admin["username"], "csrf_token": admin["csrf"]}
+
+
+@app.post("/api/admin/logout", include_in_schema=False)
+async def admin_logout(request: Request, response: Response, admin=Depends(require_admin)):
+    payload = _decode_admin_session(request)
+    storage.revoke_admin_session(str(payload.get("jti", "")))
+    response.delete_cookie(key="parlez_admin", path="/api/admin", secure=COOKIE_SECURE, httponly=True, samesite="strict")
+    storage.add_admin_audit(admin["username"], "admin_logout", {})
+    return {"ok": True}
+
+
+def _admin_ai_payload() -> dict:
+    config = get_active_ai_config()
+    providers = []
+    for provider, spec in AI_PROVIDER_SPECS.items():
+        providers.append({
+            "id": provider,
+            "label": spec["label"],
+            "configured": bool(_provider_key(provider)),
+            "default_model": spec["default_model"],
+        })
+    history = storage.get_setting("ai_config_history", [])
+    can_rollback = isinstance(history, list) and bool(history)
+    return {
+        "provider": config["provider"],
+        "model": config["model"],
+        "providers": providers,
+        "can_rollback": can_rollback,
+    }
+
+
+def _admin_course_payload() -> dict:
+    access = get_course_access_config()
+    enabled_levels = set(access["enabled_levels"])
+    unit_flags = access["enabled_units"]
+    levels = []
+    for level, course in COURSE_CATALOG.items():
+        configured_units = unit_flags.get(level)
+        if not isinstance(configured_units, list):
+            configured_units = [unit.id for unit in course.units]
+        configured_units = set(configured_units)
+        lesson_count = sum(len(unit.lessons) for unit in course.units)
+        release_warning = None
+        if level != "A1":
+            release_warning = (
+                f"Review before public release: {level} currently has {lesson_count} authored lessons "
+                f"across {len(course.units)} modules. Enabling this switch publishes only existing content."
+            )
+        levels.append({
+            "level": level,
+            "title": course.title,
+            "description": course.description,
+            "enabled": level in enabled_levels,
+            "module_count": len(course.units),
+            "lesson_count": lesson_count,
+            "release_warning": release_warning,
+            "units": [
+                {
+                    "id": unit.id,
+                    "title": unit.title,
+                    "lesson_count": len(unit.lessons),
+                    "enabled": unit.id in configured_units,
+                }
+                for unit in course.units
+            ],
+        })
+    return {"enabled_levels": sorted(enabled_levels), "levels": levels}
+
+
+@app.get("/api/admin/config", include_in_schema=False)
+async def admin_config(admin=Depends(require_admin)):
+    return {
+        "ai": _admin_ai_payload(),
+        "courses": _admin_course_payload(),
+        "admin_path": ADMIN_PATH,
+        "storage": "shared-database-settings",
+    }
+
+
+@app.put("/api/admin/ai", include_in_schema=False)
+async def update_admin_ai_config(config: AdminAIConfigUpdate, admin=Depends(require_admin)):
+    provider = config.provider.strip().lower()
+    model = config.model.strip()
+    if provider not in AI_PROVIDER_SPECS:
+        raise HTTPException(status_code=400, detail="Unsupported AI provider.")
+    if not model or len(model) > 200 or any(ord(char) < 32 for char in model):
+        raise HTTPException(status_code=400, detail="Enter a valid model ID (1–200 characters).")
+    if not _provider_key(provider):
+        raise HTTPException(status_code=400, detail="That provider has no API key configured on the server.")
+
+    previous = get_active_ai_config()
+    selected = {"provider": provider, "model": model}
+    changed = selected != previous
+    test_key = f"ai_provider_test:{admin['session_id']}"
+    tested = storage.get_setting(test_key)
+    if changed and not (
+        isinstance(tested, dict)
+        and tested.get("provider") == provider
+        and tested.get("model") == model
+        and time.time() - float(tested.get("tested_at", 0)) <= 300
+    ):
+        raise HTTPException(status_code=400, detail="Run a successful connection test for this exact provider/model before saving.")
+
+    history = storage.get_setting("ai_config_history", [])
+    if not isinstance(history, list):
+        history = []
+    if changed:
+        history = (history + [previous])[-10:]
+        storage.set_settings({"ai_config": selected, "ai_config_history": history})
+        storage.delete_setting(test_key)
+        storage.add_admin_audit(admin["username"], "ai_config_updated", {
+            "previous_provider": previous["provider"],
+            "previous_model": previous["model"],
+            "provider": provider,
+            "model": model,
+        })
+    return _admin_ai_payload()
+
+
+@app.post("/api/admin/ai/test", include_in_schema=False)
+@limiter.limit("5/minute")
+async def test_admin_ai_provider(request: Request, test: AdminAITestRequest, admin=Depends(require_admin)):
+    provider = test.provider.strip().lower()
+    model = test.model.strip()
+    if provider not in AI_PROVIDER_SPECS:
+        raise HTTPException(status_code=400, detail="Unsupported AI provider.")
+    if not model or len(model) > 200 or any(ord(char) < 32 for char in model):
+        raise HTTPException(status_code=400, detail="Enter a valid model ID (1–200 characters).")
+    if not _provider_key(provider):
+        raise HTTPException(status_code=400, detail="That provider has no API key configured on the server.")
+
+    result = await call_ai_provider(
+        [{"role": "user", "content": "Reply with exactly: Parlez connection test passed."}],
+        provider,
+        model,
+        max_tokens=40,
+    )
+    try:
+        message = result["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError):
+        raise HTTPException(status_code=502, detail="Provider responded, but returned an unexpected chat-completions result.")
+    storage.set_setting(f"ai_provider_test:{admin['session_id']}", {
+        "provider": provider,
+        "model": model,
+        "tested_at": time.time(),
+    })
+    storage.add_admin_audit(admin["username"], "ai_provider_tested", {"provider": provider, "model": model})
+    return {"ok": True, "provider": provider, "model": model, "message": str(message)[:240]}
+
+
+@app.post("/api/admin/ai/rollback", include_in_schema=False)
+async def rollback_admin_ai_config(admin=Depends(require_admin)):
+    history = storage.get_setting("ai_config_history", [])
+    if not isinstance(history, list) or not history:
+        raise HTTPException(status_code=400, detail="No previous AI configuration is available to restore.")
+    previous = history[-1]
+    if not isinstance(previous, dict) or previous.get("provider") not in AI_PROVIDER_SPECS or not previous.get("model"):
+        raise HTTPException(status_code=409, detail="The saved previous AI configuration is invalid.")
+    if not _provider_key(previous["provider"]):
+        raise HTTPException(status_code=400, detail="The previous provider key is no longer configured; rollback is unavailable.")
+
+    current = get_active_ai_config()
+    history = history[:-1]
+    storage.set_settings({"ai_config": previous, "ai_config_history": history})
+    storage.add_admin_audit(admin["username"], "ai_config_rolled_back", {
+        "from_provider": current["provider"],
+        "from_model": current["model"],
+        "to_provider": previous["provider"],
+        "to_model": previous["model"],
+    })
+    return _admin_ai_payload()
+
+
+@app.get("/api/admin/courses", include_in_schema=False)
+async def admin_courses(admin=Depends(require_admin)):
+    return _admin_course_payload()
+
+
+@app.put("/api/admin/courses", include_in_schema=False)
+async def update_admin_courses(config: AdminCourseAccessUpdate, admin=Depends(require_admin)):
+    requested_levels = {str(level).strip().upper() for level in config.enabled_levels}
+    unknown_levels = requested_levels - set(COURSE_CATALOG)
+    if unknown_levels:
+        raise HTTPException(status_code=400, detail="One or more course levels are unknown.")
+    if "A1" not in requested_levels:
+        raise HTTPException(status_code=400, detail="A1 must remain published as the foundation level.")
+
+    normalized_units: dict[str, list[str]] = {}
+    for level, course in COURSE_CATALOG.items():
+        selected = config.enabled_units.get(level, [unit.id for unit in course.units])
+        if not isinstance(selected, list):
+            raise HTTPException(status_code=400, detail=f"Invalid module selection for {level}.")
+        selected_ids = {str(unit_id) for unit_id in selected}
+        valid_ids = {unit.id for unit in course.units}
+        if selected_ids - valid_ids:
+            raise HTTPException(status_code=400, detail=f"Unknown module in {level}.")
+        if level in requested_levels and not selected_ids:
+            raise HTTPException(status_code=400, detail=f"Select at least one module before enabling {level}.")
+        normalized_units[level] = [unit.id for unit in course.units if unit.id in selected_ids]
+
+    previous = get_course_access_config()
+    saved = {
+        "enabled_levels": [level for level in COURSE_CATALOG if level in requested_levels],
+        "enabled_units": normalized_units,
+    }
+    storage.set_setting("course_access", saved)
+    storage.add_admin_audit(admin["username"], "course_publication_updated", {
+        "enabled_levels": saved["enabled_levels"],
+        "previous_enabled_levels": previous["enabled_levels"],
+        "enabled_modules": {level: len(ids) for level, ids in normalized_units.items()},
+    })
+    return _admin_course_payload()
+
+
+@app.get("/api/admin/audit", include_in_schema=False)
+async def admin_audit(limit: int = 50, admin=Depends(require_admin)):
+    return storage.list_admin_audit(limit)
+
+
+@app.get("/api/admin/health", include_in_schema=False)
+async def admin_health(admin=Depends(require_admin)):
+    database = "connected"
+    try:
+        with storage.engine.connect() as connection:
+            connection.execute(db.text("SELECT 1"))
+    except Exception:
+        logger.exception("Admin dashboard database health check failed")
+        database = "unavailable"
+    active_ai = get_active_ai_config()
+    return {
+        "backend": "healthy" if database == "connected" else "degraded",
+        "database": database,
+        "active_provider": active_ai["provider"],
+        "active_model": active_ai["model"],
+        "provider_key_configured": bool(_provider_key(active_ai["provider"])),
+    }
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -628,11 +1196,11 @@ async def get_me(user=Depends(require_auth)):
 
 @app.get("/api/courses")
 async def get_courses():
-    return course_levels
+    return get_public_course_levels()
 
 @app.get("/api/courses/{level}")
 async def get_course_detail(level: str):
-    course = get_course(level.upper())
+    course = require_public_course(level)
     return {
         'level': course.level, 'title': course.title, 'book': course.book,
         'description': course.description, 'cefrDescription': course.cefrDescription,
@@ -655,7 +1223,7 @@ async def get_course_detail(level: str):
 
 @app.get("/api/courses/{level}/lessons/{lesson_id}")
 async def get_lesson(level: str, lesson_id: str):
-    course = get_course(level.upper())
+    course = require_public_course(level)
     for unit in course.units:
         for lesson in unit.lessons:
             if lesson.id == lesson_id:
@@ -686,11 +1254,18 @@ async def get_scenarios():
 
 @app.get("/api/user")
 async def get_user(user=Depends(require_auth)):
-    return {"level": user.get('level', 'A1'), "name": user.get('name', ''), "username": user.get('username', '')}
+    level = user.get('level', 'A1')
+    if not get_public_course(level):
+        level = 'A1'
+    return {"level": level, "name": user.get('name', ''), "username": user.get('username', '')}
 
 @app.post("/api/user")
 async def update_user(settings: UserSettings, user=Depends(require_auth)):
-    if settings.level: user['level'] = settings.level.upper()
+    if settings.level:
+        requested_level = settings.level.upper()
+        if not get_public_course(requested_level):
+            raise HTTPException(status_code=400, detail="That course level is not currently available.")
+        user['level'] = requested_level
     if settings.name: user['name'] = settings.name
     storage.save_user(user)
     return {"level": user.get('level', 'A1'), "name": user.get('name', ''), "username": user.get('username', '')}
@@ -706,7 +1281,11 @@ async def get_conversations(user=Depends(require_auth)):
 @app.post("/api/conversations")
 async def create_conversation(conv: ConversationCreate, user=Depends(require_auth)):
     conv_id = str(uuid.uuid4())[:8]
-    level = conv.level or user.get('level', 'A1')
+    level = (conv.level or user.get('level', 'A1')).upper()
+    if not get_public_course(level):
+        if conv.level:
+            raise HTTPException(status_code=400, detail="That course level is not currently available.")
+        level = 'A1'
     user.setdefault('conversations', {})[conv_id] = {
         "id": conv_id, "title": conv.title or "New Chat",
         "level": level, "messages": [],
@@ -743,7 +1322,12 @@ async def chat(request: Request, msg: ChatMessage, user=Depends(require_auth)):
 
     message = validate_user_text(msg.message, MAX_CHAT_MESSAGE_LENGTH, "message")
     
-    level = msg.level or user.get('level', 'A1')
+    level = (msg.level or user.get('level', 'A1')).upper()
+    if not get_public_course(level):
+        if msg.level:
+            raise HTTPException(status_code=400, detail="That course level is not currently available.")
+        level = 'A1'
+    active_courses = get_enabled_courses()
     
     # Detect mode from message
     mode = msg.mode or detect_mode(message, level)
@@ -751,7 +1335,9 @@ async def chat(request: Request, msg: ChatMessage, user=Depends(require_auth)):
     # Find lesson context if needed
     lesson_ctx = None
     if msg.lesson_id:
-        for course in courses:
+        for course in active_courses:
+            if course.level != level:
+                continue
             for unit in course.units:
                 for lesson in unit.lessons:
                     if lesson.id == msg.lesson_id:
@@ -765,7 +1351,7 @@ async def chat(request: Request, msg: ChatMessage, user=Depends(require_auth)):
                         }
                         break
     elif mode == 'lesson':
-        lesson_ctx = find_lesson_context(message, courses)
+        lesson_ctx = find_lesson_context(message, active_courses)
     
     # Find scenario if in conversation mode
     scenario = None
@@ -1029,7 +1615,7 @@ async def clear_flashcards(user=Depends(require_auth)):
 @app.post("/api/practice/lesson/{level}/{lesson_id}")
 async def lesson_practice(level: str, lesson_id: str):
     """Generate a full practice set from a lesson's exercises."""
-    course = get_course(level.upper())
+    course = require_public_course(level)
     for unit in course.units:
         for lesson in unit.lessons:
             if lesson.id == lesson_id:
@@ -1067,7 +1653,7 @@ async def lesson_practice(level: str, lesson_id: str):
 @app.post("/api/practice/vocab-quiz")
 async def vocab_quiz(req: VocabQuizRequest):
     """Generate a vocabulary quiz from course data."""
-    course = get_course(req.level)
+    course = require_public_course(req.level)
     all_vocab = []
     
     if req.lesson_id:
@@ -1091,7 +1677,7 @@ async def vocab_quiz(req: VocabQuizRequest):
 @app.post("/api/practice/conj-quiz")
 async def conj_quiz(req: VocabQuizRequest):
     """Generate a conjugation quiz from course data."""
-    course = get_course(req.level)
+    course = require_public_course(req.level)
     all_conj = None
     
     if req.lesson_id:
@@ -1127,7 +1713,7 @@ async def conj_quiz(req: VocabQuizRequest):
 @app.post("/api/practice/fill-blank")
 async def fill_blank_practice(req: VocabQuizRequest):
     """Generate fill-in-the-blank vocabulary exercises."""
-    course = get_course(req.level)
+    course = require_public_course(req.level)
     all_vocab = []
     
     for unit in course.units:
@@ -1445,7 +2031,11 @@ async def correct_writing(req: WritingCorrectionRequest, user=Depends(require_au
     check_daily_llm_budget(user)
 
     text = validate_user_text(req.text, MAX_WRITING_TEXT_LENGTH, "text")
-    level = req.level or user.get('level', 'A1')
+    level = (req.level or user.get('level', 'A1')).upper()
+    if not get_public_course(level):
+        if req.level:
+            raise HTTPException(status_code=400, detail="That course level is not currently available.")
+        level = 'A1'
     system_prompt = build_writing_correction_prompt(text, level)
     
     messages = [
@@ -1555,7 +2145,7 @@ async def get_exam_stats(test_type: str, user=Depends(require_auth)):
 
 @app.get("/api/practice/word-of-day")
 async def word_of_day(user=Depends(require_auth)):
-    course = get_course(user.get('level', 'A1'))
+    course = get_public_course(user.get('level', 'A1')) or require_public_course('A1')
     all_vocab = []
     for unit in course.units:
         for lesson in unit.lessons:
@@ -1568,7 +2158,7 @@ async def word_of_day(user=Depends(require_auth)):
 @app.get("/api/practice/vocab-categories")
 async def vocab_categories(level: str = "A1"):
     """Get vocabulary grouped by category."""
-    course = get_course(level)
+    course = require_public_course(level)
     all_vocab = []
     for unit in course.units:
         for lesson in unit.lessons:

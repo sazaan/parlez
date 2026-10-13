@@ -62,9 +62,9 @@ def test_me_with_auth(auth_client):
 
 
 def test_user_settings(auth_client):
-    r = auth_client.post("/api/user", json={"level": "B1", "name": "Updated"})
+    r = auth_client.post("/api/user", json={"level": "A1", "name": "Updated"})
     assert r.status_code == 200
-    assert r.json()["level"] == "B1"
+    assert r.json()["level"] == "A1"
     assert r.json()["name"] == "Updated"
 
 

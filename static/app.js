@@ -298,7 +298,7 @@ let isGenerating = false;
 let recognition = null;
 let isRecording = false;
 
-const LEVEL_NAMES = { 'A1': 'Débutant' };
+let LEVEL_NAMES = { 'A1': 'Débutant' };
 
 // ============================================================
 // TTS
@@ -1276,6 +1276,34 @@ async function deleteConversation(convId) {
 // ============================================================
 // Courses
 // ============================================================
+async function loadAvailableCourseLevels() {
+    try {
+        const response = await fetch('/api/courses', { credentials: 'same-origin' });
+        if (!response.ok) throw new Error('Could not load published course levels');
+        const levels = await response.json();
+        if (!Array.isArray(levels) || !levels.length) return;
+        LEVEL_NAMES = Object.fromEntries(levels.map(item => [item.level, item.title || item.level]));
+        if (levelSelector) {
+            levelSelector.innerHTML = '';
+            levels.forEach(item => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = `level-btn${item.level === currentLevel ? ' active' : ''}`;
+                button.dataset.level = item.level;
+                const small = document.createElement('small');
+                small.textContent = item.title || item.level;
+                button.append(document.createTextNode(item.level), document.createElement('br'), small);
+                levelSelector.appendChild(button);
+            });
+        }
+        const note = document.getElementById('levelAvailabilityNote');
+        if (note) note.style.display = levels.length > 1 ? 'none' : '';
+    } catch (e) {
+        // A1 remains a safe static fallback if the public catalog is unavailable.
+        console.warn('Could not load published course levels', e);
+    }
+}
+
 async function loadCourses() {
     try {
         const r = await apiFetch(`/api/courses/${currentLevel}`);
@@ -1770,13 +1798,13 @@ closeSettings.addEventListener('click', () => settingsModal.style.display = 'non
 document.getElementById('btnLogout')?.addEventListener('click', () => { settingsModal.style.display = 'none'; logout(); });
 settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) settingsModal.style.display = 'none'; });
 
-document.querySelectorAll('.level-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        document.querySelectorAll('.level-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        storage_user_level(btn.dataset.level);
-        loadCourses();
-    });
+levelSelector?.addEventListener('click', async (event) => {
+    const btn = event.target.closest('.level-btn');
+    if (!btn || !levelSelector.contains(btn)) return;
+    document.querySelectorAll('.level-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    await storage_user_level(btn.dataset.level);
+    await loadCourses();
 });
 
 document.getElementById('userName').addEventListener('change', async (e) => {
@@ -1808,9 +1836,10 @@ messageInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shif
 // Init
 // ============================================================
 updateSendButton();
-function initApp() {
-    loadUser();
-    loadCourses();
+async function initApp() {
+    await loadAvailableCourseLevels();
+    await loadUser();
+    await loadCourses();
     loadScenarios();
     loadConversations();
     loadProgress();

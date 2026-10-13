@@ -1,9 +1,9 @@
 # PARLEZ
 ## Affordable French learning, with a path toward TEF Canada and TCF Canada preparation
 
-**Project description · market evidence · product strategy · technical architecture · commercial feasibility**  
-**Prepared:** 5 October 2026 · **Version:** 1.0  
-**Pricing assumption:** US$4.99 per month, before applicable taxes.  
+**Project description · market evidence · product strategy · technical architecture · commercial feasibility**
+**Prepared:** 5 October 2026 · **Version:** 1.0
+**Pricing assumption:** US$4.99 per month, before applicable taxes.
 **Status:** Existing prototype; proposed paid product and expansion roadmap.
 
 > **Mission:** Make structured French learning and consistent, personalized practice accessible to learners who cannot afford frequent private tuition—starting with people pursuing Canadian immigration goals.
@@ -22,7 +22,7 @@ The opportunity is specific: learners need more than a vocabulary habit, but man
 
 **Recommended business:** a US$4.99/month, text-first study companion with substantial reusable course content and a transparent AI allowance—not unlimited live voice or guaranteed exam scores. Public API rates suggest text inference can fit this price at thousands of paying users. The larger uncertainties are educational quality, acquisition cost, retention, support, payment access, and production reliability.
 
-**Important implementation findings:** only A1 is currently enabled in the course registry; higher-level source material is present but not an active complete offering. Current TEF/TCF practice is not yet an accurate four-skill Canada-exam simulator. Billing and production usage accounting are not implemented. These are launch requirements, not reasons to abandon the project.
+**Important implementation findings:** A1 is enabled by default; the same-origin admin console can publish higher levels, but their existing content is still sparse and is not a complete offering. Current TEF/TCF practice is not yet an accurate four-skill Canada-exam simulator. Billing and production usage accounting are not implemented. These are launch requirements, not reasons to abandon the project.
 
 ---
 
@@ -119,9 +119,9 @@ Repository reviewed: `sazaan/parlez`, working tree on `arena/01a10baa-parlez`, 5
 | Capability | Observed implementation | Required improvement |
 | --- | --- | --- |
 | Accounts and conversations | Signup/login, JWT authentication, persistent conversation history | Password recovery, verification, account deletion, session management and abuse controls |
-| Chat tutor | Lesson/scenario context, level-sensitive prompts, recent history, adaptive prompt additions | Provider abstraction, streaming, quality evaluation, reliable usage metering |
-| Course modules | Active registry contains **A1 only: 8 units, 24 lessons** | Review, restructure, and enable A2–B2; validate all levels against learning outcomes |
-| Higher levels | A2/B1/B2 files and C1 material exist; inactive in public registry | C1 expansion after core validation; C2 requires new curriculum |
+| Chat tutor | Lesson/scenario context, level-sensitive prompts, recent history, adaptive prompt additions; admin-selectable NVIDIA, Gemini, OpenRouter, and OpenCode Zen endpoints | Streaming, quality evaluation, reliable usage metering, and provider failover |
+| Course modules | Default publication is **A1: 8 units, 24 lessons**; administrators can publish A2–B2 after review | Review and restructure A2–B2; validate all levels against learning outcomes before publication |
+| Higher levels | A2/B1/B2 files and C1 material exist; higher levels are unpublished by default and require review | C1 expansion after core validation; C2 requires new curriculum |
 | Exercises | Multiple-choice, fill-blank, translation, conjugation, matching, dictation and other formats | Audit accepted answers, ambiguity, error feedback and item difficulty |
 | Flashcards | SM-2-style scheduling, due cards, ratings and statistics | Validate scheduling UX; better leech/difficult-card handling |
 | Adaptive practice | Rule-based weak-exercise-type detection and trend analysis | Not a trained learner model; add reliable skill/grammar tagging and mastery evidence |
@@ -193,9 +193,9 @@ Sources: official TEF provider and France Éducation international. These are th
 | Web/API | FastAPI 0.104.1, Uvicorn 0.24.0, Pydantic request models; `main.py` |
 | Frontend | Vanilla JavaScript, HTML and CSS; `static/app.js`, `index.html`, `styles.css`, separate landing files; no React/Next.js build required |
 | Persistence | SQLAlchemy 2.0.25; default SQLite database `data/parlez.db`, WAL mode; `db.py` |
-| Data shape | Users plus JSON learning state; shared links and comment groups in separate tables |
-| Authentication | bcrypt password hashes, PyJWT HS256 tokens, cookie or bearer authentication |
-| AI transport | HTTPX to NVIDIA's chat-completions endpoint; model selected with `NVIDIA_MODEL` (default: `nvidia/nemotron-3.5-lightning-30b-a3b`); current requests are text-only |
+| Data shape | Users plus JSON learning state; shared links, comments, runtime settings and admin audit/session records in separate tables |
+| Authentication | bcrypt password hashes, PyJWT HS256 user tokens; dedicated admin password + TOTP, CSRF-protected short-lived admin sessions |
+| AI transport | HTTPX to an admin-selected OpenAI-compatible NVIDIA, Gemini, OpenRouter, or OpenCode Zen endpoint; active model stored in database; current requests are text-only |
 | Learning engine | Python prompt construction, answer checking, quizzes, adaptive rules, flashcards and writing helpers in `engine/` |
 | Course/test content | Python dataclasses and in-repository data in `courses/` and `mock_tests/` |
 | Rate limiting | SlowAPI; optional Redis via `REDIS_URL`, otherwise process-local counters |
@@ -230,7 +230,8 @@ Chat currently sends up to the last 15 conversation messages plus the system pro
 
 ### Repository map
 
-- `main.py`: API routes, middleware, orchestration, auth, progress and AI integration.
+- `main.py`: API routes, middleware, orchestration, auth, progress, AI integration and protected admin control APIs.
+- `static/admin.html`, `admin.js`, `admin.css`: same-origin management console at `/parlez-admin`.
 - `db.py`: persistence interface and SQLAlchemy models.
 - `engine/`: reusable educational logic.
 - `courses/data.py`: active course registry; the key place to verify actual course availability.
@@ -242,7 +243,7 @@ Chat currently sends up to the last 15 conversation messages plus the system pro
 
 ### API groups
 
-Accounts: `/api/auth/*`; courses: `/api/courses/*`; tutor: `/api/chat` and `/api/conversations/*`; exercises: `/api/check-exercise` and `/api/practice/*`; flashcards: `/api/flashcards/*`; exams: `/api/mock-tests/*` and `/api/exam/*`; feedback: `/api/writing/correct`, `/api/adaptive/analysis`; content: `/api/content/ingest`; progress: `/api/progress`, `/api/streaks`; sharing/export: `/api/share/*`, `/api/comments/*`, `/api/export`; audio: `/api/tts`. FastAPI also supplies interactive API documentation at `/docs`.
+Accounts: `/api/auth/*`; admin control: `/api/admin/*` (console at `/parlez-admin`); courses: `/api/courses/*`; tutor: `/api/chat` and `/api/conversations/*`; exercises: `/api/check-exercise` and `/api/practice/*`; flashcards: `/api/flashcards/*`; exams: `/api/mock-tests/*` and `/api/exam/*`; feedback: `/api/writing/correct`, `/api/adaptive/analysis`; content: `/api/content/ingest`; progress: `/api/progress`, `/api/streaks`; sharing/export: `/api/share/*`, `/api/comments/*`, `/api/export`; audio: `/api/tts`. FastAPI also supplies interactive API documentation at `/docs`.
 
 ---
 
