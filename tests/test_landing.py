@@ -18,6 +18,21 @@ def test_landing_page(client):
     assert "AI-powered French tutor" in r.text
 
 
+def test_landing_page_describes_course_library_and_preserves_disclosures(client):
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "A1–B2 practice paths" in response.text
+    assert 'id="course-path"' in response.text
+    assert "saves your learner level and keeps Settings and the sidebar in sync" in response.text
+    assert "not CEFR or NCLC certification and not validated estimates of proficiency" in response.text
+    assert "no reviewer name or qualification" in response.text
+    assert "not official scores and do not establish exam readiness" in response.text
+    assert "Course and feature availability and prices may change" in response.text
+    assert "does not determine immigration eligibility" in response.text
+    assert "Future course levels" not in response.text
+    assert "Next stage · planned" not in response.text
+
+
 def test_login_page(client):
     r = client.get("/login")
     assert r.status_code == 200
