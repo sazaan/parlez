@@ -747,8 +747,9 @@ def expand_mission_courses(courses):
             "Each module ends with a useful task; closed exercises are practice, not a proficiency test.",
             "Each module includes sequenced lessons and a useful transfer task; closed exercises are practice, not a proficiency test.",
         )
+        course.contentStatus = "published_unattested"
         expansion_note = (
-            "Version 2026.2 contains 24 original practice lessons (three per unit) and remains a draft pending qualified educator review."
+            "Version 2026.2 contains 24 original practice lessons (three per unit). This is not official CEFR/NCLC certification or an official test result."
         )
         if expansion_note not in course.description:
             course.description = f"{course.description.rstrip()} {expansion_note}"

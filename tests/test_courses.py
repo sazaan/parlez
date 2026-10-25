@@ -57,10 +57,10 @@ def test_a1_each_module_has_three_lessons():
     assert all(len(unit.lessons) == 3 for unit in course.units)
 
 
-def test_a2_b2_are_expanded_mission_led_drafts():
+def test_a2_b2_are_expanded_and_published_without_attestation():
     for level in ("A2", "B1", "B2"):
         course = COURSE_CATALOG[level]
-        assert course.contentStatus == "draft"
+        assert course.contentStatus == "published_unattested"
         assert course.version == "2026.2"
         assert len(course.units) == 8
         assert sum(len(unit.lessons) for unit in course.units) == 24
@@ -149,11 +149,14 @@ def test_runtime_catalog_passes_field_aware_integrity_checks():
     assert validate_catalog(COURSE_CATALOG) == {}
 
 
-def test_course_api_exposes_a1_metadata_and_keeps_drafts_unpublished(client):
+def test_course_api_exposes_a1_and_owner_released_a2_b2(client):
     levels = client.get("/api/courses").json()
-    assert [course["level"] for course in levels] == ["A1"]
+    assert [course["level"] for course in levels] == ["A1", "A2", "B1", "B2"]
     assert levels[0]["unitCount"] == 8
     assert levels[0]["lessonCount"] == 24
+    assert levels[1]["contentStatus"] == "published_unattested"
+    assert levels[1]["unitCount"] == 8
+    assert levels[1]["lessonCount"] == 24
 
     course = client.get("/api/courses/A1").json()
     assert course["contentStatus"] == "published"
@@ -166,4 +169,10 @@ def test_course_api_exposes_a1_metadata_and_keeps_drafts_unpublished(client):
     assert lesson["selfCheck"]
     assert lesson["skillTags"]
 
-    assert client.get("/api/courses/A2").status_code == 404
+    public_a2 = client.get("/api/courses/A2")
+    assert public_a2.status_code == 200
+    assert public_a2.json()["contentStatus"] == "published_unattested"
+    assert "24 original practice lessons" in public_a2.json()["description"]
+    public_lesson = client.get("/api/courses/A2/lessons/a2-u1-l3")
+    assert public_lesson.status_code == 200
+    assert public_lesson.json()["id"] == "a2-u1-l3"

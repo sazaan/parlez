@@ -417,20 +417,55 @@ def get_current_course_review(level: str) -> Optional[dict]:
     return None
 
 
+COURSE_ACCESS_RELEASE_REVISION = "2026.2-owner-release"
+DEFAULT_PUBLIC_COURSE_LEVELS = ("A1", "A2", "B1", "B2")
+
+
 def get_course_access_config() -> dict:
-    """Load publication flags; only A1 is public until an admin enables more."""
+    """Load access flags and migrate legacy A1-only settings for the owner-directed release."""
     saved = storage.get_setting("course_access")
     if not isinstance(saved, dict):
-        return {"enabled_levels": ["A1"], "enabled_units": {}}
+        return {
+            "enabled_levels": [level for level in DEFAULT_PUBLIC_COURSE_LEVELS if level in COURSE_CATALOG],
+            "enabled_units": {},
+            "release_revision": COURSE_ACCESS_RELEASE_REVISION,
+        }
+
     enabled = [
         str(level).upper()
-        for level in saved.get("enabled_levels", ["A1"])
+        for level in saved.get("enabled_levels", DEFAULT_PUBLIC_COURSE_LEVELS)
         if str(level).upper() in COURSE_CATALOG
     ]
     if "A1" not in enabled:
         enabled.insert(0, "A1")
+    enabled = list(dict.fromkeys(enabled))
     units = saved.get("enabled_units", {})
-    return {"enabled_levels": list(dict.fromkeys(enabled)), "enabled_units": units if isinstance(units, dict) else {}}
+    units = dict(units) if isinstance(units, dict) else {}
+    release_revision = saved.get("release_revision")
+
+    # Upgrade legacy settings once, adding all A2–B2 units for this explicit
+    # owner-directed release. Later administrator choices carry this revision
+    # marker and are not migrated again; no reviewer record is created here.
+    if release_revision != COURSE_ACCESS_RELEASE_REVISION:
+        released_levels = [
+            level for level, course in COURSE_CATALOG.items()
+            if course.contentStatus == "published_unattested"
+        ]
+        enabled = list(dict.fromkeys([*enabled, *released_levels]))
+        for level in released_levels:
+            units[level] = [unit.id for unit in COURSE_CATALOG[level].units]
+        release_revision = COURSE_ACCESS_RELEASE_REVISION
+        storage.set_setting("course_access", {
+            "enabled_levels": enabled,
+            "enabled_units": units,
+            "release_revision": release_revision,
+        })
+
+    return {
+        "enabled_levels": enabled,
+        "enabled_units": units,
+        "release_revision": release_revision,
+    }
 
 
 def get_enabled_courses() -> list:
@@ -443,7 +478,13 @@ def get_enabled_courses() -> list:
         review_record = get_current_course_review(level) if level != "A1" else None
         if level not in enabled or level in COURSE_DATA_ISSUES:
             continue
-        if level != "A1" and review_record is None:
+        if validate_course(course):
+            continue
+        if (
+            level != "A1"
+            and review_record is None
+            and course.contentStatus != "published_unattested"
+        ):
             continue
         configured_units = unit_flags.get(level)
         if not isinstance(configured_units, list):
@@ -898,14 +939,22 @@ def _admin_course_payload() -> dict:
     levels = []
     for level, course in COURSE_CATALOG.items():
         review_record = get_current_course_review(level) if level != "A1" else None
-        is_enabled = level in configured_levels and (level == "A1" or review_record is not None)
+        unattested_release = level != "A1" and course.contentStatus == "published_unattested" and review_record is None
+        is_enabled = level in configured_levels and (
+            level == "A1" or review_record is not None or unattested_release
+        )
         configured_units = unit_flags.get(level)
         if not isinstance(configured_units, list):
             configured_units = [unit.id for unit in course.units]
         configured_units = set(configured_units)
         lesson_count = sum(len(unit.lessons) for unit in course.units)
         release_warning = None
-        if level != "A1" and review_record is None:
+        if unattested_release:
+            release_warning = (
+                f"{level} is publicly available without a recorded reviewer attestation. "
+                "No reviewer name or qualification is stored; this is not CEFR certification or an official test result."
+            )
+        elif level != "A1" and review_record is None:
             release_warning = (
                 f"{level} is unpublished draft content. A qualified French educator must review the current version "
                 f"and record a review attestation before public release."
@@ -922,7 +971,7 @@ def _admin_course_payload() -> dict:
             "content_status": "reviewed" if review_record is not None else course.contentStatus,
             "version": course.version,
             "level_outcomes": course.levelOutcomes,
-            "review_status": "reviewed" if review_record is not None else "pending",
+            "review_status": "reviewed" if review_record is not None else ("unattested" if unattested_release else "pending"),
             "reviewer_name": review_record.get("reviewer_name") if review_record else None,
             "reviewer_qualification": review_record.get("qualification") if review_record else None,
             "reviewed_at": review_record.get("reviewed_at") if review_record else None,
@@ -1058,7 +1107,7 @@ async def attest_course_review(level: str, review: AdminCourseReviewAttestation,
     normalized = level.strip().upper()
     course = COURSE_CATALOG.get(normalized)
     if course is None or normalized == "A1":
-        raise HTTPException(status_code=404, detail="Review attestation is only available for draft course levels.")
+        raise HTTPException(status_code=404, detail="Review attestation is only available for non-A1 course levels.")
     if not review.confirm_review:
         raise HTTPException(status_code=400, detail="Confirm the qualified-educator review before recording the attestation.")
     reviewer_name = review.reviewer_name.strip()
@@ -1072,14 +1121,15 @@ async def attest_course_review(level: str, review: AdminCourseReviewAttestation,
         logger.error("Refusing review attestation for invalid %s course content: %s", normalized, integrity_issues[:10])
         raise HTTPException(status_code=409, detail=f"{normalized} course content failed integrity checks and cannot be reviewed for release.")
 
-    # A legacy/stale publication flag must not turn a newly reviewed version
-    # live automatically. Require an explicit second admin action to publish.
-    if get_current_course_review(normalized) is None:
+    # Ordinary draft courses still require a separate explicit publish action
+    # after review. The published_unattested state is the documented owner override.
+    if get_current_course_review(normalized) is None and course.contentStatus != "published_unattested":
         previous_access = get_course_access_config()
         if normalized in previous_access["enabled_levels"]:
             storage.set_setting("course_access", {
                 "enabled_levels": [item for item in previous_access["enabled_levels"] if item != normalized],
                 "enabled_units": previous_access["enabled_units"],
+                "release_revision": previous_access["release_revision"],
             })
 
     record = {
@@ -1121,7 +1171,12 @@ async def update_admin_courses(config: AdminCourseAccessUpdate, admin=Depends(re
             raise HTTPException(status_code=400, detail=f"Unknown module in {level}.")
         if level in requested_levels and not selected_ids:
             raise HTTPException(status_code=400, detail=f"Select at least one module before enabling {level}.")
-        if level in requested_levels and level != "A1" and get_current_course_review(level) is None:
+        if (
+            level in requested_levels
+            and level != "A1"
+            and get_current_course_review(level) is None
+            and course.contentStatus != "published_unattested"
+        ):
             raise HTTPException(status_code=409, detail=f"{level} is still unpublished. Record a current qualified-educator review attestation first.")
         if level in requested_levels:
             integrity_issues = validate_course(course)
@@ -1134,6 +1189,7 @@ async def update_admin_courses(config: AdminCourseAccessUpdate, admin=Depends(re
     saved = {
         "enabled_levels": [level for level in COURSE_CATALOG if level in requested_levels],
         "enabled_units": normalized_units,
+        "release_revision": COURSE_ACCESS_RELEASE_REVISION,
     }
     storage.set_setting("course_access", saved)
     storage.add_admin_audit(admin["username"], "course_publication_updated", {

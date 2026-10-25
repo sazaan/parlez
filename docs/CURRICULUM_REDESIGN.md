@@ -1,9 +1,9 @@
 # French curriculum: source register and redesign blueprint
 
-- **Implementation status:** The mission-led A2–B2 draft content is integrated in the app; A1 has course and module outcome/capstone metadata. TEF Canada and TCF Canada now have distinct format references and original writing/speaking practice tasks, alongside shorter reading/listening practice sets. None of this content is independently educator-reviewed or certified.
+- **Implementation status:** A1–B2 are available in the app. A2–B2 version 2026.2 is published without a recorded reviewer attestation; no reviewer name or qualification is stored. These courses remain practice content, not CEFR/NCLC certification. TEF Canada and TCF Canada have distinct format references and original writing/speaking practice tasks, alongside shorter reading/listening practice sets; those exam materials also require qualified review.
 - **Research checked:** 25 October 2026.
 - **Scope:** Adult general French from A1 to B2, with a separate, optional TEF Canada / TCF Canada preparation pathway.
-- **Publication rule:** A1 remains the only level enabled by default. A2–B2 remain unpublished by default and require qualified review before release.
+- **Publication rule:** A1–B2 are available by default. A2–B2 are explicitly published without reviewer details or an attestation record; do not present this release as verified educator review or CEFR validation.
 
 This document records a vetted starting set of curriculum references, open materials, and external practice resources, then proposes a task-led course spine. It deliberately distinguishes **authoritative references**, **materials with reuse permissions**, and **free-to-access materials that Parlez must not copy without permission**. It is a design brief, not a claim that existing modules are CEFR-validated or that a learner's progress predicts an official exam result.
 
@@ -14,11 +14,11 @@ This document records a vetted starting set of curriculum references, open mater
 3. Keep **general French** and **Canada exam preparation** connected but separate. TEF Canada and TCF Canada have different, version-sensitive task structures. Neither exam path should be a generic “French test” unit.
 4. Prefer original Parlez examples, dialogues, audio and tasks. The best identified commercially reusable starting materials are COERLL resources with a verified **CC BY** license; use the exact version and retain attribution. Exclude noncommercial resources from a paid product unless separate permission is obtained.
 5. Link to useful external practice rather than importing it. “Free to access” does not mean “licensed to copy, host, adapt, or use for AI generation.”
-6. Keep current higher levels unpublished until the curriculum and the assessment evidence meet the release gates in §8.
+6. Keep C1+ unpublished until the curriculum and assessment evidence meet the release gates in §8; keep A2–B2 review status transparent under the current owner-directed release.
 
 ## 2. Current-course audit
 
-The runtime course catalog is highly uneven in size and is organized mainly around topics or grammar points. Counts below were read from `courses.data.COURSE_CATALOG`; the minutes are the values stored on current lessons, not a CEFR workload estimate or a measure of proficiency.
+The original course catalog was highly uneven in size and organized mainly around topics or grammar points. The table below is a historical baseline from before the mission-led redesign, not current runtime counts. The minutes are stored lesson values, not a CEFR workload estimate or a measure of proficiency; current A2–B2 counts are in §3.3.
 
 | Level | Units | Lessons | Stored lesson minutes | Observed shape |
 | --- | ---: | ---: | ---: | --- |
@@ -30,14 +30,14 @@ The runtime course catalog is highly uneven in size and is organized mainly arou
 **Main gaps**
 
 - A1 has useful everyday topics, but its module outcomes are not explicitly mapped to source descriptor scales, interaction strategies, mediation, or a level-end performance profile.
-- A2–B2 are too small and uneven to represent a comprehensive course: 19 lessons are spread across 16 units. Several lessons are grammar topics with a dialogue and a small exercise set, rather than a sustained sequence of increasingly independent communicative tasks.
+- **Historical gap (before versions 2026.1–2026.2):** A2–B2 were too small and uneven to represent a comprehensive course: 19 lessons were spread across 16 units. Version 2026.2 expands each level to 24 lessons, but course breadth alone does not establish comprehensive or CEFR-validated coverage.
 - The data model has lesson objectives, vocabulary, grammar, dialogues and exercises, but no first-class fields for level outcomes, communicative mode/skill evidence, module capstone, performance rubric, cumulative review plan, or content-rights provenance.
 - The current formats emphasize closed-answer practice. They do not, by themselves, demonstrate that learners can understand an unfamiliar text/audio, sustain an interaction, or produce a useful spoken or written artifact. Pronunciation/phonology is not mapped as a level-by-level strand.
 - There is no course-level rule requiring old language to return in new contexts. Existing flashcard scheduling is useful, but it is not a substitute for a curriculum-wide retrieval and review plan.
-- **Historical content-integrity defect in A2–B2:** a recursive audit found 166 A2, 154 B1 and 130 B2 string values (450 total) in the original active drafts ending in a literal backslash, leaving phrases, examples, dialogue lines and exercises incomplete. The runtime A2–B2 files have since been replaced with newly authored draft content; the tracked `.bak` files remain corrupt legacy copies and are not imported or safe restore candidates. A runtime catalog scan now finds no course strings ending in a literal backslash. The active A1 course had no such fields; its legacy copy did.
+- **Historical content-integrity defect in A2–B2:** a recursive audit found 166 A2, 154 B1 and 130 B2 string values (450 total) in the original active drafts ending in a literal backslash, leaving phrases, examples, dialogue lines and exercises incomplete. The runtime A2–B2 files have since been replaced with newly authored practice content; the tracked `.bak` files remain corrupt legacy copies and are not imported or safe restore candidates. A runtime catalog scan now finds no course strings ending in a literal backslash. The active A1 course had no such fields; its legacy copy did.
 - B1 retains the legacy unit and lesson ID `I am tired.` to avoid losing existing completion and publication references. It is a known malformed ID, not a learner-facing title. Do not change it without a versioned migration that maps stored progress and unit-publication settings.
 - Source and status boundaries can be confusing: `courses/data.py` defines C1 material but omits it from `COURSE_CATALOG`; older/backup course files also remain beside the files imported by the catalog. Confirm all references before consolidating or deleting any of them.
-- The application publishes A1 by default. A2–B2 stay inaccessible until a version-bound qualified-educator review attestation is recorded and an administrator explicitly enables them. The attestation is self-reported and does not verify credentials or certify CEFR alignment; verify the reviewer independently. A module title, lesson count, XP, or practice accuracy must not be presented as proof of CEFR mastery.
+- **Current release status:** A1–B2 are available; A2–B2 version 2026.2 are published without a recorded reviewer attestation or reviewer details. No verified educator credentials or CEFR/NCLC certification are claimed. Keep course status visible to learners; a module title, lesson count, XP, or practice accuracy is not proof of CEFR mastery.
 
 **Preserve and build on:** existing unit and lesson IDs are retained, including the malformed B1 legacy ID, so learner completion and publication settings are not orphaned. New lessons use new IDs. The old `.bak` data remains only as an untrusted legacy copy; do not restore it. Any future ID cleanup must use a versioned migration.
 
@@ -74,7 +74,7 @@ A1 practice can replay audio and provide transcripts. Only a clearly labeled, op
 
 ### 3.3 Proposed A1–B2 mission map
 
-This eight-unit spine is implemented as an original **draft curriculum** in the app, not copied CEFR wording, a final validated syllabus, or a promise that eight units alone cover a CEFR level. A1's existing 24 lessons are retained and annotated with outcomes and capstones. A2–B2 are at content version 2026.2: each has 24 original lessons (three per unit), corrected existing French/translation examples, revised unit outcomes and capstone criteria, retrieval practice, and an unscored transfer task in each new lesson. Existing unit and lesson IDs are preserved. The expansion improves breadth; it is not qualified French-educator review, a learner pilot, or a CEFR validation. Keep A2–B2 unpublished until those gates are completed, and continue revising where reviewer and learner evidence shows gaps.
+This eight-unit spine is implemented as original Parlez content, not copied CEFR wording, a validated syllabus, or a promise that eight units alone cover a CEFR level. A1's existing 24 lessons are retained and annotated with outcomes and capstones. A2–B2 version 2026.2 has 24 original lessons per level (three per unit), corrected existing French/translation examples, revised unit outcomes and capstone criteria, retrieval practice, and an unscored transfer task in each new lesson. Existing unit and lesson IDs are preserved. At the owner's direction, A2–B2 are publicly available without a reviewer attestation or reviewer details; that release must not be represented as verified educator review, CEFR validation, or certification. Continue revising against qualified review and learner evidence when available.
 
 #### A1 — handle familiar, immediate situations with simple language
 
@@ -243,13 +243,15 @@ Assessment: skill, task type, criteria, rubric version, human/automated status,
 
 Assessment should show a **profile by skill**, not only one overall badge. Use closed-answer scoring only for well-formed closed items. Use transparent, criteria-based feedback for speaking/writing and label it as practice. Human review is needed before making proficiency or readiness claims. Avoid reproducing official assessment grids unless rights permit; write a Parlez rubric and validate it with qualified French-language educators.
 
-## 8. Recommended implementation sequence and release gates
+## 8. Recommended implementation sequence and quality gates
 
-1. **Keep A2–B2 disabled and add a content-integrity gate.** The application currently keeps them unpublished by default; before an admin can enable them, reject malformed text/IDs and require the repair review to pass. Repair or replace the 450 known truncated strings and migrate the B1 ID without orphaning progress/settings. Do not restore from the `.bak` files without the same checks.
+**Status update:** At the owner's direction, A2–B2 version 2026.2 is publicly available without a recorded reviewer attestation or reviewer details. This supersedes the earlier unpublished-by-default recommendation below; public availability is not a claim of verified educator review or CEFR/NCLC validation. The following remains a quality-assurance plan.
+
+1. **Maintain the content-integrity gate.** Reject malformed text/IDs and validate answer keys. The active courses have replaced the 450 known truncated strings; preserve the B1 ID migration without orphaning progress/settings. Do not restore from the `.bak` files without the same checks.
 2. **Approve the source/use policy and map.** Confirm product licensing posture and whether the Canadian pathway should prioritize newcomer, workplace, general, or exam-specific contexts. No source downloads are needed for this approval.
 3. **Version the course model and audit IDs.** Record current lesson/unit IDs and usage before moving content. Add outcomes, skill/mode tags, capstones, review links and asset provenance without breaking saved progress or admin availability settings.
 4. **Rebuild A1 first.** Map its existing 24 lessons onto the mission spine, retain worthwhile original content, identify gaps, add missing tasks/phonology/review and have it reviewed. Keep A1 default until this release passes review.
-5. **Create A2–B2 as new drafts.** Build coherent outcomes and lesson sequences rather than stretching one lesson per unit. Do not activate until each level has a balanced task sequence and an integrated level-end assessment.
+5. **Continue revising A2–B2 as public practice courses.** Each level currently has 24 lessons; use qualified FLE review and learner pilots to test task balance, accessibility, answers, and a cumulative level-end assessment. Do not describe the current owner-directed release as CEFR-validated.
 6. **Rebuild Canada exam preparation separately.** Replace generic/stale metadata with versioned TEF Canada and TCF Canada tracks. Add original task practice for all four skills, with exact timed formats and separate unofficial feedback rubrics.
 7. **Pilot and revise.** Test with adult learners at each intended level and with qualified FLE reviewers. Use results to revise clarity, accessibility, task difficulty and duration; do not infer certification from course completion or a small quiz.
 
@@ -266,7 +268,7 @@ Assessment should show a **profile by skill**, not only one overall badge. Use c
 
 ## 9. Standing caveats to retain
 
-- Course availability is not equal across levels: only A1 is enabled by default; higher-level content remains subject to review.
+- A1–B2 are enabled; A2–B2 are publicly available without a recorded reviewer attestation or stored reviewer details. Keep that status explicit; C1+ remains outside this release.
 - Provider specifications, sample resources and IRCC rules can change. The formats above were checked on 25 October 2026; verify them again before each release and direct learners to official provider/IRCC pages.
 - Parlez practice results are not official CEFR, NCLC, TEF or TCF scores, and are not an immigration assessment or advice. Do not promise a particular level, test score, course completion time, employment outcome or immigration result.
 - The existing **US$4.99/month** figure in [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) is a planning assumption, not a live subscription price or validated willingness-to-pay. Re-check price, taxes, seller/payment availability and included usage before launch; do not make unvalidated affordability or competitor claims.

@@ -1,7 +1,8 @@
 """Original mission-led A2–B2 course drafts for adult French learners.
 
-All passages, dialogues, examples, and exercises in this file are Parlez-authored.
-The levels remain unpublished by default and still require qualified FLE review.
+All passages, dialogues, examples, and exercises are Parlez-authored.
+A2–B2 are publicly available without a recorded reviewer attestation; this is
+not a claim of verified educator review or CEFR/NCLC certification.
 """
 
 from .types import (

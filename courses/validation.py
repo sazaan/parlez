@@ -1,4 +1,4 @@
-"""Field-aware validation for course drafts before they are published."""
+"""Field-aware validation for course content before it is publicly served."""
 
 from __future__ import annotations
 
@@ -53,7 +53,7 @@ def validate_course(course: Course) -> list[str]:
     issues: list[str] = []
     if not course.level.strip() or not course.title.strip():
         issues.append("course: missing level or title")
-    if course.contentStatus not in {"draft", "published"}:
+    if course.contentStatus not in {"draft", "published", "published_unattested"}:
         issues.append(f"course: invalid contentStatus {course.contentStatus!r}")
     if not course.units:
         issues.append("course: no units")

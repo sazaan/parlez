@@ -1333,6 +1333,8 @@ async function loadCourses() {
         intro.innerHTML = `<p class="course-description">${escapeHtml(course.description || '')}</p>`;
         if (course.contentStatus === 'draft') {
             intro.innerHTML += '<p class="course-draft-note"><strong>Draft course:</strong> This original practice content still needs independent French-educator review. It is not an official CEFR assessment.</p>';
+        } else if (course.contentStatus === 'published_unattested') {
+            intro.innerHTML += '<p class="course-draft-note"><strong>Published without a reviewer attestation:</strong> No reviewer name or qualification is recorded. This is original practice content, not an official CEFR, NCLC, TEF, or TCF assessment or certification.</p>';
         } else {
             intro.innerHTML += '<p class="course-draft-note">Practice content only—not an official CEFR, NCLC, TEF, or TCF assessment.</p>';
         }

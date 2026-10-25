@@ -100,7 +100,13 @@ def test_admin_writes_require_csrf_and_publish_level_updates_are_enforced(signed
     a2 = next(level for level in admin_courses.json()["levels"] if level["level"] == "A2")
     assert a2["lesson_count"] == 24
     assert len(a2["units"]) == 8
-    assert a2["content_status"] == "draft"
+    assert a2["content_status"] == "published_unattested"
+    assert a2["review_status"] == "unattested"
+    assert a2["reviewer_name"] is None
+    assert a2["reviewer_qualification"] is None
+    assert main.storage.get_setting("course_reviews", {}) == {}
+    assert a2["enabled"] is True
+    assert "without a recorded reviewer attestation" in a2["release_warning"]
     assert all(unit["capstone"] for unit in a2["units"])
 
     payload = {
@@ -112,9 +118,10 @@ def test_admin_writes_require_csrf_and_publish_level_updates_are_enforced(signed
             "B2": [],
         },
     }
-    blocked = client.put("/api/admin/courses", headers={"X-CSRF-Token": csrf}, json=payload)
-    assert blocked.status_code == 409
-    assert client.get("/api/courses/A2").status_code == 404
+    response = client.put("/api/admin/courses", headers={"X-CSRF-Token": csrf}, json=payload)
+    assert response.status_code == 200, response.text
+    assert response.json()["enabled_levels"] == ["A1", "A2"]
+    assert client.get("/api/courses/A2").status_code == 200
 
     review = client.post(
         "/api/admin/courses/A2/review",
@@ -124,10 +131,6 @@ def test_admin_writes_require_csrf_and_publish_level_updates_are_enforced(signed
     assert review.status_code == 200, review.text
     updated_a2 = next(level for level in review.json()["levels"] if level["level"] == "A2")
     assert updated_a2["review_status"] == "reviewed"
-
-    response = client.put("/api/admin/courses", headers={"X-CSRF-Token": csrf}, json=payload)
-    assert response.status_code == 200, response.text
-    assert response.json()["enabled_levels"] == ["A1", "A2"]
 
     levels = client.get("/api/courses").json()
     assert [item["level"] for item in levels] == ["A1", "A2"]
@@ -380,36 +383,24 @@ def test_course_review_attestation_is_bound_to_course_version(signed_admin, monk
         },
     }
     response = client.put("/api/admin/courses", headers={"X-CSRF-Token": csrf}, json=payload)
-    assert response.status_code == 409
-    assert client.get("/api/courses/A2").status_code == 404
-
-
-def test_stale_course_publication_flag_does_not_auto_publish_after_review(signed_admin):
-    client, csrf = signed_admin
-    main.storage.set_setting("course_access", {
-        "enabled_levels": ["A1", "A2"],
-        "enabled_units": {level: [unit.id for unit in course.units] for level, course in main.COURSE_CATALOG.items()},
-    })
-    assert client.get("/api/courses/A2").status_code == 404
-
-    review = client.post(
-        "/api/admin/courses/A2/review",
-        headers={"X-CSRF-Token": csrf},
-        json={"reviewer_name": "French educator", "qualification": "Graduate diploma in French-language teaching", "confirm_review": True},
-    )
-    assert review.status_code == 200
-    reviewed_a2 = next(level for level in review.json()["levels"] if level["level"] == "A2")
-    assert reviewed_a2["review_status"] == "reviewed"
-    assert reviewed_a2["enabled"] is False
-    assert client.get("/api/courses/A2").status_code == 404
-
-    enable = client.put(
-        "/api/admin/courses",
-        headers={"X-CSRF-Token": csrf},
-        json={"enabled_levels": ["A1", "A2"], "enabled_units": {"A2": [unit.id for unit in main.COURSE_CATALOG["A2"].units]}},
-    )
-    assert enable.status_code == 200
+    assert response.status_code == 200
     assert client.get("/api/courses/A2").status_code == 200
+    assert client.get("/api/courses/A2").json()["contentStatus"] == "published_unattested"
+
+
+def test_legacy_course_access_setting_migrates_to_owner_release(signed_admin):
+    client, _ = signed_admin
+    main.storage.set_setting("course_access", {
+        "enabled_levels": ["A1"],
+        "enabled_units": {},
+    })
+
+    assert client.get("/api/courses/A2").status_code == 200
+    assert client.get("/api/courses/B1").status_code == 200
+    migrated = main.storage.get_setting("course_access")
+    assert migrated["release_revision"] == main.COURSE_ACCESS_RELEASE_REVISION
+    assert migrated["enabled_levels"] == ["A1", "A2", "B1", "B2"]
+    assert all(migrated["enabled_units"][level] for level in ("A2", "B1", "B2"))
 
 
 def test_course_review_attestation_is_invalidated_by_content_edit(signed_admin, monkeypatch):
@@ -433,6 +424,10 @@ def test_course_review_attestation_is_invalidated_by_content_edit(signed_admin, 
             "enabled_units": {"B1": [unit.id for unit in changed_course.units]},
         },
     )
-    assert response.status_code == 409
-    assert "review attestation" in response.json()["detail"].lower()
-    assert client.get("/api/courses/B1").status_code == 404
+    assert response.status_code == 200
+    public_b1 = client.get("/api/courses/B1")
+    assert public_b1.status_code == 200
+    assert public_b1.json()["contentStatus"] == "published_unattested"
+    admin_b1 = next(level for level in response.json()["levels"] if level["level"] == "B1")
+    assert admin_b1["review_status"] == "unattested"
+    assert admin_b1["reviewer_name"] is None

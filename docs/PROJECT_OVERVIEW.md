@@ -22,7 +22,7 @@ The opportunity is specific: learners need more than a vocabulary habit, but man
 
 **Recommended business:** a US$4.99/month, text-first study companion with substantial reusable course content and a transparent AI allowance—not unlimited live voice or guaranteed exam scores. Public API rates suggest text inference can fit this price at thousands of paying users. The larger uncertainties are educational quality, acquisition cost, retention, support, payment access, and production reliability.
 
-**Important implementation findings:** A1 (8 units, 24 lessons) is enabled by default. Original A2–B2 mission-led drafts are now at content version 2026.2, with 8 units and 24 lessons per level; they remain unpublished pending qualified review and learner pilots. TEF Canada and TCF Canada now have distinct provider-linked format references, original writing/speaking practice tasks, and shorter reading/listening sets; they are not complete mock exams, and Parlez reports practice-item accuracy rather than official scores or level estimates. Billing and production usage accounting are not implemented. These are launch requirements, not reasons to abandon the project.
+**Important implementation findings:** A1–B2 are available in the app. Original A2–B2 content version 2026.2 has 8 units and 24 lessons per level and is published without a recorded reviewer attestation or stored reviewer details; it remains practice content, not CEFR/NCLC certification. TEF Canada and TCF Canada have distinct provider-linked format references, original writing/speaking practice tasks, and shorter reading/listening sets; they are not complete mock exams, and Parlez reports practice-item accuracy rather than official scores or level estimates. Billing and production usage accounting are not implemented. These are launch requirements, not reasons to abandon the project.
 
 ---
 
@@ -120,8 +120,8 @@ Repository reviewed: `sazaan/parlez`, working tree on `arena/01a10baa-parlez`, 2
 | --- | --- | --- |
 | Accounts and conversations | Signup/login, JWT authentication, persistent conversation history | Password recovery, verification, account deletion, session management and abuse controls |
 | Chat tutor | Lesson/scenario context, level-sensitive prompts, recent history, adaptive prompt additions; admin-selectable NVIDIA, Gemini, OpenRouter, and OpenCode Zen endpoints | Streaming, quality evaluation, reliable usage metering, and provider failover |
-| Course modules | Default publication is **A1: 8 units, 24 lessons**; original A2–B2 drafts (version 2026.2) have 8 units and 24 lessons per level and remain unpublished by default | Qualified educator review, learner pilot, answer-key audit, and validation against learning outcomes before publication |
-| Higher levels | A2–B2 mission-led drafts are integrated but not independently reviewed; some C1 material exists | C1 expansion after core validation; C2 requires new curriculum |
+| Course modules | A1–B2 are available; A2–B2 version 2026.2 has 8 units and 24 lessons per level, released without a recorded reviewer attestation or reviewer details | Qualified educator review, learner pilot, answer-key audit, and validation against learning outcomes; do not claim CEFR/NCLC certification |
+| Higher levels | A2–B2 mission-led courses are publicly available without a recorded reviewer attestation; some C1 material exists | Keep review status transparent; expand C1 after core validation; C2 requires new curriculum |
 | Exercises | Multiple-choice, fill-blank, translation, conjugation, matching, dictation and other formats | Audit accepted answers, ambiguity, error feedback and item difficulty |
 | Flashcards | SM-2-style scheduling, due cards, ratings and statistics | Validate scheduling UX; better leech/difficult-card handling |
 | Adaptive practice | Rule-based weak-exercise-type detection and trend analysis | Not a trained learner model; add reliable skill/grammar tagging and mastery evidence |
@@ -163,13 +163,13 @@ Sources: official TEF provider and France Éducation international. These are th
 
 **Current gap:** TEF Canada and TCF Canada now have separate provider-linked format references, original writing/speaking practice tasks, and shorter reading/listening practice sets. The app is not a full-length four-skill mock exam: receptive practice banks are limited, open responses are not officially scored, and all tasks/formats still need qualified review. A percentage is practice-item accuracy only, not an official score, CEFR/NCLC estimate, or readiness prediction.
 
-**Course-content release gate:** the original A2–B2 drafts had 450 truncated string fields (166 A2, 154 B1, 130 B2); those active drafts have been replaced with original content and expanded in version 2026.2 to 24 lessons per level, with revised unit outcomes and capstone criteria. Existing unit and lesson IDs are preserved, including the malformed legacy B1 unit/lesson ID `I am tired.`, to avoid orphaning learner progress. A field-aware integrity validator now blocks publication when it finds structural content errors. `.bak` files remain corrupt and are not safe restore sources. Keep A2–B2 unpublished until qualified educators review the new lessons, tasks, and answer keys and learner pilots validate them. Details: [CURRICULUM_REDESIGN.md](CURRICULUM_REDESIGN.md).
+**Course-content release note:** the original A2–B2 drafts had 450 truncated string fields (166 A2, 154 B1, 130 B2); those active drafts have been replaced with original content and expanded in version 2026.2 to 24 lessons per level, with revised unit outcomes and capstone criteria. Existing unit and lesson IDs are preserved, including the malformed legacy B1 unit/lesson ID `I am tired.`, to avoid orphaning learner progress. At the owner's direction, A2–B2 are publicly available without a reviewer attestation or stored reviewer details. This status does not claim that an educator review was independently verified or that the courses are CEFR/NCLC validated. A field-aware integrity validator still blocks malformed structural content. `.bak` files remain corrupt and are not safe restore sources. Details: [CURRICULUM_REDESIGN.md](CURRICULUM_REDESIGN.md).
 
 New test submissions report practice-item accuracy and no longer estimate a CEFR level. Historical result records may still contain legacy level labels, but current exam statistics hide those fields. Do not make public readiness claims until independently validated.
 
 **Content policy:** use original or properly licensed questions, passages, images and recordings. Do not reproduce textbooks, leaked exams, or paid preparation banks without permission. Maintain a rights/provenance register and human approval history. Describe Parlez as independent and unaffiliated with IRCC, Alliance Française, the Council of Europe, and the test owners unless formal agreements exist.
 
-For the source/licensing register, implemented draft course spine, and review gates, see [CURRICULUM_REDESIGN.md](CURRICULUM_REDESIGN.md). Draft integration does not mean the content is independently validated or published.
+For the source/licensing register and curriculum status, see [CURRICULUM_REDESIGN.md](CURRICULUM_REDESIGN.md). A2–B2 are publicly available without a recorded reviewer attestation; public availability does not mean the content is independently validated or certified.
 
 ---
 
@@ -311,7 +311,7 @@ An illustrative—not quoted—GPU cost of $1/hour is approximately $730/month a
 | Annual option | Consider only after retention is measured | Avoid deep launch discounts until support, refunds and model costs are understood |
 | Optional extras | Price after measurement | Live voice, unusually long writing, teacher review or additional AI credits; not silently subsidized by Core |
 
-Display remaining allowance before use. Define maximum input/output sizes; long tasks may consume more credits, disclosed beforehand. Do not market unreleased A2–B2 content as available. “All released lessons” does not mean unlimited storage, automation, API access, or unlimited AI generation.
+Display remaining allowance before use. Define maximum input/output sizes; long tasks may consume more credits, disclosed beforehand. Clearly label A2–B2 as practice content published without recorded reviewer details; do not claim CEFR/NCLC validation. “All released lessons” does not mean unlimited storage, automation, API access, or unlimited AI generation.
 
 ### Text inference calculation
 
@@ -509,7 +509,7 @@ Start with the founder's learner community and a transparent paid pilot. Publish
 Priorities:
 
 1. Confirm USD pricing and the currency/details of the founder's fee example.
-2. Audit course accuracy and content rights; publish only reviewed levels.
+2. Audit course accuracy and content rights; keep reviewer status transparent and do not claim validation for the A2–B2 owner-directed release without an attestation record.
 3. Review and expand the distinct TEF Canada/TCF Canada practice pathways; keep practice accuracy separate from official test scoring.
 4. Benchmark paid production models, then choose on educational quality and measured cost.
 5. Implement transactional usage metering, billing, privacy controls and restore-tested storage.
