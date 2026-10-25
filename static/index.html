@@ -18,7 +18,7 @@
     <meta name="twitter:description" content="A1 French lessons, adaptive practice, vocabulary review, writing feedback and TEF/TCF-style question sets.">
     <link rel="stylesheet" href="/static/styles.css?v=3">
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/app-theme.css?v=2">
+    <link rel="stylesheet" href="/static/app-theme.css?v=3">
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%237C2D3F'/%3E%3Ctext x='50' y='68' font-size='58' font-family='Georgia,serif' fill='%23C19A4B' text-anchor='middle' font-style='italic'%3EP%3C/text%3E%3C/svg%3E">
 </head>
 <body>
@@ -82,10 +82,13 @@
                 </div>
 
                 <div class="sidebar-section">
-                    <div class="section-header collapsible" data-target="courseList">
-                        <span>Courses</span><span class="collapse-icon">▼</span>
-                    </div>
-                    <div class="collapsible-content collapsed" id="courseList"></div>
+                    <button type="button" class="section-header sidebar-nav-link" id="coursesNav" data-action="open-courses" aria-label="Browse courses">
+                        <span class="sidebar-nav-label">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 5.5A2.5 2.5 0 0 1 7 3h12.5v16H7a2.5 2.5 0 0 0-2.5 2.5z"/><path d="M4.5 5.5v16M8.5 7h7M8.5 10.5h7"/></svg>
+                            <span>Courses</span>
+                        </span>
+                        <svg class="sidebar-nav-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
                 </div>
 
                 <div class="sidebar-section">
@@ -149,7 +152,7 @@
                 <h1 id="chatTitle">Parlez — French AI Tutor</h1>
                 <div class="header-actions">
                     <button class="btn-action" id="btnBackToChat" style="display:none" title="Back to chat" aria-label="Back to chat">
-                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a7.5 7.5 0 0 1-11 6.7L4 20l1.3-4.8A7.5 7.5 0 1 1 20 11.5Z"/><path d="M8 10h8M8 13h5"/></svg>
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
                     </button>
                     <button class="btn-action" id="btnComments" title="Notes &amp; comments" aria-label="Notes and comments">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h14v12H9l-4 3v-15Z"/><path d="M8.5 8.5h7M8.5 12h5"/></svg>
@@ -279,6 +282,6 @@
     </div>
 
     <script src="/static/viewport.js"></script>
-    <script src="/static/app.js?v=6"></script>
+    <script src="/static/app.js?v=7"></script>
 </body>
 </html>

@@ -194,6 +194,15 @@ function setupDelegatedHandlers() {
             case 'add-reorder':
                 if (typeof window.addReorderWord === 'function') window.addReorderWord(btn.dataset.id, btn);
                 break;
+            case 'open-courses':
+                if (typeof window.openCourses === 'function') window.openCourses();
+                break;
+            case 'select-course-level':
+                if (typeof window.selectCourseLevel === 'function') window.selectCourseLevel(btn.dataset.level);
+                break;
+            case 'retry-courses':
+                if (typeof window.openCourses === 'function') window.openCourses(btn.dataset.level);
+                break;
             case 'start-lesson-view':
                 if (typeof window.startLessonView === 'function') window.startLessonView(btn.dataset.level, btn.dataset.id);
                 break;
@@ -301,7 +310,7 @@ const sidebarBackdrop = document.getElementById('sidebarBackdrop');
 const toggleSidebar = document.getElementById('toggleSidebar');
 const newChatBtn = document.getElementById('newChat');
 const chatList = document.getElementById('chatList');
-const courseList = document.getElementById('courseList');
+const coursesNav = document.getElementById('coursesNav');
 const scenarioList = document.getElementById('scenarioList');
 const settingsModal = document.getElementById('settingsModal');
 const closeSettings = document.getElementById('closeSettings');
@@ -317,6 +326,11 @@ let recognition = null;
 let isRecording = false;
 
 let LEVEL_NAMES = { 'A1': 'Débutant' };
+let AVAILABLE_COURSE_LEVELS = [{ level: 'A1', title: 'Débutant' }];
+let selectedCourseLevel = 'A1';
+let activeMainSection = 'chat';
+let toolViewBackTarget = 'chat';
+let courseLoadRequestId = 0;
 
 // ============================================================
 // TTS
@@ -1102,10 +1116,28 @@ function updateXP(xp) {
 // ============================================================
 function getToolContent() { return document.getElementById('toolContent'); }
 
-function showToolView(title, html) {
+function setCoursesNavActive(active) {
+    if (!coursesNav) return;
+    coursesNav.classList.toggle('active', active);
+    if (active) coursesNav.setAttribute('aria-current', 'page');
+    else coursesNav.removeAttribute('aria-current');
+}
+
+function setToolViewBackTarget(target) {
+    toolViewBackTarget = target;
+    const label = target === 'courses' ? 'Back to courses' : 'Back to chat';
+    btnBackToChat.title = label;
+    btnBackToChat.setAttribute('aria-label', label);
+}
+
+function showToolView(title, html, options = {}) {
     if (typeof examState !== 'undefined' && examState.phase === 'taking' && !examState.paused) {
         pauseExam();
     }
+    courseLoadRequestId += 1;
+    activeMainSection = options.section || 'tool';
+    setCoursesNavActive(activeMainSection === 'courses');
+    setToolViewBackTarget(options.backTarget || 'chat');
     document.getElementById('chatView').style.display = 'none';
     document.getElementById('toolView').style.display = 'flex';
     getToolContent().innerHTML = `<div class="tool-header"><h2>${title}</h2></div>` + html;
@@ -1121,6 +1153,10 @@ function showChatView() {
     if (typeof examState !== 'undefined' && examState.phase === 'taking' && !examState.paused) {
         pauseExam();
     }
+    courseLoadRequestId += 1;
+    activeMainSection = 'chat';
+    setCoursesNavActive(false);
+    setToolViewBackTarget('chat');
     document.getElementById('toolView').style.display = 'none';
     document.getElementById('chatView').style.display = 'flex';
     document.getElementById('chatTitle').textContent = 'Parlez — French AI Tutor';
@@ -1130,7 +1166,15 @@ function showChatView() {
     window.scrollTo(0, 0);
 }
 
-btnBackToChat?.addEventListener('click', showChatView);
+function handleToolViewBack() {
+    if (toolViewBackTarget === 'courses' && typeof window.openCourses === 'function') {
+        window.openCourses(selectedCourseLevel);
+        return;
+    }
+    showChatView();
+}
+
+btnBackToChat?.addEventListener('click', handleToolViewBack);
 
 // ============================================================
 // Welcome message (single source of truth)
@@ -1300,10 +1344,16 @@ async function loadAvailableCourseLevels() {
         if (!response.ok) throw new Error('Could not load published course levels');
         const levels = await response.json();
         if (!Array.isArray(levels) || !levels.length) return;
-        LEVEL_NAMES = Object.fromEntries(levels.map(item => [item.level, item.title || item.level]));
+
+        AVAILABLE_COURSE_LEVELS = levels
+            .filter(item => item && item.level)
+            .map(item => ({ ...item, level: String(item.level) }));
+        if (!AVAILABLE_COURSE_LEVELS.length) return;
+        LEVEL_NAMES = Object.fromEntries(AVAILABLE_COURSE_LEVELS.map(item => [item.level, item.title || item.level]));
+
         if (levelSelector) {
             levelSelector.innerHTML = '';
-            levels.forEach(item => {
+            AVAILABLE_COURSE_LEVELS.forEach(item => {
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.className = `level-btn${item.level === currentLevel ? ' active' : ''}`;
@@ -1315,90 +1365,198 @@ async function loadAvailableCourseLevels() {
             });
         }
         const note = document.getElementById('levelAvailabilityNote');
-        if (note) note.style.display = levels.length > 1 ? 'none' : '';
+        if (note) note.style.display = AVAILABLE_COURSE_LEVELS.length > 1 ? 'none' : '';
     } catch (e) {
         // A1 remains a safe static fallback if the public catalog is unavailable.
         console.warn('Could not load published course levels', e);
     }
 }
 
-async function loadCourses() {
-    try {
-        const r = await apiFetch(`/api/courses/${currentLevel}`);
-        const course = await r.json();
-        courseList.innerHTML = '';
+function renderCourseLevelPicker(activeLevel) {
+    const levels = AVAILABLE_COURSE_LEVELS.length
+        ? AVAILABLE_COURSE_LEVELS
+        : [{ level: activeLevel || 'A1', title: LEVEL_NAMES[activeLevel] || activeLevel || 'Débutant' }];
 
-        const intro = document.createElement('section');
-        intro.className = 'course-intro';
-        intro.innerHTML = `<p class="course-description">${escapeHtml(course.description || '')}</p>`;
-        if (course.contentStatus === 'draft') {
-            intro.innerHTML += '<p class="course-draft-note"><strong>Draft course:</strong> This original practice content still needs independent French-educator review. It is not an official CEFR assessment.</p>';
-        } else if (course.contentStatus === 'published_unattested') {
-            intro.innerHTML += '<p class="course-draft-note"><strong>Published without a reviewer attestation:</strong> No reviewer name or qualification is recorded. This is original practice content, not an official CEFR, NCLC, TEF, or TCF assessment or certification.</p>';
-        } else {
-            intro.innerHTML += '<p class="course-draft-note">Practice content only—not an official CEFR, NCLC, TEF, or TCF assessment.</p>';
-        }
-        if (course.levelOutcomes && course.levelOutcomes.length) {
-            intro.innerHTML += '<h3>Course outcomes · Objectifs du cours</h3><ul class="course-outcomes">';
-            course.levelOutcomes.forEach(outcome => { intro.innerHTML += `<li>${escapeHtml(outcome)}</li>`; });
-            intro.innerHTML += '</ul>';
-        }
-        courseList.appendChild(intro);
-
-        if (course.units) {
-            course.units.forEach(u => {
-                const unitDiv = document.createElement('section');
-                unitDiv.className = 'course-unit';
-                let unitHtml = `<div class="course-unit-title"><span>${escapeHtml(u.titleFr || u.title)}</span><small>${escapeHtml(u.titleFr ? u.title : '')}</small></div>`;
-                if (u.description) unitHtml += `<p class="course-unit-mission">${escapeHtml(u.description)}</p>`;
-                if (u.skillTags && u.skillTags.length) {
-                    unitHtml += '<div class="course-skill-tags">' + u.skillTags.map(tag => `<span>${escapeHtml(tag)}</span>`).join('') + '</div>';
-                }
-                if (u.outcomes && u.outcomes.length) {
-                    unitHtml += '<h4 class="course-section-label">By the end, I can…</h4><ul class="course-outcomes">';
-                    u.outcomes.forEach(outcome => { unitHtml += `<li>${escapeHtml(outcome)}</li>`; });
-                    unitHtml += '</ul>';
-                }
-                if (u.capstone) {
-                    unitHtml += `<div class="course-capstone"><strong>Mission finale</strong><p>${escapeHtml(u.capstone)}</p>`;
-                    if (u.capstoneCriteria && u.capstoneCriteria.length) {
-                        unitHtml += '<ul>' + u.capstoneCriteria.map(criterion => `<li>${escapeHtml(criterion)}</li>`).join('') + '</ul>';
-                    }
-                    unitHtml += '</div>';
-                }
-                unitDiv.innerHTML = unitHtml;
-
-                if (u.lessons) {
-                    u.lessons.forEach(l => {
-                        const lessonItem = document.createElement('div');
-                        lessonItem.className = 'lesson-item';
-                        const titleFr = l.titleFr || l.title;
-                        const titleEn = l.titleFr ? l.title : '';
-                        lessonItem.innerHTML = `
-                            <div class="lesson-info">
-                                <span class="lesson-title-fr">${escapeHtml(titleFr)}</span>
-                                ${titleEn ? `<span class="lesson-title-en">${escapeHtml(titleEn)}</span>` : ''}
-                                <span class="lesson-time">${Number(l.estimatedMinutes) || 30} min · ${Number(l.exerciseCount) || 0} practice items</span>
-                            </div>
-                            <div class="lesson-actions">
-                                <button class="lesson-learn-btn" data-action="start-lesson-view" data-level="${escapeHtml(currentLevel)}" data-id="${escapeHtml(l.id)}">📖 Learn</button>
-                                <button class="lesson-practice-btn" data-action="start-lesson-practice" data-level="${escapeHtml(currentLevel)}" data-id="${escapeHtml(l.id)}">Practice</button>
-                            </div>
-                        `;
-                        unitDiv.appendChild(lessonItem);
-                    });
-                }
-                courseList.appendChild(unitDiv);
-            });
-        }
-    } catch (e) { showToast('Could not load courses (network error).', { retry: loadCourses }); }
+    return `<nav class="course-level-picker" aria-label="Choose a course level">${levels.map(item => `
+        <button type="button" class="course-level-option${item.level === activeLevel ? ' active' : ''}"
+            data-action="select-course-level" data-level="${escapeHtml(item.level)}"
+            aria-pressed="${item.level === activeLevel}">
+            <span class="course-level-code">${escapeHtml(item.level)}</span>
+            <span class="course-level-copy"><strong>${escapeHtml(item.title || item.level)}</strong></span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+        </button>`).join('')}</nav>`;
 }
+
+function renderCourseNotice(course) {
+    if (course.contentStatus === 'draft') {
+        return '<aside class="course-integrity-note"><strong>Draft course.</strong> This practice content still needs independent French-educator review. It is not an official CEFR assessment.</aside>';
+    }
+    if (course.contentStatus === 'published_unattested') {
+        return '<aside class="course-integrity-note"><strong>Published without a reviewer attestation.</strong> No reviewer name or qualification is recorded. This original practice content is not an official CEFR, NCLC, TEF, or TCF assessment or certification.</aside>';
+    }
+    return '<aside class="course-integrity-note">Practice content only — not an official CEFR, NCLC, TEF, or TCF assessment or certification.</aside>';
+}
+
+function renderCourseLesson(lesson, index, level) {
+    const titleFr = lesson.titleFr || lesson.title || `Lesson ${index + 1}`;
+    const titleEn = lesson.titleFr && lesson.title && lesson.titleFr !== lesson.title ? lesson.title : '';
+    const minutes = Number(lesson.estimatedMinutes) || 30;
+    const exerciseCount = Number(lesson.exerciseCount) || 0;
+    const lessonId = escapeHtml(lesson.id);
+    const safeLevel = escapeHtml(level);
+
+    return `<article class="course-lesson-row">
+        <span class="course-lesson-number" aria-hidden="true">${String(index + 1).padStart(2, '0')}</span>
+        <div class="course-lesson-copy">
+            <strong>${escapeHtml(titleFr)}</strong>
+            ${titleEn ? `<span class="course-lesson-translation">${escapeHtml(titleEn)}</span>` : ''}
+            <small>${minutes} min <span aria-hidden="true">·</span> ${exerciseCount} practice item${exerciseCount === 1 ? '' : 's'}</small>
+        </div>
+        <div class="course-lesson-actions">
+            <button type="button" class="course-action course-action-primary" data-action="start-lesson-view"
+                data-level="${safeLevel}" data-id="${lessonId}" aria-label="Learn: ${escapeHtml(titleFr)}">Learn</button>
+            <button type="button" class="course-action" data-action="start-lesson-practice"
+                data-level="${safeLevel}" data-id="${lessonId}" aria-label="Practice: ${escapeHtml(titleFr)}">Practice</button>
+        </div>
+    </article>`;
+}
+
+function renderCourseUnit(unit, index, level) {
+    const lessons = Array.isArray(unit.lessons) ? unit.lessons : [];
+    const titleFr = unit.titleFr || unit.title || `Unit ${index + 1}`;
+    const titleEn = unit.titleFr && unit.title && unit.titleFr !== unit.title ? unit.title : '';
+    const lessonCount = lessons.length;
+    let html = `<details class="course-unit-card"${index === 0 ? ' open' : ''}>
+        <summary class="course-unit-summary">
+            <span class="course-unit-number">${String(index + 1).padStart(2, '0')}</span>
+            <span class="course-unit-heading">
+                <strong>${escapeHtml(titleFr)}</strong>
+                ${titleEn ? `<small>${escapeHtml(titleEn)}</small>` : ''}
+            </span>
+            <span class="course-unit-count">${lessonCount} lesson${lessonCount === 1 ? '' : 's'}</span>
+            <svg class="course-unit-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+        </summary>
+        <div class="course-unit-body">`;
+
+    if (unit.description) html += `<p class="course-unit-mission">${escapeHtml(unit.description)}</p>`;
+    if (Array.isArray(unit.skillTags) && unit.skillTags.length) {
+        html += '<div class="course-skill-tags">' + unit.skillTags.map(tag => `<span>${escapeHtml(tag)}</span>`).join('') + '</div>';
+    }
+    if (Array.isArray(unit.outcomes) && unit.outcomes.length) {
+        html += '<h4 class="course-section-label">By the end, I can…</h4><ul class="course-outcomes">';
+        unit.outcomes.forEach(outcome => { html += `<li>${escapeHtml(outcome)}</li>`; });
+        html += '</ul>';
+    }
+    if (unit.capstone) {
+        html += `<div class="course-capstone"><strong>Mission finale</strong><p>${escapeHtml(unit.capstone)}</p>`;
+        if (Array.isArray(unit.capstoneCriteria) && unit.capstoneCriteria.length) {
+            html += '<ul>' + unit.capstoneCriteria.map(criterion => `<li>${escapeHtml(criterion)}</li>`).join('') + '</ul>';
+        }
+        html += '</div>';
+    }
+
+    html += '<div class="course-lesson-list" aria-label="Lessons">';
+    if (lessons.length) {
+        lessons.forEach((lesson, lessonIndex) => {
+            html += renderCourseLesson(lesson, lessonIndex, level);
+        });
+    } else {
+        html += '<p class="no-data">No lessons are available in this unit yet.</p>';
+    }
+    html += '</div></div></details>';
+    return html;
+}
+
+function renderCourseCatalog(course) {
+    const units = Array.isArray(course.units) ? course.units : [];
+    const lessonCount = units.reduce((count, unit) => count + (Array.isArray(unit.lessons) ? unit.lessons.length : 0), 0);
+    const level = course.level || selectedCourseLevel;
+    const levelName = LEVEL_NAMES[level] || level;
+    const outcomes = Array.isArray(course.levelOutcomes) ? course.levelOutcomes : [];
+    const availableLevelCount = Math.max(AVAILABLE_COURSE_LEVELS.length, 1);
+    const unitMarkup = units.length
+        ? units.map((unit, index) => renderCourseUnit(unit, index, level)).join('')
+        : '<div class="course-empty-state"><p>No units are published for this course yet.</p></div>';
+
+    let html = `<div class="course-hub">
+        <header class="course-library-heading">
+            <div>
+                <p class="course-eyebrow">THE PARLEZ COURSE LIBRARY</p>
+                <h2>Find your next lesson</h2>
+                <p>Choose a level, explore a unit, and learn through practical French.</p>
+            </div>
+            <span class="course-level-count">${availableLevelCount} learning path${availableLevelCount === 1 ? '' : 's'}</span>
+        </header>
+        ${renderCourseLevelPicker(level)}
+        <section class="course-overview-card" aria-label="${escapeHtml(course.title || `${level} course`)} overview">
+            <div class="course-overview-copy">
+                <p class="course-overview-kicker">${escapeHtml(level)} <span aria-hidden="true">·</span> ${escapeHtml(levelName)}</p>
+                <h3>${escapeHtml(course.title || `${level} French course`)}</h3>
+                <p>${escapeHtml(course.description || '')}</p>
+            </div>
+            <div class="course-overview-stats" aria-label="Course contents">
+                <span><strong>${units.length}</strong><small>units</small></span>
+                <span><strong>${lessonCount}</strong><small>lessons</small></span>
+            </div>
+        </section>
+        ${renderCourseNotice(course)}
+        ${outcomes.length ? `<details class="course-level-outcomes"><summary>What you’ll be able to do</summary><ul>${outcomes.map(outcome => `<li>${escapeHtml(outcome)}</li>`).join('')}</ul></details>` : ''}
+        <section class="course-path-section" aria-label="Course units">
+            <div class="course-path-heading">
+                <div><p class="course-eyebrow">YOUR LEARNING PATH</p><h3>Units</h3></div>
+                <span>Open a unit to see its lessons</span>
+            </div>
+            <div class="course-unit-list">${unitMarkup}</div>
+        </section>
+    </div>`;
+    getToolContent().innerHTML = html;
+}
+
+async function loadCourses(level = selectedCourseLevel) {
+    const requestedLevel = level || currentLevel || 'A1';
+    selectedCourseLevel = requestedLevel;
+    const requestId = ++courseLoadRequestId;
+    const content = getToolContent();
+    content.scrollTop = 0;
+    content.innerHTML = spinnerHTML(`Loading ${requestedLevel} course…`, false);
+
+    try {
+        const response = await apiFetch(`/api/courses/${encodeURIComponent(requestedLevel)}`);
+        if (!response.ok) throw new Error('Could not load course');
+        const course = await response.json();
+        if (requestId !== courseLoadRequestId) return;
+        selectedCourseLevel = course.level || requestedLevel;
+        renderCourseCatalog(course);
+    } catch (e) {
+        if (requestId !== courseLoadRequestId) return;
+        content.innerHTML = `<div class="course-load-error">
+            <p class="course-eyebrow">Course unavailable</p>
+            <h2>We couldn’t load this course.</h2>
+            <p>Check your connection and try again.</p>
+            <button type="button" class="course-action course-action-primary" data-action="retry-courses" data-level="${escapeHtml(requestedLevel)}">Try again</button>
+        </div>`;
+    }
+}
+
+window.openCourses = function(level) {
+    const preferredLevel = level || currentLevel;
+    const isAvailable = AVAILABLE_COURSE_LEVELS.some(item => item.level === preferredLevel);
+    const firstAvailableLevel = AVAILABLE_COURSE_LEVELS[0]?.level || 'A1';
+    selectedCourseLevel = isAvailable ? preferredLevel : firstAvailableLevel;
+    showToolView('📚 Courses', spinnerHTML('Preparing the course library…', false), { section: 'courses' });
+    loadCourses(selectedCourseLevel);
+};
+
+window.selectCourseLevel = function(level) {
+    if (!AVAILABLE_COURSE_LEVELS.some(item => item.level === level)) return;
+    loadCourses(level);
+};
 
 // ============================================================
 // Lesson View — read content (vocab, grammar, conjugation, dialogue, cultural)
 // ============================================================
 window.startLessonView = async function(level, lessonId) {
-    showToolView('📖 Lesson', spinnerHTML('Loading lesson…', false));
+    showToolView('📖 Lesson', spinnerHTML('Loading lesson…', false), { section: 'courses', backTarget: 'courses' });
     try {
         const r = await apiFetch(`/api/courses/${level}/lessons/${lessonId}`);
         const lesson = await r.json();
@@ -1668,7 +1826,7 @@ function renderLessonView(lesson, level) {
 }
 
 window.startLessonPractice = async function(level, lessonId) {
-    showToolView('📝 Lesson Practice', spinnerHTML('Loading lesson exercises...', false));
+    showToolView('📝 Lesson Practice', spinnerHTML('Loading lesson exercises...', false), { section: 'courses', backTarget: 'courses' });
     try {
         const r = await apiFetch(`/api/practice/lesson/${level}/${lessonId}`, { method: 'POST' });
         const d = await r.json();
@@ -1765,12 +1923,13 @@ async function loadProgress() {
 // ============================================================
 // Sidebar collapse
 // ============================================================
-document.querySelectorAll('.section-header').forEach(h => {
-    h.addEventListener('click', e => {
-        if (e.target.closest('.btn-icon')) return;
-        const targetId = h.getAttribute('data-target');
-        const content = targetId ? document.getElementById(targetId) : h.nextElementSibling;
-        const icon = h.querySelector('.collapse-icon');
+document.querySelectorAll('.section-header').forEach(header => {
+    header.addEventListener('click', event => {
+        if (event.target.closest('.btn-icon')) return;
+        const targetId = header.getAttribute('data-target');
+        if (!targetId) return;
+        const content = document.getElementById(targetId);
+        const icon = header.querySelector('.collapse-icon');
         if (content) {
             content.classList.toggle('collapsed');
             if (icon) icon.style.transform = content.classList.contains('collapsed') ? 'rotate(-90deg)' : '';
@@ -1829,7 +1988,7 @@ if (sidebarBackdrop) {
 // Close mobile sidebar when a navigation item is selected
 sidebar.addEventListener('click', (e) => {
     if (!isMobile()) return;
-    const clickable = e.target.closest('.chat-item, .course-item, .scenario-item, .practice-item, .lesson-learn-btn, .lesson-practice-btn, .btn-new-chat');
+    const clickable = e.target.closest('.chat-item, .sidebar-nav-link, .course-item, .scenario-item, .practice-item, .lesson-learn-btn, .lesson-practice-btn, .btn-new-chat');
     if (clickable) closeMobileSidebar();
 });
 
@@ -1865,7 +2024,9 @@ levelSelector?.addEventListener('click', async (event) => {
     document.querySelectorAll('.level-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     await storage_user_level(btn.dataset.level);
-    await loadCourses();
+    if (activeMainSection === 'courses' && toolViewBackTarget === 'chat') {
+        await loadCourses(btn.dataset.level);
+    }
 });
 
 document.getElementById('userName').addEventListener('change', async (e) => {
@@ -1900,7 +2061,6 @@ updateSendButton();
 async function initApp() {
     await loadAvailableCourseLevels();
     await loadUser();
-    await loadCourses();
     loadScenarios();
     loadConversations();
     loadProgress();
