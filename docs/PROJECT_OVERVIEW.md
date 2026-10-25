@@ -163,9 +163,13 @@ Sources: official TEF provider and France Éducation international. These are th
 
 **Current gap:** `mock_tests/data.py` describes TEF reading/listening as 50/60 questions and includes a vocabulary/grammar section. Its TCF metadata uses 29 listening questions, 18 language-structure questions and 29 reading questions—different from TCF Canada. Neither listed exam format includes the complete Canada writing/speaking sequence.
 
+**Additional course-content release blocker:** a recursive audit found 450 A2–B2 text fields ending in a literal backslash (166 A2, 154 B1, 130 B2), leaving phrases, examples and exercise prompts/answers incomplete. The `.bak` files contain the same class of corruption, and a B1 unit/lesson has the malformed ID `I am tired.` Keep A2–B2 unpublished until the data are repaired or reauthored, IDs migrated, and field-aware content validation is in place. Details and repair sequence: [CURRICULUM_REDESIGN.md](CURRICULUM_REDESIGN.md).
+
 `main.py` also converts raw percentages into level labels using simple thresholds. This is a practice heuristic, **not a validated CEFR assessment or official score conversion**. Replace public readiness claims with skill-specific practice feedback until independent validation exists.
 
 **Content policy:** use original or properly licensed questions, passages, images and recordings. Do not reproduce textbooks, leaked exams, or paid preparation banks without permission. Maintain a rights/provenance register and human approval history. Describe Parlez as independent and unaffiliated with IRCC, Alliance Française, the Council of Europe, and the test owners unless formal agreements exist.
+
+For the source/licensing register and proposed adult CEFR course spine, see [CURRICULUM_REDESIGN.md](CURRICULUM_REDESIGN.md). Its proposed modules are planning material, not released or validated course content.
 
 ---
 
