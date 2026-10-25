@@ -255,6 +255,12 @@ class Storage:
             with session.begin():
                 session.query(AdminSession).filter_by(id=session_id).delete(synchronize_session=False)
 
+    def revoke_all_admin_sessions(self, username: str) -> None:
+        """Revoke all active admin sessions after an authentication-factor change."""
+        with self.Session() as session:
+            with session.begin():
+                session.query(AdminSession).filter_by(username=username).delete(synchronize_session=False)
+
     def add_admin_audit(self, username: str, action: str, details: Optional[dict] = None):
         import time
         with self.Session() as session:

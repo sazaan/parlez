@@ -6,9 +6,13 @@
     const dashboardView = document.getElementById('dashboardView');
     const loginForm = document.getElementById('loginForm');
     const loginMessage = document.getElementById('loginMessage');
+    const loginMfaField = document.getElementById('loginMfaField');
+    const loginTotp = document.getElementById('adminTotp');
+    const loginSubmit = document.getElementById('loginSubmit');
     const pageMessage = document.getElementById('pageMessage');
     const aiMessage = document.getElementById('aiMessage');
     const courseMessage = document.getElementById('courseMessage');
+    const mfaMessage = document.getElementById('mfaMessage');
     const providerSelect = document.getElementById('providerSelect');
     const modelInput = document.getElementById('modelId');
     const keyStatusTitle = document.getElementById('keyStatusTitle');
@@ -28,6 +32,15 @@
         setVisible(loginView, true);
         setVisible(setupView, false);
         setVisible(dashboardView, false);
+        loginMfaField.hidden = true;
+        loginTotp.required = false;
+        loginTotp.value = '';
+        loginSubmit.innerHTML = 'Sign in <span aria-hidden="true">↗</span>';
+        if (document.getElementById('mfaEnrollment')) clearMfaEnrollment();
+        const mfaPassword = document.getElementById('mfaAdminPassword');
+        const mfaCurrentCode = document.getElementById('mfaCurrentCode');
+        if (mfaPassword) mfaPassword.value = '';
+        if (mfaCurrentCode) mfaCurrentCode.value = '';
         loginMessage.textContent = message;
     }
 
@@ -217,16 +230,35 @@
         document.getElementById('adminIdentity').textContent = 'Signed in as ' + (document.getElementById('adminIdentity').dataset.username || 'administrator');
     }
 
+    function renderMfaStatus(status) {
+        const title = document.getElementById('mfaStatusTitle');
+        const detail = document.getElementById('mfaStatusText');
+        const pill = document.getElementById('mfaStatusPill');
+        const enabled = status.enabled === true;
+        title.textContent = enabled ? 'Authenticator MFA is enabled' : 'Authenticator MFA is disabled';
+        detail.textContent = enabled
+            ? 'New sign-ins require a six-digit authenticator code after the password.'
+            : 'Admin sign-in currently uses username and password only.';
+        pill.textContent = enabled ? 'Enabled' : 'Disabled';
+        pill.className = `pill ${enabled ? 'pill-neutral' : 'pill-warning'}`;
+        document.getElementById('mfaCurrentCodeField').hidden = !enabled;
+        document.getElementById('mfaDisableButton').hidden = !enabled;
+        document.getElementById('mfaSetupButton').textContent = enabled ? 'Replace authenticator app' : 'Set up authenticator app';
+        document.getElementById('mfaPendingNote').hidden = status.setup_pending !== true;
+    }
+
     async function loadDashboard() {
-        const [config, audit, health] = await Promise.all([
+        const [config, audit, health, mfa] = await Promise.all([
             adminRequest('/api/admin/config'),
             adminRequest('/api/admin/audit?limit=60'),
-            adminRequest('/api/admin/health')
+            adminRequest('/api/admin/health'),
+            adminRequest('/api/admin/mfa')
         ]);
         currentConfig = config;
         renderProviderOptions(config.ai);
         renderCourseCards(config.courses);
         renderAudit(audit);
+        renderMfaStatus(mfa);
         updateSummary(config, health);
         setVisible(loginView, false);
         setVisible(setupView, false);
@@ -254,28 +286,37 @@
     loginForm.addEventListener('submit', async event => {
         event.preventDefault();
         setMessage(loginMessage, '');
-        const submit = loginForm.querySelector('button[type="submit"]');
-        submit.disabled = true;
+        const username = document.getElementById('adminUsername').value;
+        const password = document.getElementById('adminPassword').value;
+        const payload = { username, password };
+        if (!loginMfaField.hidden) payload.totp = loginTotp.value;
+        loginSubmit.disabled = true;
         try {
             const response = await fetch('/api/admin/login', {
                 method: 'POST',
                 credentials: 'same-origin',
                 cache: 'no-store',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    username: document.getElementById('adminUsername').value,
-                    password: document.getElementById('adminPassword').value,
-                    totp: document.getElementById('adminTotp').value
-                })
+                body: JSON.stringify(payload)
             });
+            if (response.status === 428) {
+                await response.json().catch(() => ({}));
+                loginMfaField.hidden = false;
+                loginTotp.required = true;
+                loginSubmit.textContent = 'Verify and sign in';
+                setMessage(loginMessage, 'Enter the code from your authenticator app to continue.', 'info');
+                loginTotp.focus();
+                return;
+            }
             await readResponse(response);
             document.getElementById('adminPassword').value = '';
-            document.getElementById('adminTotp').value = '';
+            loginTotp.value = '';
+            loginTotp.required = false;
             await checkSession();
         } catch (error) {
             setMessage(loginMessage, error.message || 'Sign in failed.');
         } finally {
-            submit.disabled = false;
+            loginSubmit.disabled = false;
         }
     });
 
@@ -365,6 +406,119 @@
             setMessage(courseMessage, error.message);
         } finally {
             button.disabled = false;
+        }
+    });
+
+    const mfaSetupButton = document.getElementById('mfaSetupButton');
+    const mfaDisableButton = document.getElementById('mfaDisableButton');
+    const mfaEnrollment = document.getElementById('mfaEnrollment');
+    const mfaVerificationCode = document.getElementById('mfaVerificationCode');
+
+    function clearMfaEnrollment() {
+        mfaEnrollment.hidden = true;
+        document.getElementById('mfaQrImage').removeAttribute('src');
+        document.getElementById('mfaManualSecret').textContent = '';
+        mfaVerificationCode.value = '';
+    }
+
+    mfaSetupButton.addEventListener('click', async () => {
+        const password = document.getElementById('mfaAdminPassword').value;
+        const currentCode = document.getElementById('mfaCurrentCode').value.trim();
+        if (!password) {
+            setMessage(mfaMessage, 'Enter your admin password to change authenticator settings.');
+            return;
+        }
+        if (!document.getElementById('mfaCurrentCodeField').hidden && !/^\d{6}$/.test(currentCode)) {
+            setMessage(mfaMessage, 'Enter a current six-digit authenticator code to replace the app.');
+            return;
+        }
+        mfaSetupButton.disabled = true;
+        setMessage(mfaMessage, 'Generating a private setup QR code…', 'info');
+        try {
+            const body = { password };
+            if (!document.getElementById('mfaCurrentCodeField').hidden) body.totp = currentCode;
+            const setup = await adminRequest('/api/admin/mfa/setup', {
+                method: 'POST',
+                body: JSON.stringify(body)
+            });
+            document.getElementById('mfaQrImage').src = setup.qr_data_uri;
+            document.getElementById('mfaManualSecret').textContent = setup.secret;
+            mfaVerificationCode.value = '';
+            mfaEnrollment.hidden = false;
+            document.getElementById('mfaAdminPassword').value = '';
+            document.getElementById('mfaCurrentCode').value = '';
+            renderMfaStatus(await adminRequest('/api/admin/mfa'));
+            setMessage(mfaMessage, 'Scan or enter the key, then verify a fresh code to activate MFA.', 'info');
+            mfaVerificationCode.focus();
+        } catch (error) {
+            setMessage(mfaMessage, error.message || 'Could not start authenticator setup.');
+        } finally {
+            mfaSetupButton.disabled = false;
+        }
+    });
+
+    document.getElementById('mfaEnableButton').addEventListener('click', async event => {
+        const button = event.currentTarget;
+        const code = mfaVerificationCode.value.trim();
+        if (!/^\d{6}$/.test(code)) {
+            setMessage(mfaMessage, 'Enter the six-digit code shown in your authenticator app.');
+            return;
+        }
+        button.disabled = true;
+        setMessage(mfaMessage, 'Verifying the authenticator…', 'info');
+        try {
+            await adminRequest('/api/admin/mfa/enable', {
+                method: 'POST',
+                body: JSON.stringify({ code })
+            });
+            clearMfaEnrollment();
+            document.getElementById('mfaAdminPassword').value = '';
+            document.getElementById('mfaCurrentCode').value = '';
+            csrfToken = '';
+            showLogin('Authenticator MFA is enabled. Sign in again with your password and app code.');
+            setMessage(loginMessage, 'Authenticator MFA is enabled. Sign in again with your password and app code.', 'info');
+        } catch (error) {
+            setMessage(mfaMessage, error.message || 'Could not enable authenticator MFA.');
+        } finally {
+            button.disabled = false;
+        }
+    });
+
+    mfaDisableButton.addEventListener('click', async () => {
+        const password = document.getElementById('mfaAdminPassword').value;
+        const totp = document.getElementById('mfaCurrentCode').value.trim();
+        if (!password || !/^\d{6}$/.test(totp)) {
+            setMessage(mfaMessage, 'Enter your admin password and current six-digit authenticator code to disable MFA.');
+            return;
+        }
+        mfaDisableButton.disabled = true;
+        setMessage(mfaMessage, 'Verifying credentials and disabling MFA…', 'info');
+        try {
+            await adminRequest('/api/admin/mfa/disable', {
+                method: 'POST',
+                body: JSON.stringify({ password, totp })
+            });
+            clearMfaEnrollment();
+            document.getElementById('mfaAdminPassword').value = '';
+            document.getElementById('mfaCurrentCode').value = '';
+            csrfToken = '';
+            showLogin('Authenticator MFA is disabled. Sign in again with your password.');
+            setMessage(loginMessage, 'Authenticator MFA is disabled. Sign in again with your password.', 'info');
+        } catch (error) {
+            setMessage(mfaMessage, error.message || 'Could not disable authenticator MFA.');
+        } finally {
+            mfaDisableButton.disabled = false;
+        }
+    });
+
+    document.getElementById('mfaCancelButton').addEventListener('click', async () => {
+        try {
+            await adminRequest('/api/admin/mfa/cancel', { method: 'POST' });
+            clearMfaEnrollment();
+            renderMfaStatus(await adminRequest('/api/admin/mfa'));
+            setMessage(mfaMessage, 'Authenticator setup cancelled.', 'info');
+        } catch (error) {
+            setMessage(mfaMessage, error.message || 'Could not cancel authenticator setup.');
         }
     });
 

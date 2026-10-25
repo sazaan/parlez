@@ -109,6 +109,18 @@ button { cursor: pointer; }
 .info-callout strong, .course-warning strong { display: block; margin-bottom: 5px; color: #6b572e; font-size: 11px; }
 .info-callout p, .course-warning span { display: block; margin: 0; color: #786b4f; font-size: 11px; line-height: 1.6; }
 .course-warning { margin: 0 0 15px; }
+.mfa-credentials { margin-top: 12px; }
+.mfa-pending-note { margin: 10px 0; padding: 10px 12px; border-radius: 9px; color: #745d2f; background: #fbf4e4; font-size: 11px; line-height: 1.5; }
+.mfa-actions { justify-content: flex-start; margin-top: 14px; }
+.mfa-enrollment { display: grid; grid-template-columns: minmax(160px, 220px) minmax(0, 1fr); gap: 22px; align-items: start; margin-top: 22px; padding-top: 22px; border-top: 1px solid var(--admin-line); }
+.mfa-qr-wrap { display: grid; min-height: 190px; place-items: center; padding: 12px; border: 1px solid var(--admin-line); border-radius: 12px; background: #fff; }
+.mfa-qr-wrap img { width: 100%; max-width: 190px; height: auto; }
+.mfa-enrollment-details { display: grid; gap: 8px; }
+.mfa-enrollment-details h3 { margin: 0; color: #1f392e; font-family: Georgia, serif; font-size: 19px; }
+.mfa-enrollment-details p { margin: 0 0 4px; color: var(--admin-muted); font-size: 12px; line-height: 1.6; }
+.mfa-enrollment-details label, .mfa-field-label { margin-top: 4px; color: #34453d; font-size: 12px; font-weight: 750; }
+.mfa-enrollment-details input { width: 100%; min-height: 45px; padding: 0 13px; border: 1px solid #dce4dd; border-radius: 10px; color: var(--admin-ink); background: #fff; font: inherit; letter-spacing: .12em; font-variant-numeric: tabular-nums; }
+.mfa-manual-secret { display: block; overflow-wrap: anywhere; padding: 10px 12px; border: 1px solid #e7ece7; border-radius: 9px; color: #31553f; background: #f8faf7; font-size: 12px; letter-spacing: .08em; }
 .course-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
 .course-card { overflow: hidden; border: 1px solid var(--admin-line); border-radius: 14px; background: rgba(255,255,255,.85); }
 .course-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 17px 17px 13px; }
@@ -158,6 +170,8 @@ button { cursor: pointer; }
     .form-grid, .course-grid { grid-template-columns: 1fr; }
     .panel-card { padding: 18px; }
     .credential-row { align-items: flex-start; flex-direction: column; }
+    .mfa-enrollment { grid-template-columns: 1fr; }
+    .mfa-qr-wrap { width: min(100%, 220px); }
     .card-actions { align-items: stretch; flex-direction: column-reverse; }
     .card-actions .button { width: 100%; }
     .course-actions { align-items: stretch; flex-direction: column; }

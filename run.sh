@@ -42,7 +42,7 @@ fi
 chmod 600 .env
 
 admin_credentials_complete=true
-for key in ADMIN_USERNAME ADMIN_PASSWORD_HASH ADMIN_TOTP_SECRET ADMIN_SESSION_SECRET; do
+for key in ADMIN_USERNAME ADMIN_PASSWORD_HASH ADMIN_SESSION_SECRET; do
     if ! grep -Eq "^${key}=[[:space:]]*[^[:space:]]" .env; then
         admin_credentials_complete=false
         break
@@ -62,8 +62,8 @@ echo "🐳 Building the application image..."
 if [ "$admin_credentials_complete" = false ]; then
     echo ""
     echo "🔐 Admin credentials are not configured. The setup will ask you to choose an admin username and password."
-    echo "The generated password hash, TOTP secret, and session key will be written directly to .env."
-    echo "An authenticator enrollment URI will be shown once; add it to your authenticator app and keep it private."
+    echo "The generated password hash and session key will be written directly to .env."
+    echo "Authenticator MFA is optional and can be enrolled later from the admin panel."
     echo ""
     HOST_UID="$(id -u)"
     HOST_GID="$(id -g)"

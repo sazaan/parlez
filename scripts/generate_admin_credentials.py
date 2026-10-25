@@ -18,10 +18,10 @@ import tempfile
 from pathlib import Path
 
 import bcrypt
-import pyotp
 
 
-ADMIN_KEYS = ("ADMIN_USERNAME", "ADMIN_PASSWORD_HASH", "ADMIN_TOTP_SECRET", "ADMIN_SESSION_SECRET")
+ADMIN_KEYS = ("ADMIN_USERNAME", "ADMIN_PASSWORD_HASH", "ADMIN_SESSION_SECRET")
+LEGACY_ADMIN_KEYS = ("ADMIN_TOTP_SECRET",)
 
 
 def _validate_username(username: str) -> str:
@@ -45,7 +45,7 @@ def write_admin_values(env_path: str | Path, values: dict[str, str]) -> Path:
     if not path.is_file():
         raise SystemExit(f"Environment file is not a regular file: {path}")
     if set(values) != set(ADMIN_KEYS):
-        raise ValueError("Exactly the four required admin credentials must be provided.")
+        raise ValueError("Exactly the three required admin credentials must be provided.")
 
     existing = path.read_text(encoding="utf-8")
     result: list[str] = []
@@ -53,6 +53,8 @@ def write_admin_values(env_path: str | Path, values: dict[str, str]) -> Path:
     for line in existing.splitlines():
         match = re.match(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=", line)
         key = match.group(1) if match else None
+        if key in LEGACY_ADMIN_KEYS:
+            continue
         if key not in values:
             result.append(line)
         elif key not in seen:
@@ -105,19 +107,14 @@ def _prompt_admin_password() -> str:
         return password
 
 
-def _generate_values() -> tuple[dict[str, str], str]:
+def _generate_values() -> dict[str, str]:
     username = _validate_username(input("Admin username [parlez-admin]: ") or "parlez-admin")
     password = _prompt_admin_password()
-
-    totp_secret = pyotp.random_base32()
-    values = {
+    return {
         "ADMIN_USERNAME": username,
         "ADMIN_PASSWORD_HASH": bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=12)).decode("ascii"),
-        "ADMIN_TOTP_SECRET": totp_secret,
         "ADMIN_SESSION_SECRET": secrets.token_urlsafe(48),
     }
-    totp_uri = pyotp.TOTP(totp_secret).provisioning_uri(name=username, issuer_name="Parlez Admin")
-    return values, totp_uri
 
 
 def main() -> None:
@@ -128,23 +125,21 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    values, totp_uri = _generate_values()
+    values = _generate_values()
     if args.env_file:
         env_path = write_admin_values(args.env_file, values)
         print(f"Admin credentials saved to {env_path.name} with file permissions restricted to the owner.")
         print(f"Admin username: {values['ADMIN_USERNAME']}")
-        print("Enroll this TOTP URI in your authenticator app (it contains the TOTP secret):")
-        print(totp_uri)
-        print("Keep the generated password and authenticator private; restart Parlez after setup.")
+        print("Sign in with the username and password; authenticator MFA can be enrolled later in the admin panel.")
+        print("Keep the .env file private and restart Parlez after setup.")
         return
 
     print("\nAdd these values to the backend .env (never to frontend code):\n")
     for key in ADMIN_KEYS:
         print(_env_assignment(key, values[key]))
     print("ADMIN_SESSION_TTL_MINUTES=15")
-    print("\nEnroll this TOTP URI in your authenticator app (the URI contains the TOTP secret):")
-    print(totp_uri)
-    print("\nKeep the .env file private and restart Parlez after updating it.")
+    print("\nSign in with username and password. Authenticator MFA is optional and can be enrolled in the admin panel.")
+    print("Keep the .env file private and restart Parlez after updating it.")
 
 
 if __name__ == "__main__":

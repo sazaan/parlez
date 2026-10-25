@@ -8,7 +8,9 @@ import urllib.parse
 import logging
 import logging.handlers
 import re
+import base64
 import hashlib
+import hmac
 import json
 from dataclasses import asdict, replace
 from typing import Optional
@@ -33,6 +35,9 @@ import httpx
 import bcrypt
 import jwt
 import pyotp
+import qrcode
+from cryptography.fernet import Fernet, InvalidToken
+from qrcode.image.svg import SvgPathImage
 import db
 from email_validator import validate_email, EmailNotValidError
 from sqlalchemy.exc import IntegrityError
@@ -69,27 +74,23 @@ if ADMIN_PATH != "/" and ADMIN_PATH.endswith("/"):
 
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "").strip()
 ADMIN_PASSWORD_HASH = os.getenv("ADMIN_PASSWORD_HASH", "").strip()
-ADMIN_TOTP_SECRET = os.getenv("ADMIN_TOTP_SECRET", "").replace(" ", "").strip().upper()
 ADMIN_SESSION_SECRET = os.getenv("ADMIN_SESSION_SECRET", "").strip()
+# MFA is optional and configured from the admin panel. Legacy ADMIN_TOTP_SECRET
+# values are intentionally ignored so bootstrap sign-in only needs a password.
 try:
     ADMIN_SESSION_TTL_MINUTES = max(5, min(60, int(os.getenv("ADMIN_SESSION_TTL_MINUTES", "15"))))
 except ValueError:
     ADMIN_SESSION_TTL_MINUTES = 15
-try:
-    ADMIN_TOTP_SECRET_VALID = bool(ADMIN_TOTP_SECRET and pyotp.TOTP(ADMIN_TOTP_SECRET).now())
-except (ValueError, TypeError):
-    ADMIN_TOTP_SECRET_VALID = False
 ADMIN_PASSWORD_HASH_VALID = bool(
     re.fullmatch(r"\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}", ADMIN_PASSWORD_HASH)
 )
 ADMIN_AUTH_CONFIGURED = bool(
     ADMIN_USERNAME
     and ADMIN_PASSWORD_HASH_VALID
-    and ADMIN_TOTP_SECRET_VALID
     and len(ADMIN_SESSION_SECRET) >= 32
 )
-if any((ADMIN_USERNAME, ADMIN_PASSWORD_HASH, ADMIN_TOTP_SECRET, ADMIN_SESSION_SECRET)) and not ADMIN_AUTH_CONFIGURED:
-    logger.error("Admin panel is disabled: complete all ADMIN_* authentication settings in .env")
+if any((ADMIN_USERNAME, ADMIN_PASSWORD_HASH, ADMIN_SESSION_SECRET)) and not ADMIN_AUTH_CONFIGURED:
+    logger.error("Admin panel is disabled: configure ADMIN_USERNAME, ADMIN_PASSWORD_HASH, and ADMIN_SESSION_SECRET")
 
 from courses import conversation_scenarios, COURSE_CATALOG, COURSE_LEVEL_CATALOG
 from courses.validation import validate_catalog, validate_course
@@ -620,7 +621,21 @@ class LoginRequest(BaseModel):
 class AdminLoginRequest(BaseModel):
     username: str
     password: str
-    totp: str
+    totp: Optional[str] = None
+
+
+class AdminMFASetupRequest(BaseModel):
+    password: str
+    totp: Optional[str] = None
+
+
+class AdminMFAVerifyRequest(BaseModel):
+    code: str
+
+
+class AdminMFADisableRequest(BaseModel):
+    password: str
+    totp: Optional[str] = None
 
 
 class AdminAIConfigUpdate(BaseModel):
@@ -703,6 +718,92 @@ def _admin_origin_is_same(request: Request) -> bool:
         return supplied.scheme == expected.scheme and supplied.netloc == expected.netloc
     except ValueError:
         return False
+
+
+ADMIN_MFA_SETTING_KEY = "admin_mfa"
+ADMIN_MFA_PENDING_SETTING_KEY = "admin_mfa_pending"
+
+
+def _admin_mfa_cipher() -> Fernet:
+    """Derive a separate Fernet key from the random, server-only admin session secret."""
+    if len(ADMIN_SESSION_SECRET) < 32:
+        raise RuntimeError("Admin session secret is not configured strongly enough to protect MFA data.")
+    key_material = hmac.new(
+        ADMIN_SESSION_SECRET.encode("utf-8"),
+        b"parlez-admin-mfa-encryption-v1",
+        hashlib.sha256,
+    ).digest()
+    return Fernet(base64.urlsafe_b64encode(key_material))
+
+
+def _encrypt_admin_mfa_secret(secret: str) -> str:
+    return _admin_mfa_cipher().encrypt(secret.encode("ascii")).decode("ascii")
+
+
+def _decrypt_admin_mfa_secret(encrypted: str) -> str:
+    try:
+        return _admin_mfa_cipher().decrypt(encrypted.encode("ascii")).decode("ascii")
+    except (InvalidToken, UnicodeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Admin authenticator settings could not be decrypted. Check the server session secret or reset MFA.",
+        ) from exc
+
+
+def _get_admin_mfa_state() -> dict:
+    """Load the optional TOTP factor, failing closed if enabled state is corrupt."""
+    stored = storage.get_setting(ADMIN_MFA_SETTING_KEY)
+    if stored is None:
+        enabled = False
+        encrypted_secret = None
+    elif not isinstance(stored, dict) or not isinstance(stored.get("enabled"), bool):
+        raise HTTPException(status_code=503, detail="Admin authenticator settings are invalid.")
+    else:
+        enabled = stored["enabled"]
+        encrypted_secret = stored.get("secret_encrypted")
+
+    secret = None
+    if enabled:
+        if not isinstance(encrypted_secret, str) or not encrypted_secret:
+            raise HTTPException(status_code=503, detail="Admin authenticator settings are incomplete.")
+        secret = _decrypt_admin_mfa_secret(encrypted_secret)
+
+    pending = storage.get_setting(ADMIN_MFA_PENDING_SETTING_KEY)
+    return {
+        "enabled": enabled,
+        "secret": secret,
+        "secret_encrypted": encrypted_secret if enabled else None,
+        "setup_pending": isinstance(pending, str) and bool(pending),
+    }
+
+
+def _valid_admin_totp(secret: Optional[str], code: Optional[str]) -> bool:
+    if not secret or not isinstance(code, str):
+        return False
+    normalized = code.strip()
+    if not re.fullmatch(r"\d{6}", normalized):
+        return False
+    try:
+        return pyotp.TOTP(secret).verify(normalized, valid_window=1)
+    except (ValueError, TypeError):
+        return False
+
+
+def _admin_password_matches(username: str, password: str) -> bool:
+    username_ok = secrets.compare_digest(username.strip(), ADMIN_USERNAME)
+    try:
+        password_ok = bcrypt.checkpw(password.encode("utf-8"), ADMIN_PASSWORD_HASH.encode("utf-8"))
+    except (ValueError, TypeError, AttributeError):
+        password_ok = False
+    return username_ok and password_ok
+
+
+def _admin_mfa_qr_data_uri(otpauth_uri: str) -> str:
+    qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=5, border=3)
+    qr.add_data(otpauth_uri)
+    qr.make(fit=True)
+    svg = qr.make_image(image_factory=SvgPathImage).to_string(encoding="utf-8")
+    return "data:image/svg+xml;base64," + base64.b64encode(svg).decode("ascii")
 
 
 def _decode_admin_session(request: Request):
@@ -839,40 +940,26 @@ async def admin_page():
 @app.post("/api/admin/login", include_in_schema=False)
 @limiter.limit("5/minute")
 async def admin_login(request: Request, credentials: AdminLoginRequest, response: Response):
-    """Password + TOTP login for the dedicated, environment-bootstrapped admin."""
+    """Sign in with username/password, then TOTP only when MFA is enabled."""
     if not ADMIN_AUTH_CONFIGURED:
         raise HTTPException(status_code=503, detail="Admin access is not configured on this server.")
     if not _admin_origin_is_same(request) or request.headers.get("sec-fetch-site") == "cross-site":
         raise HTTPException(status_code=403, detail="Cross-origin admin sign-in is not allowed.")
 
-    username_ok = secrets.compare_digest(credentials.username.strip(), ADMIN_USERNAME)
-    password_ok = False
-    totp_ok = False
-    try:
-        password_ok = bcrypt.checkpw(
-            credentials.password.encode("utf-8"), ADMIN_PASSWORD_HASH.encode("utf-8")
-        )
-    except (ValueError, TypeError):
-        password_ok = False
-    try:
-        code = credentials.totp.strip()
-        if re.fullmatch(r"\d{6}", code):
-            totp_ok = pyotp.TOTP(ADMIN_TOTP_SECRET).verify(code, valid_window=1)
-    except (ValueError, TypeError):
-        totp_ok = False
+    if not _admin_password_matches(credentials.username, credentials.password):
+        raise HTTPException(status_code=401, detail="Invalid admin credentials or verification code.")
 
-    if not (username_ok and password_ok and totp_ok):
+    mfa = _get_admin_mfa_state()
+    if mfa["enabled"] and not credentials.totp:
+        raise HTTPException(status_code=428, detail="Authenticator code required.")
+    if mfa["enabled"] and not _valid_admin_totp(mfa["secret"], credentials.totp):
         raise HTTPException(status_code=401, detail="Invalid admin credentials or verification code.")
 
     now = datetime.datetime.now(datetime.timezone.utc)
     expires_at = now + datetime.timedelta(minutes=ADMIN_SESSION_TTL_MINUTES)
     csrf_token = secrets.token_urlsafe(32)
     session_id = secrets.token_urlsafe(24)
-    storage.create_admin_session(
-        session_id,
-        ADMIN_USERNAME,
-        expires_at.timestamp(),
-    )
+    storage.create_admin_session(session_id, ADMIN_USERNAME, expires_at.timestamp())
     session_token = jwt.encode(
         {
             "sub": ADMIN_USERNAME,
@@ -894,13 +981,118 @@ async def admin_login(request: Request, credentials: AdminLoginRequest, response
         path="/api/admin",
         max_age=ADMIN_SESSION_TTL_MINUTES * 60,
     )
-    storage.add_admin_audit(ADMIN_USERNAME, "admin_login", {})
+    storage.add_admin_audit(ADMIN_USERNAME, "admin_login", {"mfa_enabled": mfa["enabled"]})
     return {"ok": True}
 
 
 @app.get("/api/admin/session", include_in_schema=False)
 async def admin_session(admin=Depends(require_admin)):
     return {"username": admin["username"], "csrf_token": admin["csrf"]}
+
+
+@app.get("/api/admin/mfa", include_in_schema=False)
+async def admin_mfa_status(admin=Depends(require_admin)):
+    state = _get_admin_mfa_state()
+    return {"enabled": state["enabled"], "setup_pending": state["setup_pending"]}
+
+
+@app.post("/api/admin/mfa/setup", include_in_schema=False)
+@limiter.limit("5/minute")
+async def admin_mfa_setup(
+    request: Request,
+    credentials: AdminMFASetupRequest,
+    response: Response,
+    admin=Depends(require_admin),
+):
+    """Create a pending authenticator secret; it is not enabled until verified."""
+    state = _get_admin_mfa_state()
+    if not _admin_password_matches(admin["username"], credentials.password):
+        raise HTTPException(status_code=403, detail="Current password or authenticator code did not match.")
+    if state["enabled"] and not _valid_admin_totp(state["secret"], credentials.totp):
+        raise HTTPException(status_code=403, detail="Current password or authenticator code did not match.")
+
+    secret = pyotp.random_base32()
+    provisioning_uri = pyotp.TOTP(secret).provisioning_uri(
+        name=ADMIN_USERNAME,
+        issuer_name="Parlez Admin",
+    )
+    qr_data_uri = _admin_mfa_qr_data_uri(provisioning_uri)
+    storage.set_setting(ADMIN_MFA_PENDING_SETTING_KEY, _encrypt_admin_mfa_secret(secret))
+    storage.add_admin_audit(ADMIN_USERNAME, "admin_mfa_setup_started", {"replacing": state["enabled"]})
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Pragma"] = "no-cache"
+    return {"setup_pending": True, "secret": secret, "qr_data_uri": qr_data_uri}
+
+
+@app.post("/api/admin/mfa/enable", include_in_schema=False)
+@limiter.limit("5/minute")
+async def admin_mfa_enable(
+    request: Request,
+    credentials: AdminMFAVerifyRequest,
+    response: Response,
+    admin=Depends(require_admin),
+):
+    encrypted_pending = storage.get_setting(ADMIN_MFA_PENDING_SETTING_KEY)
+    if not isinstance(encrypted_pending, str) or not encrypted_pending:
+        raise HTTPException(status_code=409, detail="Start authenticator setup before enabling MFA.")
+    pending_secret = _decrypt_admin_mfa_secret(encrypted_pending)
+    if not _valid_admin_totp(pending_secret, credentials.code):
+        raise HTTPException(status_code=400, detail="That code did not match. Check your authenticator and try again.")
+
+    storage.set_setting(
+        ADMIN_MFA_SETTING_KEY,
+        {"enabled": True, "secret_encrypted": encrypted_pending},
+    )
+    storage.delete_setting(ADMIN_MFA_PENDING_SETTING_KEY)
+    storage.add_admin_audit(ADMIN_USERNAME, "admin_mfa_enabled", {})
+    storage.revoke_all_admin_sessions(ADMIN_USERNAME)
+    response.delete_cookie(
+        key="parlez_admin",
+        path="/api/admin",
+        secure=COOKIE_SECURE,
+        httponly=True,
+        samesite="strict",
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return {"ok": True, "enabled": True, "sign_in_again": True}
+
+
+@app.post("/api/admin/mfa/disable", include_in_schema=False)
+@limiter.limit("5/minute")
+async def admin_mfa_disable(
+    request: Request,
+    credentials: AdminMFADisableRequest,
+    response: Response,
+    admin=Depends(require_admin),
+):
+    state = _get_admin_mfa_state()
+    if not state["enabled"]:
+        raise HTTPException(status_code=409, detail="Authenticator MFA is not enabled.")
+    if not _admin_password_matches(admin["username"], credentials.password) or not _valid_admin_totp(
+        state["secret"], credentials.totp
+    ):
+        raise HTTPException(status_code=403, detail="Current password or authenticator code did not match.")
+
+    storage.set_setting(ADMIN_MFA_SETTING_KEY, {"enabled": False})
+    storage.delete_setting(ADMIN_MFA_PENDING_SETTING_KEY)
+    storage.add_admin_audit(ADMIN_USERNAME, "admin_mfa_disabled", {})
+    storage.revoke_all_admin_sessions(ADMIN_USERNAME)
+    response.delete_cookie(
+        key="parlez_admin",
+        path="/api/admin",
+        secure=COOKIE_SECURE,
+        httponly=True,
+        samesite="strict",
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return {"ok": True, "enabled": False, "sign_in_again": True}
+
+
+@app.post("/api/admin/mfa/cancel", include_in_schema=False)
+async def admin_mfa_cancel(admin=Depends(require_admin)):
+    storage.delete_setting(ADMIN_MFA_PENDING_SETTING_KEY)
+    storage.add_admin_audit(ADMIN_USERNAME, "admin_mfa_setup_cancelled", {})
+    return {"ok": True}
 
 
 @app.post("/api/admin/logout", include_in_schema=False)

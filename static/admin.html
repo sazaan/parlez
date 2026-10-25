@@ -19,15 +19,17 @@
                 <div class="brand-mark">P</div>
                 <div><span class="eyebrow">PARLEZ · CONTROL PLANE</span><h1 id="loginTitle">Admin sign in</h1></div>
             </div>
-            <p class="login-intro">This area is restricted to the configured administrator. Sign in with your password and authenticator code.</p>
+            <p class="login-intro">Sign in with your admin username and password. If authenticator MFA is enabled, you’ll be asked for a code next.</p>
             <form id="loginForm" autocomplete="on">
                 <label for="adminUsername">Admin username</label>
                 <input id="adminUsername" name="username" autocomplete="username" required maxlength="80" autofocus>
                 <label for="adminPassword">Password</label>
                 <input id="adminPassword" name="password" type="password" autocomplete="current-password" required maxlength="72">
-                <label for="adminTotp">Authenticator code</label>
-                <input id="adminTotp" name="totp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" placeholder="000000" required>
-                <button class="button button-primary login-submit" type="submit">Sign in securely <span aria-hidden="true">↗</span></button>
+                <div id="loginMfaField" hidden>
+                    <label for="adminTotp">Authenticator code</label>
+                    <input id="adminTotp" name="totp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" placeholder="000000">
+                </div>
+                <button class="button button-primary login-submit" id="loginSubmit" type="submit">Sign in <span aria-hidden="true">↗</span></button>
                 <p class="form-message" id="loginMessage" role="status" aria-live="polite"></p>
             </form>
             <div class="security-note"><span class="status-dot"></span> Protected admin session · never share verification codes</div>
@@ -37,7 +39,7 @@
             <div class="brand-mark">P</div>
             <span class="eyebrow">ADMIN ACCESS NOT CONFIGURED</span>
             <h1>Set up the administrator first.</h1>
-            <p>Admin access is disabled until the server has an admin username, bcrypt password hash, TOTP secret, and separate session secret in its environment configuration.</p>
+            <p>Admin access is disabled until the server has an admin username, bcrypt password hash, and separate session secret in its environment configuration. Authenticator MFA is optional and can be enrolled after signing in.</p>
             <p class="setup-hint">See the README section “Admin panel setup” and run the local credential generator. Do not put credentials in frontend files.</p>
         </section>
 
@@ -71,6 +73,7 @@
             <nav class="tabs" aria-label="Admin sections">
                 <button class="tab active" type="button" data-section="ai">AI providers</button>
                 <button class="tab" type="button" data-section="courses">Course publishing</button>
+                <button class="tab" type="button" data-section="security">Security</button>
                 <button class="tab" type="button" data-section="audit">Change log</button>
             </nav>
 
@@ -116,6 +119,51 @@
                 <div class="course-warning"><strong>A2–B2 are public without a reviewer attestation.</strong><span>No reviewer name or qualification is stored for this release. Public availability does not verify reviewer credentials or certify CEFR/NCLC alignment. You can keep review status transparent or record a qualified review if appropriate.</span></div>
                 <div class="course-grid" id="courseGrid"></div>
                 <div class="course-actions"><p class="inline-message" id="courseMessage" role="status" aria-live="polite"></p><button class="button button-primary" id="saveCoursesButton" type="button">Save publication settings <span aria-hidden="true">→</span></button></div>
+            </section>
+
+            <section class="panel-section" id="section-security" hidden>
+                <div class="section-heading">
+                    <div><p class="eyebrow">ACCOUNT SECURITY</p><h2>Authenticator MFA</h2><p>Start with username and password. You can add or remove an authenticator app here; when enabled, sign-in asks for its code after your password is verified.</p></div>
+                    <span class="section-icon" aria-hidden="true">⌑</span>
+                </div>
+                <div class="panel-card security-card">
+                    <div class="credential-row">
+                        <div class="credential-status"><span class="key-icon" aria-hidden="true">⌑</span><div><strong id="mfaStatusTitle">Checking authenticator status…</strong><small id="mfaStatusText">Authenticator secrets are encrypted before being stored.</small></div></div>
+                        <span class="pill pill-neutral" id="mfaStatusPill">Loading</span>
+                    </div>
+                    <p class="mfa-pending-note" id="mfaPendingNote" hidden>A previous setup was not confirmed. Start setup again to generate a new QR code.</p>
+                    <div class="form-grid mfa-credentials">
+                        <div class="field-block">
+                            <label for="mfaAdminPassword">Confirm admin password</label>
+                            <input id="mfaAdminPassword" type="password" autocomplete="current-password" maxlength="72">
+                        </div>
+                        <div class="field-block" id="mfaCurrentCodeField" hidden>
+                            <label for="mfaCurrentCode">Current authenticator code</label>
+                            <input id="mfaCurrentCode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" placeholder="000000">
+                        </div>
+                    </div>
+                    <div class="card-actions mfa-actions">
+                        <button class="button button-secondary" id="mfaSetupButton" type="button">Set up authenticator app</button>
+                        <button class="button button-quiet" id="mfaDisableButton" type="button" hidden>Disable MFA</button>
+                    </div>
+                    <div class="mfa-enrollment" id="mfaEnrollment" hidden>
+                        <div class="mfa-qr-wrap"><img id="mfaQrImage" alt="QR code for Parlez Admin authenticator setup"></div>
+                        <div class="mfa-enrollment-details">
+                            <h3>Scan with your authenticator app</h3>
+                            <p>Scan this QR code, then enter the six-digit code from the app to verify and enable MFA. If scanning is unavailable, enter the setup key manually.</p>
+                            <span class="mfa-field-label" id="mfaManualSecretLabel">Manual setup key</span>
+                            <code id="mfaManualSecret" class="mfa-manual-secret" aria-labelledby="mfaManualSecretLabel" tabindex="0"></code>
+                            <label for="mfaVerificationCode">Verification code</label>
+                            <input id="mfaVerificationCode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" placeholder="000000">
+                            <div class="card-actions">
+                                <button class="button button-primary" id="mfaEnableButton" type="button">Verify and enable MFA</button>
+                                <button class="button button-quiet" id="mfaCancelButton" type="button">Cancel setup</button>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="inline-message" id="mfaMessage" role="status" aria-live="polite"></p>
+                    <p class="field-help">Enabling, replacing, or disabling MFA signs out all admin sessions. Keep access to the authenticator app; recovery requires server-side admin recovery.</p>
+                </div>
             </section>
 
             <section class="panel-section" id="section-audit" hidden>

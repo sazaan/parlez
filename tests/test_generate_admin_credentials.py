@@ -31,7 +31,6 @@ def test_generated_credentials_are_upserted_and_env_file_is_private(tmp_path):
     values = {
         "ADMIN_USERNAME": "parlez-admin",
         "ADMIN_PASSWORD_HASH": "$2b$12$abcdefghijklmnopqrstuv0123456789ABCDEFGHIJKLMNOPQRSTUV",
-        "ADMIN_TOTP_SECRET": "ABCDEFGHIJKLMNOP2345ABCD",
         "ADMIN_SESSION_SECRET": "session_secret-with-safe-characters_123456789",
     }
 
@@ -42,6 +41,7 @@ def test_generated_credentials_are_upserted_and_env_file_is_private(tmp_path):
     assert parsed["NVIDIA_API_KEY"] == "nvapi-example"
     assert parsed["ADMIN_SESSION_TTL_MINUTES"] == "30"
     assert parsed["ADMIN_USERNAME"] == "parlez-admin"
+    assert "ADMIN_TOTP_SECRET" not in parsed
     assert result.read_text(encoding="utf-8").count("ADMIN_USERNAME=") == 1
     assert "ADMIN_PASSWORD_HASH='$2b$12$" in result.read_text(encoding="utf-8")
     assert stat.S_IMODE(result.stat().st_mode) == 0o600
@@ -67,13 +67,14 @@ def test_password_setup_reprompts_after_invalid_or_unconfirmed_passwords(monkeyp
     real_gensalt = credential_generator.bcrypt.gensalt
     monkeypatch.setattr(credential_generator.bcrypt, "gensalt", lambda rounds: real_gensalt(rounds=4))
 
-    values, enrollment_uri = credential_generator._generate_values()
+    values = credential_generator._generate_values()
 
     assert values["ADMIN_USERNAME"] == "sajjan"
+    assert set(values) == set(ADMIN_KEYS)
+    assert len(values["ADMIN_SESSION_SECRET"]) >= 32
     assert credential_generator.bcrypt.checkpw(
         b"correct-horse-battery", values["ADMIN_PASSWORD_HASH"].encode("ascii")
     )
-    assert enrollment_uri.startswith("otpauth://totp/")
     errors = capsys.readouterr().err
     assert "at least 16 characters" in errors
     assert "at most 72 UTF-8 bytes" in errors
@@ -96,7 +97,6 @@ def test_run_sh_reports_credential_setup_failure_without_starting_app(tmp_path):
         "NVIDIA_API_KEY=nvapi-test-key\n"
         "ADMIN_USERNAME=\n"
         "ADMIN_PASSWORD_HASH=\n"
-        "ADMIN_TOTP_SECRET=\n"
         "ADMIN_SESSION_SECRET=\n",
         encoding="utf-8",
     )
@@ -184,7 +184,6 @@ def test_run_sh_builds_then_runs_generator_to_populate_new_env(tmp_path):
         "NVIDIA_MODEL=nvidia/test-model\n"
         "ADMIN_USERNAME=\n"
         "ADMIN_PASSWORD_HASH=\n"
-        "ADMIN_TOTP_SECRET=\n"
         "ADMIN_SESSION_SECRET=\n",
         encoding="utf-8",
     )
@@ -217,7 +216,6 @@ def test_run_sh_builds_then_runs_generator_to_populate_new_env(tmp_path):
             for key, value in {
                 "ADMIN_USERNAME": "parlez-admin",
                 "ADMIN_PASSWORD_HASH": "'$2b$12$generated-hash'",
-                "ADMIN_TOTP_SECRET": "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567",
                 "ADMIN_SESSION_SECRET": "generated-session-secret-1234567890",
             }.items():
                 import re

@@ -198,7 +198,7 @@ For the source/licensing register and curriculum status, see [CURRICULUM_REDESIG
 | Frontend | Vanilla JavaScript, HTML and CSS; `static/app.js`, `index.html`, `styles.css`, separate landing files; no React/Next.js build required |
 | Persistence | SQLAlchemy 2.0.25; default SQLite database `data/parlez.db`, WAL mode; `db.py` |
 | Data shape | Users plus JSON learning state; shared links, comments, runtime settings and admin audit/session records in separate tables |
-| Authentication | bcrypt password hashes, PyJWT HS256 user tokens; dedicated admin password + TOTP, CSRF-protected short-lived admin sessions |
+| Authentication | bcrypt password hashes, PyJWT HS256 user tokens; dedicated admin username/password, optional TOTP authenticator MFA, CSRF-protected short-lived admin sessions |
 | AI transport | HTTPX to an admin-selected OpenAI-compatible NVIDIA, Gemini, OpenRouter, or OpenCode Zen endpoint; active model stored in database; current requests are text-only |
 | Learning engine | Python prompt construction, answer checking, quizzes, adaptive rules, flashcards and writing helpers in `engine/` |
 | Course/test content | Python dataclasses and in-repository data in `courses/` and `mock_tests/` |

@@ -1,8 +1,10 @@
 """Authentication, provider configuration, and publication tests for the admin console."""
 
 import asyncio
+import base64
 import copy
 import json
+import time
 
 import bcrypt
 import pyotp
@@ -11,18 +13,18 @@ import pytest
 import main
 
 
+ADMIN_TEST_USERNAME = "root-admin"
+ADMIN_TEST_PASSWORD = "a-very-long-admin-password-2026"
+
+
 @pytest.fixture
 def signed_admin(client, monkeypatch):
-    username = "root-admin"
-    password = "a-very-long-admin-password-2026"
-    totp_secret = pyotp.random_base32()
-    monkeypatch.setattr(main, "ADMIN_USERNAME", username)
+    monkeypatch.setattr(main, "ADMIN_USERNAME", ADMIN_TEST_USERNAME)
     monkeypatch.setattr(
         main,
         "ADMIN_PASSWORD_HASH",
-        bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=4)).decode(),
+        bcrypt.hashpw(ADMIN_TEST_PASSWORD.encode(), bcrypt.gensalt(rounds=4)).decode(),
     )
-    monkeypatch.setattr(main, "ADMIN_TOTP_SECRET", totp_secret)
     monkeypatch.setattr(main, "ADMIN_SESSION_SECRET", "test-admin-session-secret-0123456789abcdef")
     monkeypatch.setattr(main, "ADMIN_SESSION_TTL_MINUTES", 15)
     monkeypatch.setattr(main, "ADMIN_AUTH_CONFIGURED", True)
@@ -30,7 +32,7 @@ def signed_admin(client, monkeypatch):
 
     response = client.post(
         "/api/admin/login",
-        json={"username": username, "password": password, "totp": pyotp.TOTP(totp_secret).now()},
+        json={"username": ADMIN_TEST_USERNAME, "password": ADMIN_TEST_PASSWORD},
     )
     assert response.status_code == 200, response.text
     session = client.get("/api/admin/session")
@@ -55,25 +57,142 @@ def test_admin_endpoints_fail_closed_when_admin_is_not_configured(client, monkey
     assert client.post("/api/admin/login", json={"username": "x", "password": "x", "totp": "abcdef"}).status_code == 503
 
 
-def test_admin_login_requires_password_totp_and_same_origin(client, monkeypatch):
-    monkeypatch.setattr(main, "ADMIN_USERNAME", "root-admin")
-    monkeypatch.setattr(main, "ADMIN_PASSWORD_HASH", bcrypt.hashpw(b"a-very-long-admin-password-2026", bcrypt.gensalt(rounds=4)).decode())
-    monkeypatch.setattr(main, "ADMIN_TOTP_SECRET", pyotp.random_base32())
+def test_admin_login_starts_with_username_password_only_and_rejects_cross_origin(client, monkeypatch):
+    monkeypatch.setattr(main, "ADMIN_USERNAME", ADMIN_TEST_USERNAME)
+    monkeypatch.setattr(
+        main,
+        "ADMIN_PASSWORD_HASH",
+        bcrypt.hashpw(ADMIN_TEST_PASSWORD.encode(), bcrypt.gensalt(rounds=4)).decode(),
+    )
     monkeypatch.setattr(main, "ADMIN_SESSION_SECRET", "test-admin-session-secret-0123456789abcdef")
     monkeypatch.setattr(main, "ADMIN_AUTH_CONFIGURED", True)
 
-    wrong_code = client.post(
+    password_only = client.post(
         "/api/admin/login",
-        json={"username": "root-admin", "password": "a-very-long-admin-password-2026", "totp": "abcdef"},
+        json={"username": ADMIN_TEST_USERNAME, "password": ADMIN_TEST_PASSWORD},
     )
-    assert wrong_code.status_code == 401
+    assert password_only.status_code == 200, password_only.text
+
+    wrong_password = client.post(
+        "/api/admin/login",
+        json={"username": ADMIN_TEST_USERNAME, "password": "incorrect-password"},
+    )
+    assert wrong_password.status_code == 401
 
     cross_origin = client.post(
         "/api/admin/login",
         headers={"Origin": "https://attacker.invalid"},
-        json={"username": "root-admin", "password": "a-very-long-admin-password-2026", "totp": "123456"},
+        json={"username": ADMIN_TEST_USERNAME, "password": ADMIN_TEST_PASSWORD},
     )
     assert cross_origin.status_code == 403
+
+
+def test_admin_can_enroll_and_toggle_authenticator_mfa_from_panel(signed_admin):
+    client, csrf = signed_admin
+
+    status = client.get("/api/admin/mfa")
+    assert status.status_code == 200
+    assert status.json() == {"enabled": False, "setup_pending": False}
+    other_session_id = "other-active-admin-session"
+    main.storage.create_admin_session(other_session_id, ADMIN_TEST_USERNAME, time.time() + 900)
+
+    no_csrf = client.post(
+        "/api/admin/mfa/setup",
+        json={"password": ADMIN_TEST_PASSWORD},
+    )
+    assert no_csrf.status_code == 403
+
+    setup = client.post(
+        "/api/admin/mfa/setup",
+        headers={"X-CSRF-Token": csrf},
+        json={"password": ADMIN_TEST_PASSWORD},
+    )
+    assert setup.status_code == 200, setup.text
+    assert "no-store" in setup.headers.get("cache-control", "")
+    setup_data = setup.json()
+    secret = setup_data["secret"]
+    qr_svg = base64.b64decode(setup_data["qr_data_uri"].split(",", 1)[1])
+    assert qr_svg.lstrip().startswith(b"<?xml") or b"<svg" in qr_svg.lower()
+    assert secret not in qr_svg.decode("utf-8", errors="ignore")
+
+    pending_secret = main.storage.get_setting(main.ADMIN_MFA_PENDING_SETTING_KEY)
+    assert isinstance(pending_secret, str)
+    assert secret not in pending_secret
+    assert main._decrypt_admin_mfa_secret(pending_secret) == secret
+    assert client.get("/api/admin/mfa").json() == {"enabled": False, "setup_pending": True}
+
+    invalid_code = client.post(
+        "/api/admin/mfa/enable",
+        headers={"X-CSRF-Token": csrf},
+        json={"code": "not-a-code"},
+    )
+    assert invalid_code.status_code == 400
+
+    enabled = client.post(
+        "/api/admin/mfa/enable",
+        headers={"X-CSRF-Token": csrf},
+        json={"code": pyotp.TOTP(secret).now()},
+    )
+    assert enabled.status_code == 200, enabled.text
+    assert enabled.json()["sign_in_again"] is True
+    assert client.get("/api/admin/session").status_code == 401
+    assert not main.storage.admin_session_is_active(other_session_id, ADMIN_TEST_USERNAME)
+
+    encrypted_state = main.storage.get_setting(main.ADMIN_MFA_SETTING_KEY)
+    assert secret not in json.dumps(encrypted_state)
+    assert main._get_admin_mfa_state()["secret"] == secret
+
+    password_only = client.post(
+        "/api/admin/login",
+        json={"username": ADMIN_TEST_USERNAME, "password": ADMIN_TEST_PASSWORD},
+    )
+    assert password_only.status_code == 428
+    wrong_code = client.post(
+        "/api/admin/login",
+        json={"username": ADMIN_TEST_USERNAME, "password": ADMIN_TEST_PASSWORD, "totp": "not-a-code"},
+    )
+    assert wrong_code.status_code == 401
+    mfa_login = client.post(
+        "/api/admin/login",
+        json={
+            "username": ADMIN_TEST_USERNAME,
+            "password": ADMIN_TEST_PASSWORD,
+            "totp": pyotp.TOTP(secret).now(),
+        },
+    )
+    assert mfa_login.status_code == 200, mfa_login.text
+    signed_in = client.get("/api/admin/session")
+    assert signed_in.status_code == 200
+    csrf_after_login = signed_in.json()["csrf_token"]
+    assert client.get("/api/admin/mfa").json() == {"enabled": True, "setup_pending": False}
+    config_response = client.get("/api/admin/config")
+    assert config_response.status_code == 200
+    assert secret not in json.dumps(signed_in.json())
+    assert secret not in json.dumps(config_response.json())
+
+    bad_disable = client.post(
+        "/api/admin/mfa/disable",
+        headers={"X-CSRF-Token": csrf_after_login},
+        json={"password": "incorrect-password", "totp": pyotp.TOTP(secret).now()},
+    )
+    assert bad_disable.status_code == 403
+    assert client.get("/api/admin/mfa").json()["enabled"] is True
+
+    disabled = client.post(
+        "/api/admin/mfa/disable",
+        headers={"X-CSRF-Token": csrf_after_login},
+        json={"password": ADMIN_TEST_PASSWORD, "totp": pyotp.TOTP(secret).now()},
+    )
+    assert disabled.status_code == 200, disabled.text
+    assert disabled.json()["enabled"] is False
+    assert client.get("/api/admin/session").status_code == 401
+    assert client.get("/api/admin/mfa").status_code == 401
+
+    password_login = client.post(
+        "/api/admin/login",
+        json={"username": ADMIN_TEST_USERNAME, "password": ADMIN_TEST_PASSWORD},
+    )
+    assert password_login.status_code == 200, password_login.text
 
 
 def test_regular_user_session_does_not_authorize_admin_api(client, monkeypatch):
