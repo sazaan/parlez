@@ -1547,9 +1547,12 @@ window.openCourses = function(level) {
     loadCourses(selectedCourseLevel);
 };
 
-window.selectCourseLevel = function(level) {
+window.selectCourseLevel = async function(level) {
     if (!AVAILABLE_COURSE_LEVELS.some(item => item.level === level)) return;
-    loadCourses(level);
+    await Promise.all([
+        storage_user_level(level),
+        loadCourses(level)
+    ]);
 };
 
 // ============================================================
@@ -1879,25 +1882,27 @@ async function loadScenarios() {
 // ============================================================
 // Settings
 // ============================================================
+function syncLevelSelection(level) {
+    currentLevel = level || 'A1';
+    selectedCourseLevel = currentLevel;
+    document.getElementById('currentLevel').textContent = currentLevel;
+    document.getElementById('levelName').textContent = LEVEL_NAMES[currentLevel] || '';
+    document.querySelectorAll('.level-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.level === currentLevel);
+    });
+}
+
 async function loadUser() {
     try {
         const r = await apiFetch('/api/user');
         const user = await r.json();
-        currentLevel = user.level || 'A1';
-        document.getElementById('currentLevel').textContent = currentLevel;
-        document.getElementById('levelName').textContent = LEVEL_NAMES[currentLevel] || '';
+        syncLevelSelection(user.level || 'A1');
         document.getElementById('userName').value = user.name || '';
-        // Update level selector
-        document.querySelectorAll('.level-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.level === currentLevel);
-        });
     } catch(e) { showToast('Could not load user (network error).', { retry: loadUser }); }
 }
 
 async function storage_user_level(level) {
-    currentLevel = level;
-    document.getElementById('currentLevel').textContent = level;
-    document.getElementById('levelName').textContent = LEVEL_NAMES[level] || '';
+    syncLevelSelection(level);
     try {
         await apiFetch('/api/user', {
             method: 'POST',
