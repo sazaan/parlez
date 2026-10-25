@@ -74,7 +74,7 @@ A1 practice can replay audio and provide transcripts. Only a clearly labeled, op
 
 ### 3.3 Proposed A1–B2 mission map
 
-This eight-unit spine is now implemented as an original **draft curriculum** in the app, not copied CEFR wording, a final validated syllabus, or a promise that eight units alone cover a CEFR level. A1's existing 24 lessons are retained and annotated with outcomes and capstones; A2–B2 each have 16 newly authored draft lessons. The content still needs qualified French-educator review, learner pilots, and further lesson/review expansion where evidence shows gaps.
+This eight-unit spine is implemented as an original **draft curriculum** in the app, not copied CEFR wording, a final validated syllabus, or a promise that eight units alone cover a CEFR level. A1's existing 24 lessons are retained and annotated with outcomes and capstones. A2–B2 are at content version 2026.2: each has 24 original lessons (three per unit), corrected existing French/translation examples, revised unit outcomes and capstone criteria, retrieval practice, and an unscored transfer task in each new lesson. Existing unit and lesson IDs are preserved. The expansion improves breadth; it is not qualified French-educator review, a learner pilot, or a CEFR validation. Keep A2–B2 unpublished until those gates are completed, and continue revising where reviewer and learner evidence shows gaps.
 
 #### A1 — handle familiar, immediate situations with simple language
 

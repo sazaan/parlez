@@ -98,7 +98,7 @@ def test_admin_writes_require_csrf_and_publish_level_updates_are_enforced(signed
     admin_courses = client.get("/api/admin/courses")
     assert admin_courses.status_code == 200
     a2 = next(level for level in admin_courses.json()["levels"] if level["level"] == "A2")
-    assert a2["lesson_count"] == 16
+    assert a2["lesson_count"] == 24
     assert len(a2["units"]) == 8
     assert a2["content_status"] == "draft"
     assert all(unit["capstone"] for unit in a2["units"])
@@ -370,7 +370,7 @@ def test_course_review_attestation_is_bound_to_course_version(signed_admin, monk
     assert review.status_code == 200
 
     changed_course = copy.deepcopy(main.COURSE_CATALOG["A2"])
-    changed_course.version = "2026.2"
+    changed_course.version = "2026.3"
     monkeypatch.setitem(main.COURSE_CATALOG, "A2", changed_course)
     payload = {
         "enabled_levels": ["A1", "A2"],

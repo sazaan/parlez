@@ -57,14 +57,14 @@ def test_a1_each_module_has_three_lessons():
     assert all(len(unit.lessons) == 3 for unit in course.units)
 
 
-def test_a2_b2_are_complete_mission_led_drafts():
+def test_a2_b2_are_expanded_mission_led_drafts():
     for level in ("A2", "B1", "B2"):
         course = COURSE_CATALOG[level]
         assert course.contentStatus == "draft"
-        assert course.version == "2026.1"
+        assert course.version == "2026.2"
         assert len(course.units) == 8
-        assert sum(len(unit.lessons) for unit in course.units) == 16
-        assert all(len(unit.lessons) == 2 for unit in course.units)
+        assert sum(len(unit.lessons) for unit in course.units) == 24
+        assert all(len(unit.lessons) == 3 for unit in course.units)
         assert course.levelOutcomes
         for unit in course.units:
             assert unit.outcomes
@@ -82,21 +82,67 @@ def test_a2_b2_are_complete_mission_led_drafts():
                 assert len(lesson.exercises) >= 3
 
 
+def test_expansion_adds_four_gradable_practice_items_per_unit():
+    from engine.exercises import check_answer
+
+    for level in ("A2", "B1", "B2"):
+        course = COURSE_CATALOG[level]
+        assert "24 original practice lessons" in course.description
+        for unit in course.units:
+            lesson = unit.lessons[2]
+            assert lesson.id.endswith("-l3")
+            assert len(lesson.exercises) == 4
+            assert {exercise.type for exercise in lesson.exercises} == {
+                "multiple_choice", "fill_blank", "translate_to_fr", "dictation"
+            }
+            for exercise in lesson.exercises:
+                is_correct, _ = check_answer(exercise, exercise.answer)
+                assert is_correct, f"{level}.{lesson.id}.{exercise.id} answer key did not grade as correct"
+
+
+def test_2026_2_corrects_existing_french_and_translation_examples():
+    a2_lesson = next(
+        lesson for unit in COURSE_CATALOG["A2"].units for lesson in unit.lessons
+        if lesson.id == "a2-u7-l1"
+    )
+    scheduling_item = next(item for item in a2_lesson.vocabulary if item.fr == "convenir")
+    assert scheduling_item.example == "Dix heures me conviennent."
+
+    b2_lesson = next(
+        lesson for unit in COURSE_CATALOG["B2"].units for lesson in unit.lessons
+        if lesson.id == "b2-u4-l1"
+    )
+    translated_example = next(
+        example for rule in b2_lesson.grammar for example in rule.examples
+        if example.fr.startswith("La fréquentation a augmenté")
+    )
+    assert translated_example.en.startswith("Attendance increased")
+
+
 def test_original_unit_and_lesson_ids_are_preserved():
     expected_units = {
-        "A2": {"a2-u1", "a2-u2", "a2-u3", "a2-u4", "a2-u5", "a2-u6"},
-        "B1": {"b1-u1", "b1-u2", "b1-u3", "b1-u4", "I am tired."},
-        "B2": {"b2-u1", "b2-u2", "b2-u3", "b2-u4", "b2-u5"},
+        "A2": {f"a2-u{unit}" for unit in range(1, 9)},
+        "B1": {"b1-u1", "b1-u2", "b1-u3", "b1-u4", "I am tired.", "b1-u6", "b1-u7", "b1-u8"},
+        "B2": {f"b2-u{unit}" for unit in range(1, 9)},
     }
-    expected_lessons = {
-        "A2": {"a2-u1-l1", "a2-u1-l2", "a2-u2-l1", "a2-u3-l1", "a2-u4-l1", "a2-u5-l1", "a2-u6-l1"},
-        "B1": {"b1-u1-l1", "b1-u1-l2", "b1-u2-l1", "b1-u3-l1", "b1-u4-l1", "I am tired."},
-        "B2": {"b2-u1-l1", "b2-u1-l2", "b2-u2-l1", "b2-u3-l1", "b2-u4-l1", "b2-u5-l1"},
+    expected_original_lessons = {
+        "A2": {f"a2-u{unit}-l{lesson}" for unit in range(1, 9) for lesson in (1, 2)},
+        "B1": {
+            f"b1-u{unit}-l{lesson}"
+            for unit in (1, 2, 3, 4, 6, 7, 8)
+            for lesson in (1, 2)
+        } | {"b1-u5-l2", "I am tired."},
+        "B2": {f"b2-u{unit}-l{lesson}" for unit in range(1, 9) for lesson in (1, 2)},
+    }
+    expected_additions = {
+        level: {f"{prefix}-u{unit}-l3" for unit in range(1, 9)}
+        for level, prefix in (("A2", "a2"), ("B1", "b1"), ("B2", "b2"))
     }
     for level in expected_units:
         course = COURSE_CATALOG[level]
-        assert expected_units[level] <= {unit.id for unit in course.units}
-        assert expected_lessons[level] <= {lesson.id for unit in course.units for lesson in unit.lessons}
+        lesson_ids = {lesson.id for unit in course.units for lesson in unit.lessons}
+        assert expected_units[level] == {unit.id for unit in course.units}
+        assert expected_original_lessons[level] | expected_additions[level] == lesson_ids
 
 
 def test_runtime_catalog_passes_field_aware_integrity_checks():
