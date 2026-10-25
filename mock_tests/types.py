@@ -14,6 +14,19 @@ class TestQuestion:
     level: str = 'A1'
 
 @dataclass
+class ExamTask:
+    id: str
+    title: str
+    prompt: str
+    instructions: str
+    responseMode: str
+    durationMinutes: Optional[float]
+    selfCheck: list[str] = field(default_factory=list)
+    wordMin: Optional[int] = None
+    wordMax: Optional[int] = None
+    prepMinutes: int = 0
+
+@dataclass
 class TestSectionData:
     id: str
     title: str
@@ -23,6 +36,9 @@ class TestSectionData:
     questionCount: int
     durationMinutes: int
     questions: list[TestQuestion] = field(default_factory=list)
+    tasks: list[ExamTask] = field(default_factory=list)
+    officialQuestionCount: Optional[int] = None
+    officialTaskCount: Optional[int] = None
 
 @dataclass
 class MockTest:
@@ -34,6 +50,8 @@ class MockTest:
     usedFor: str
     sections: list[TestSectionData] = field(default_factory=list)
     color: str = '#333'
+    formatSourceUrl: Optional[str] = None
+    practiceNotice: str = 'Original, unofficial practice. This is not an official test or a score prediction.'
 
 @dataclass
 class ExamSection:
@@ -55,3 +73,5 @@ class ExamFormat:
     administeredBy: str
     usedFor: str
     sections: list[ExamSection] = field(default_factory=list)
+    formatSourceUrl: Optional[str] = None
+    practiceNotice: str = 'Original, unofficial practice. This is not an official test or a score prediction.'

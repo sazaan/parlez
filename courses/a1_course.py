@@ -12,8 +12,8 @@ a1_course = Course(
     level='A1',
     title='A1 — Débutant',
     book='Parlez A1',
-    description='Original beginner French course. Eight modules covering personal contact, identity, family, daily life, city life, food, home, and future plans. Aligned to CEFR A1 and DELF A1.',
-    cefrDescription='Can understand and use familiar everyday expressions and very basic phrases aimed at the satisfaction of needs of a concrete type. Can introduce themselves and others and can ask and answer questions about personal details.',
+    description='Original beginner French practice across eight themes: personal contact, identity, family, daily life, city life, food, home, and plans. Designed with CEFR A1 and DELF A1 as references; it is not independently validated or an official exam course.',
+    cefrDescription='Beginner reference level for familiar expressions, concrete everyday needs, introductions, and simple personal questions. This is an original summary, not a validated level claim.',
     color='#2D6A4F',
     units=[
         # ============================================================
@@ -2592,3 +2592,106 @@ a1_course = Course(
         ),
     ],
 )
+
+# Outcome and capstone metadata for the existing A1 lessons. The lesson IDs and
+# authored lesson content above are intentionally unchanged.
+a1_course.version = "2026.1"
+a1_course.contentStatus = "published"
+a1_course.levelOutcomes = [
+    "Greet people, introduce yourself, and ask for repetition or slower speech.",
+    "Exchange basic personal information and describe familiar people and places.",
+    "Understand and give simple times, schedules, directions, and everyday requests.",
+    "Make a simple plan with another person and confirm the key details.",
+]
+
+_A1_UNIT_PLAN = {
+    "a1-m1": {
+        "outcomes": ["Greet someone in a suitable way.", "Introduce yourself and ask a simple question.", "Ask for a name or phrase to be repeated."],
+        "skills": ["Listening", "Speaking", "Interaction"],
+        "capstone": "Introduce yourself to a new person, exchange one detail, and ask for clarification when needed.",
+        "criteria": ["The greeting fits the situation.", "The introduction is understandable.", "At least one clarification strategy is used when needed."],
+    },
+    "a1-m2": {
+        "outcomes": ["Give basic personal information.", "Spell a name or give a phone number.", "Say which languages you use."],
+        "skills": ["Listening", "Speaking", "Writing"],
+        "capstone": "Complete a simple profile and answer three basic questions about identity, origin, or languages.",
+        "criteria": ["The profile has the requested details.", "Names and numbers are communicated clearly.", "The learner can ask one relevant question."],
+    },
+    "a1-m3": {
+        "outcomes": ["Name close family members and relationships.", "Describe a person with simple adjectives.", "Ask and answer basic questions about familiar people."],
+        "skills": ["Reading", "Speaking", "Interaction"],
+        "capstone": "Describe a person who is important to you and answer a follow-up question.",
+        "criteria": ["The relationship is clear.", "At least two relevant details are included.", "Adjective agreement is checked where practised."],
+    },
+    "a1-m4": {
+        "outcomes": ["Ask and tell the time.", "Describe a simple daily routine.", "Understand basic information about a day or the weather."],
+        "skills": ["Listening", "Speaking", "Reading"],
+        "capstone": "Explain a simple day's schedule with times and one change in the plan.",
+        "criteria": ["The order of activities is clear.", "At least two times are accurate.", "The change is understandable."],
+    },
+    "a1-m5": {
+        "outcomes": ["Name common places in town.", "Ask for and follow a simple direction.", "Choose a basic transport option."],
+        "skills": ["Listening", "Reading", "Interaction"],
+        "capstone": "Ask for directions to a familiar place and confirm the route or transport choice.",
+        "criteria": ["The destination is clear.", "The route includes a useful direction or landmark.", "The learner checks understanding."],
+    },
+    "a1-m6": {
+        "outcomes": ["Recognize familiar foods and drinks.", "Order politely in a simple café or restaurant exchange.", "Ask for or confirm a basic item or price."],
+        "skills": ["Reading", "Speaking", "Interaction"],
+        "capstone": "Order a simple meal, ask one question, and confirm the order politely.",
+        "criteria": ["The order is understandable.", "A polite expression is used.", "One detail is confirmed."],
+    },
+    "a1-m7": {
+        "outcomes": ["Name rooms and common objects.", "Locate an object or place with simple phrases.", "Ask a basic question about a home or listing."],
+        "skills": ["Reading", "Speaking", "Interaction"],
+        "capstone": "Describe a familiar room and ask about one missing detail in a simple listing.",
+        "criteria": ["The room or object is identified.", "A location phrase is understandable.", "The question asks for relevant information."],
+    },
+    "a1-m8": {
+        "outcomes": ["Talk about a familiar hobby or activity.", "Invite, accept, or decline simply.", "Agree on a basic time and place for a plan."],
+        "skills": ["Listening", "Speaking", "Writing", "Interaction"],
+        "capstone": "Plan a simple outing with another person using a place, time, activity, and a polite clarification.",
+        "criteria": ["The activity is clear.", "Time and meeting place are confirmed.", "The learner responds to a change or asks for clarification."],
+    },
+}
+
+_A1_LESSON_TASKS = {
+    "a1-m1-l1": "Greet a new neighbour, introduce yourself, and ask how they prefer to be addressed.",
+    "a1-m1-l2": "Spell your name aloud and ask the other person to repeat one letter.",
+    "a1-m1-l3": "Give a phone number slowly and confirm one number you heard.",
+    "a1-m2-l1": "Complete a short introduction with your name and where you are from.",
+    "a1-m2-l2": "Say your age and occupation, then ask the same question politely.",
+    "a1-m2-l3": "Tell someone which languages you speak and ask what language they prefer.",
+    "a1-m3-l1": "Introduce two people in your family using simple relationship words.",
+    "a1-m3-l2": "Describe a familiar person with two simple details.",
+    "a1-m3-l3": "Describe a pet or an animal you know and answer one question about it.",
+    "a1-m4-l1": "Ask what time an activity starts and confirm the answer.",
+    "a1-m4-l2": "Describe three parts of your day in order, with one time.",
+    "a1-m4-l3": "Give a simple weather update and choose suitable clothing or an activity.",
+    "a1-m5-l1": "Ask where a familiar service is and identify one nearby landmark.",
+    "a1-m5-l2": "Give a short route using two direction words and check understanding.",
+    "a1-m5-l3": "Choose a basic way to travel and say where you will get off.",
+    "a1-m6-l1": "Choose food and drink for a simple meal and name one preference.",
+    "a1-m6-l2": "Order one drink and one snack politely, then confirm the order.",
+    "a1-m6-l3": "Ask for a menu item and request a simple change or clarification.",
+    "a1-m7-l1": "Describe one room and name two objects in it.",
+    "a1-m7-l2": "Ask where an object is and answer with a simple location phrase.",
+    "a1-m7-l3": "Read a short home listing and ask one question about it.",
+    "a1-m8-l1": "Talk about a hobby and ask another person what they like doing.",
+    "a1-m8-l2": "Invite someone to a familiar celebration and agree on a basic detail.",
+    "a1-m8-l3": "Agree on a simple plan for next week and confirm the day and time.",
+}
+
+for _unit in a1_course.units:
+    _metadata = _A1_UNIT_PLAN[_unit.id]
+    _unit.outcomes = _metadata["outcomes"]
+    _unit.skillTags = _metadata["skills"]
+    _unit.capstone = _metadata["capstone"]
+    _unit.capstoneCriteria = _metadata["criteria"]
+    for _lesson in _unit.lessons:
+        _lesson.skillTags = _metadata["skills"]
+        _lesson.transferTask = _A1_LESSON_TASKS[_lesson.id]
+        _lesson.selfCheck = [
+            "I can complete this task with new names, places, or times.",
+            "I can ask for repetition or clarification when I need it.",
+        ]

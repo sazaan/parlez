@@ -8,7 +8,9 @@ import urllib.parse
 import logging
 import logging.handlers
 import re
-from dataclasses import replace
+import hashlib
+import json
+from dataclasses import asdict, replace
 from typing import Optional
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Depends, Response, Request
@@ -90,6 +92,7 @@ if any((ADMIN_USERNAME, ADMIN_PASSWORD_HASH, ADMIN_TOTP_SECRET, ADMIN_SESSION_SE
     logger.error("Admin panel is disabled: complete all ADMIN_* authentication settings in .env")
 
 from courses import conversation_scenarios, COURSE_CATALOG, COURSE_LEVEL_CATALOG
+from courses.validation import validate_catalog, validate_course
 from engine import build_system_prompt, detect_mode, find_lesson_context, LEVEL_NAMES
 
 # Task 4.3 (A3 fix): build a {lesson_id: (course, unit, lesson)} index once
@@ -100,6 +103,10 @@ for _c in COURSE_CATALOG.values():
     for _u in _c.units:
         for _l in _u.lessons:
             LESSON_INDEX[_l.id] = (_c, _u, _l)
+
+COURSE_DATA_ISSUES = validate_catalog(COURSE_CATALOG)
+for _level, _issues in COURSE_DATA_ISSUES.items():
+    logger.error("Course %s failed startup content validation: %s", _level, _issues[:10])
 
 
 def serialize_lesson(lesson, course=None, unit=None) -> dict:
@@ -117,6 +124,10 @@ def serialize_lesson(lesson, course=None, unit=None) -> dict:
         'titleFr': lesson.titleFr,
         'description': lesson.description,
         'objectives': lesson.objectives,
+        'skillTags': lesson.skillTags,
+        'transferTask': lesson.transferTask,
+        'selfCheck': lesson.selfCheck,
+        'estimatedMinutes': lesson.estimatedMinutes,
         'vocabulary': [{'fr': v.fr, 'en': v.en, 'ipa': v.ipa, 'example': v.example} for v in lesson.vocabulary] if lesson.vocabulary else [],
         'grammar': [{'title': g.title, 'explanation': g.explanation, 'examples': [{'fr': e.fr, 'en': e.en} for e in g.examples]} for g in lesson.grammar] if lesson.grammar else [],
         'dialogue': [{'speaker': d.speaker, 'name': d.name, 'fr': d.fr, 'en': d.en} for d in lesson.dialogue] if lesson.dialogue else [],
@@ -130,7 +141,7 @@ from engine.adaptive import analyze_weak_areas, get_difficulty_adjustments, buil
 from engine.content_ingestion import process_french_content
 from engine.writing import build_writing_correction_prompt, parse_correction_response, format_correction_for_display
 from mock_tests import mock_tests, get_test
-from mock_tests.data import get_practice_set_questions, get_section_sets, get_all_section_sets, PRACTICE_SETS_COUNT
+from mock_tests.data import get_practice_set_questions, get_section_sets, get_all_section_sets, get_task, PRACTICE_SETS_COUNT
 
 def build_limiter(redis_url: str | None = None) -> Limiter:
     """Create a rate limiter. Use Redis storage when a URL is provided."""
@@ -377,6 +388,35 @@ def get_active_ai_config() -> dict:
     return _default_ai_config()
 
 
+def get_course_review_records() -> dict:
+    """Load explicit, version-bound administrator review attestations."""
+    saved = storage.get_setting("course_reviews", {})
+    return saved if isinstance(saved, dict) else {}
+
+
+def course_content_fingerprint(course) -> str:
+    """Hash the full serialized curriculum so edits invalidate stale reviews."""
+    material = json.dumps(asdict(course), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(material.encode("utf-8")).hexdigest()
+
+
+def get_current_course_review(level: str) -> Optional[dict]:
+    """Return a review attestation only when it covers the current course version."""
+    course = COURSE_CATALOG.get(level)
+    record = get_course_review_records().get(level)
+    if (
+        course is not None
+        and isinstance(record, dict)
+        and record.get("reviewed") is True
+        and record.get("version") == course.version
+        and record.get("content_fingerprint") == course_content_fingerprint(course)
+        and record.get("reviewer_name")
+        and record.get("qualification")
+    ):
+        return record
+    return None
+
+
 def get_course_access_config() -> dict:
     """Load publication flags; only A1 is public until an admin enables more."""
     saved = storage.get_setting("course_access")
@@ -400,7 +440,10 @@ def get_enabled_courses() -> list:
     unit_flags = access["enabled_units"]
     result = []
     for level, course in COURSE_CATALOG.items():
-        if level not in enabled:
+        review_record = get_current_course_review(level) if level != "A1" else None
+        if level not in enabled or level in COURSE_DATA_ISSUES:
+            continue
+        if level != "A1" and review_record is None:
             continue
         configured_units = unit_flags.get(level)
         if not isinstance(configured_units, list):
@@ -408,7 +451,8 @@ def get_enabled_courses() -> list:
         configured_units = set(configured_units)
         visible_units = [unit for unit in course.units if unit.id in configured_units]
         if visible_units:
-            result.append(replace(course, units=visible_units))
+            effective_status = "reviewed" if review_record else course.contentStatus
+            result.append(replace(course, units=visible_units, contentStatus=effective_status))
     return result
 
 
@@ -431,6 +475,8 @@ def get_public_course_levels() -> list[dict]:
             **meta,
             "unitCount": len(enabled[meta["level"]].units),
             "lessonCount": sum(len(unit.lessons) for unit in enabled[meta["level"]].units),
+            "contentStatus": enabled[meta["level"]].contentStatus,
+            "version": enabled[meta["level"]].version,
         }
         for meta in COURSE_LEVEL_CATALOG
         if meta["level"] in enabled
@@ -549,6 +595,12 @@ class AdminAITestRequest(BaseModel):
 class AdminCourseAccessUpdate(BaseModel):
     enabled_levels: list[str]
     enabled_units: dict[str, list[str]]
+
+
+class AdminCourseReviewAttestation(BaseModel):
+    reviewer_name: str
+    qualification: str
+    confirm_review: bool = False
 
 
 # SQLite-backed storage. See db.py for the implementation.
@@ -841,26 +893,40 @@ def _admin_ai_payload() -> dict:
 
 def _admin_course_payload() -> dict:
     access = get_course_access_config()
-    enabled_levels = set(access["enabled_levels"])
+    configured_levels = set(access["enabled_levels"])
     unit_flags = access["enabled_units"]
     levels = []
     for level, course in COURSE_CATALOG.items():
+        review_record = get_current_course_review(level) if level != "A1" else None
+        is_enabled = level in configured_levels and (level == "A1" or review_record is not None)
         configured_units = unit_flags.get(level)
         if not isinstance(configured_units, list):
             configured_units = [unit.id for unit in course.units]
         configured_units = set(configured_units)
         lesson_count = sum(len(unit.lessons) for unit in course.units)
         release_warning = None
-        if level != "A1":
+        if level != "A1" and review_record is None:
             release_warning = (
-                f"Review before public release: {level} currently has {lesson_count} authored lessons "
-                f"across {len(course.units)} modules. Enabling this switch publishes only existing content."
+                f"{level} is unpublished draft content. A qualified French educator must review the current version "
+                f"and record a review attestation before public release."
+            )
+        elif review_record is not None:
+            release_warning = (
+                f"Review attestation recorded for version {course.version} by {review_record['reviewer_name']} "
+                f"({review_record['qualification']}). Verify the reviewer's credentials independently; this is not certification."
             )
         levels.append({
             "level": level,
             "title": course.title,
             "description": course.description,
-            "enabled": level in enabled_levels,
+            "content_status": "reviewed" if review_record is not None else course.contentStatus,
+            "version": course.version,
+            "level_outcomes": course.levelOutcomes,
+            "review_status": "reviewed" if review_record is not None else "pending",
+            "reviewer_name": review_record.get("reviewer_name") if review_record else None,
+            "reviewer_qualification": review_record.get("qualification") if review_record else None,
+            "reviewed_at": review_record.get("reviewed_at") if review_record else None,
+            "enabled": is_enabled,
             "module_count": len(course.units),
             "lesson_count": lesson_count,
             "release_warning": release_warning,
@@ -869,12 +935,13 @@ def _admin_course_payload() -> dict:
                     "id": unit.id,
                     "title": unit.title,
                     "lesson_count": len(unit.lessons),
+                    "capstone": unit.capstone,
                     "enabled": unit.id in configured_units,
                 }
                 for unit in course.units
             ],
         })
-    return {"enabled_levels": sorted(enabled_levels), "levels": levels}
+    return {"enabled_levels": sorted(level["level"] for level in levels if level["enabled"]), "levels": levels}
 
 
 @app.get("/api/admin/config", include_in_schema=False)
@@ -986,6 +1053,54 @@ async def admin_courses(admin=Depends(require_admin)):
     return _admin_course_payload()
 
 
+@app.post("/api/admin/courses/{level}/review", include_in_schema=False)
+async def attest_course_review(level: str, review: AdminCourseReviewAttestation, admin=Depends(require_admin)):
+    normalized = level.strip().upper()
+    course = COURSE_CATALOG.get(normalized)
+    if course is None or normalized == "A1":
+        raise HTTPException(status_code=404, detail="Review attestation is only available for draft course levels.")
+    if not review.confirm_review:
+        raise HTTPException(status_code=400, detail="Confirm the qualified-educator review before recording the attestation.")
+    reviewer_name = review.reviewer_name.strip()
+    qualification = review.qualification.strip()
+    if len(reviewer_name) < 2 or len(reviewer_name) > 120:
+        raise HTTPException(status_code=400, detail="Enter the reviewer’s name (2–120 characters).")
+    if len(qualification) < 10 or len(qualification) > 300:
+        raise HTTPException(status_code=400, detail="Describe the reviewer’s relevant French-language education qualification (10–300 characters).")
+    integrity_issues = validate_course(course)
+    if integrity_issues:
+        logger.error("Refusing review attestation for invalid %s course content: %s", normalized, integrity_issues[:10])
+        raise HTTPException(status_code=409, detail=f"{normalized} course content failed integrity checks and cannot be reviewed for release.")
+
+    # A legacy/stale publication flag must not turn a newly reviewed version
+    # live automatically. Require an explicit second admin action to publish.
+    if get_current_course_review(normalized) is None:
+        previous_access = get_course_access_config()
+        if normalized in previous_access["enabled_levels"]:
+            storage.set_setting("course_access", {
+                "enabled_levels": [item for item in previous_access["enabled_levels"] if item != normalized],
+                "enabled_units": previous_access["enabled_units"],
+            })
+
+    record = {
+        "reviewed": True,
+        "version": course.version,
+        "content_fingerprint": course_content_fingerprint(course),
+        "reviewer_name": reviewer_name,
+        "qualification": qualification,
+        "reviewed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    }
+    review_records = get_course_review_records()
+    review_records[normalized] = record
+    storage.set_setting("course_reviews", review_records)
+    storage.add_admin_audit(admin["username"], "course_review_attested", {
+        "level": normalized,
+        "version": course.version,
+        "reviewer_name": reviewer_name,
+    })
+    return _admin_course_payload()
+
+
 @app.put("/api/admin/courses", include_in_schema=False)
 async def update_admin_courses(config: AdminCourseAccessUpdate, admin=Depends(require_admin)):
     requested_levels = {str(level).strip().upper() for level in config.enabled_levels}
@@ -1006,6 +1121,13 @@ async def update_admin_courses(config: AdminCourseAccessUpdate, admin=Depends(re
             raise HTTPException(status_code=400, detail=f"Unknown module in {level}.")
         if level in requested_levels and not selected_ids:
             raise HTTPException(status_code=400, detail=f"Select at least one module before enabling {level}.")
+        if level in requested_levels and level != "A1" and get_current_course_review(level) is None:
+            raise HTTPException(status_code=409, detail=f"{level} is still unpublished. Record a current qualified-educator review attestation first.")
+        if level in requested_levels:
+            integrity_issues = validate_course(course)
+            if integrity_issues:
+                logger.error("Refusing to publish invalid %s course content: %s", level, integrity_issues[:10])
+                raise HTTPException(status_code=409, detail=f"{level} course content failed integrity checks and cannot be published.")
         normalized_units[level] = [unit.id for unit in course.units if unit.id in selected_ids]
 
     previous = get_course_access_config()
@@ -1204,13 +1326,18 @@ async def get_course_detail(level: str):
     return {
         'level': course.level, 'title': course.title, 'book': course.book,
         'description': course.description, 'cefrDescription': course.cefrDescription,
-        'color': course.color,
+        'color': course.color, 'version': course.version,
+        'contentStatus': course.contentStatus, 'levelOutcomes': course.levelOutcomes,
         'units': [{
             'id': u.id, 'title': u.title, 'titleFr': u.titleFr,
             'theme': u.theme, 'description': u.description,
+            'outcomes': u.outcomes, 'skillTags': u.skillTags,
+            'capstone': u.capstone, 'capstoneCriteria': u.capstoneCriteria,
             'lessons': [{
                 'id': l.id, 'title': l.title, 'titleFr': l.titleFr,
                 'description': l.description, 'objectives': l.objectives,
+                'skillTags': l.skillTags, 'transferTask': l.transferTask,
+                'selfCheck': l.selfCheck,
                 'estimatedMinutes': l.estimatedMinutes,
                 'hasVocabulary': bool(l.vocabulary),
                 'hasGrammar': bool(l.grammar),
@@ -1230,6 +1357,8 @@ async def get_lesson(level: str, lesson_id: str):
                 return {
                     'id': lesson.id, 'title': lesson.title, 'titleFr': lesson.titleFr,
                     'description': lesson.description, 'objectives': lesson.objectives,
+                    'skillTags': lesson.skillTags, 'transferTask': lesson.transferTask,
+                    'selfCheck': lesson.selfCheck,
                     'vocabulary': [{'fr': v.fr, 'en': v.en, 'ipa': v.ipa, 'example': v.example, 'exampleEn': v.exampleEn, 'category': v.category} for v in lesson.vocabulary],
                     'grammar': [{'title': g.title, 'explanation': g.explanation, 'examples': [{'fr': e.fr, 'en': e.en} for e in g.examples], 'table': {'headers': g.table.headers, 'rows': g.table.rows, 'caption': g.table.caption} if g.table else None, 'tip': g.tip} for g in lesson.grammar],
                     'conjugation': {
@@ -1734,8 +1863,11 @@ async def get_mock_tests():
     """List available mock tests."""
     return [{'type': t.type, 'name': t.name, 'fullName': t.fullName, 'description': t.description,
              'administeredBy': t.administeredBy, 'usedFor': t.usedFor, 'color': t.color,
+             'formatSourceUrl': t.formatSourceUrl, 'practiceNotice': t.practiceNotice,
              'sections': [{'id': s.id, 'title': s.title, 'titleFr': s.titleFr, 'description': s.description,
-                           'icon': s.icon, 'questionCount': s.questionCount, 'durationMinutes': s.durationMinutes}
+                           'icon': s.icon, 'questionCount': s.questionCount, 'officialQuestionCount': s.officialQuestionCount,
+                           'officialTaskCount': s.officialTaskCount, 'durationMinutes': s.durationMinutes,
+                           'tasks': [asdict(task) for task in s.tasks]}
                           for s in t.sections]} for t in mock_tests]
 
 @app.get("/api/mock-tests/{test_type}")
@@ -1745,10 +1877,14 @@ async def get_mock_test(test_type: str):
     return {
         'type': test.type, 'name': test.name, 'fullName': test.fullName,
         'description': test.description, 'color': test.color,
+        'administeredBy': test.administeredBy, 'usedFor': test.usedFor,
+        'formatSourceUrl': test.formatSourceUrl, 'practiceNotice': test.practiceNotice,
         'sections': [{
             'id': s.id, 'title': s.title, 'titleFr': s.titleFr,
             'description': s.description, 'icon': s.icon,
-            'questionCount': s.questionCount, 'durationMinutes': s.durationMinutes,
+            'questionCount': s.questionCount, 'officialQuestionCount': s.officialQuestionCount,
+            'officialTaskCount': s.officialTaskCount, 'durationMinutes': s.durationMinutes,
+            'tasks': [asdict(task) for task in s.tasks],
             'questions': [{'id': q.id, 'type': q.type, 'prompt': q.prompt, 'promptFr': q.promptFr,
                            'options': q.options, 'audioText': q.audioText, 'level': q.level}
                           for q in s.questions]
@@ -1764,7 +1900,9 @@ async def get_test_section(test_type: str, section_id: str):
             return {
                 'id': s.id, 'title': s.title, 'titleFr': s.titleFr,
                 'description': s.description, 'icon': s.icon,
-                'questionCount': s.questionCount, 'durationMinutes': s.durationMinutes,
+                'questionCount': s.questionCount, 'officialQuestionCount': s.officialQuestionCount,
+                'officialTaskCount': s.officialTaskCount, 'durationMinutes': s.durationMinutes,
+                'tasks': [asdict(task) for task in s.tasks],
                 'questions': [{'id': q.id, 'type': q.type, 'prompt': q.prompt, 'promptFr': q.promptFr,
                                'options': q.options, 'audioText': q.audioText, 'level': q.level}
                               for q in s.questions]
@@ -1800,17 +1938,11 @@ async def submit_test(test_type: str, data: dict, user=Depends(require_auth)):
     
     score = round((correct / total) * 100) if total > 0 else 0
     
-    # Estimate level based on score
-    level = 'A1'
-    if score >= 90: level = 'C1'
-    elif score >= 80: level = 'B2'
-    elif score >= 65: level = 'B1'
-    elif score >= 50: level = 'A2'
-    
     result = {
-        'testType': test_type, 'section': section_id or 'all',
+        'testType': test.type, 'section': section_id or 'all',
         'score': score, 'correct': correct, 'total': total,
-        'durationSec': duration_sec, 'level': level,
+        'durationSec': duration_sec,
+        'scoreNote': 'Accuracy on included practice questions only; open writing/speaking tasks are not scored. This is not an official TEF/TCF score or CEFR/NCLC level estimate.',
         'takenAt': datetime.datetime.now().isoformat(),
         'details': details,
     }
@@ -1828,7 +1960,8 @@ async def submit_test(test_type: str, data: dict, user=Depends(require_auth)):
 
 @app.get("/api/test-results")
 async def get_test_results(limit: int = 20, user=Depends(require_auth)):
-    return user.get('test_results', [])[-limit:]
+    results = user.get('test_results', [])[-max(1, min(limit, 100)):]
+    return [{key: value for key, value in result.items() if key not in {'level', 'levelBreakdown'}} for result in results]
 
 @app.get("/api/test-results/stats")
 async def get_test_stats(user=Depends(require_auth)):
@@ -1875,6 +2008,8 @@ async def get_exam_sets(test_type: str):
         'administeredBy': test.administeredBy,
         'usedFor': test.usedFor,
         'color': test.color,
+        'formatSourceUrl': test.formatSourceUrl,
+        'practiceNotice': test.practiceNotice,
         'sections': get_all_section_sets(test_type),
     }
 
@@ -1890,10 +2025,32 @@ async def get_section_detail(test_type: str, section_id: str):
                 'titleFr': s.titleFr,
                 'description': s.description,
                 'icon': s.icon,
+                'questionCount': s.officialQuestionCount,
+                'taskCount': s.officialTaskCount,
                 'durationMinutes': s.durationMinutes,
+                'tasks': [asdict(task) for task in s.tasks],
                 'sets': get_section_sets(test_type, section_id),
             }
     raise HTTPException(404, "Section not found")
+
+@app.get("/api/exam/tasks/{test_type}/{section_id}/{task_id}")
+async def get_exam_task(test_type: str, section_id: str, task_id: str):
+    """Get an original, unscored writing or speaking practice task."""
+    test = get_test(test_type.upper())
+    task = get_task(test_type, section_id, task_id)
+    if task is None:
+        raise HTTPException(404, "Practice task not found")
+    section = next((item for item in test.sections if item.id == section_id), None)
+    return {
+        'testType': test.type,
+        'testName': test.name,
+        'section': section_id,
+        'sectionTitle': section.title if section else section_id,
+        'sectionDurationMinutes': section.durationMinutes if section else None,
+        'formatSourceUrl': test.formatSourceUrl,
+        'practiceNotice': test.practiceNotice,
+        'task': task,
+    }
 
 @app.get("/api/exam/questions/{test_type}/{section_id}/{set_num}")
 @limiter.limit("30/minute")
@@ -1941,42 +2098,19 @@ async def submit_exam(request: Request, test_type: str, section_id: str, set_num
             'correct_answer': q['answer'],
             'prompt': q.get('prompt', '')[:100],
             'explanation': q.get('explanation', ''),
-            'level': q.get('level', 'A1'),
         })
     
     score = round((correct / total) * 100) if total > 0 else 0
     
-    # Level estimation based on score
-    level = 'A1'
-    if score >= 90: level = 'C1'
-    elif score >= 80: level = 'B2'
-    elif score >= 65: level = 'B1'
-    elif score >= 50: level = 'A2'
-    
-    # Calculate level breakdown
-    level_breakdown = {}
-    for d in details:
-        lvl = d.get('level', 'A1')
-        if lvl not in level_breakdown:
-            level_breakdown[lvl] = {'correct': 0, 'total': 0}
-        level_breakdown[lvl]['total'] += 1
-        if d['correct']:
-            level_breakdown[lvl]['correct'] += 1
-    
-    for lvl in level_breakdown:
-        stats = level_breakdown[lvl]
-        stats['accuracy'] = round((stats['correct'] / stats['total'] * 100)) if stats['total'] > 0 else 0
-    
     result = {
-        'testType': test_type,
+        'testType': test_type.upper(),
         'section': section_id,
         'setNum': set_num,
         'score': score,
         'correct': correct,
         'total': total,
         'durationSec': duration_sec,
-        'level': level,
-        'levelBreakdown': level_breakdown,
+        'scoreNote': 'Practice-item accuracy only; this is not an official TEF/TCF score or CEFR/NCLC level estimate.',
         'takenAt': datetime.datetime.now().isoformat(),
         'details': details,
     }
@@ -1994,9 +2128,13 @@ async def submit_exam(request: Request, test_type: str, section_id: str, set_num
 
 @app.get("/api/exam/history/{test_type}")
 async def get_exam_history(test_type: str, user=Depends(require_auth)):
-    """Get test history for a specific test type."""
+    """Get practice history without legacy, unsupported level estimates."""
     results = user.get('test_results', [])
-    return [r for r in results if r.get('testType') == test_type.upper()]
+    return [
+        {key: value for key, value in result.items() if key not in {'level', 'levelBreakdown'}}
+        for result in results
+        if result.get('testType') == test_type.upper()
+    ]
 
 @app.get("/api/adaptive/analysis")
 async def get_adaptive_analysis(user=Depends(require_auth)):
@@ -2104,7 +2242,8 @@ async def get_exam_stats(test_type: str, user=Depends(require_auth)):
     results = [r for r in user.get('test_results', []) if r.get('testType') == test_type.upper()]
     
     if not results:
-        return {'total': 0, 'avg_score': 0, 'best_score': 0, 'by_section': {}, 'by_level': {}, 'recent': []}
+        return {'total': 0, 'avg_score': 0, 'best_score': 0, 'by_section': {}, 'recent': [],
+                'scoreNote': 'Practice-item accuracy only; not an official TEF/TCF score or CEFR/NCLC level estimate.'}
     
     scores = [r.get('score', 0) for r in results]
     
@@ -2121,25 +2260,17 @@ async def get_exam_stats(test_type: str, user=Depends(require_auth)):
         stats['best_score'] = max(stats['scores']) if stats['scores'] else 0
         del stats['scores']
     
-    by_level = {}
-    for r in results:
-        for lvl, stats in r.get('levelBreakdown', {}).items():
-            if lvl not in by_level:
-                by_level[lvl] = {'correct': 0, 'total': 0}
-            by_level[lvl]['correct'] += stats.get('correct', 0)
-            by_level[lvl]['total'] += stats.get('total', 0)
-    
-    for lvl in by_level:
-        s = by_level[lvl]
-        s['accuracy'] = round((s['correct'] / s['total'] * 100)) if s['total'] > 0 else 0
-    
+    recent = [
+        {key: value for key, value in result.items() if key not in {'level', 'levelBreakdown'}}
+        for result in results[-5:]
+    ]
     return {
         'total': len(results),
         'avg_score': round(sum(scores) / len(scores)),
         'best_score': max(scores),
         'by_section': by_section,
-        'by_level': by_level,
-        'recent': results[-5:],
+        'recent': recent,
+        'scoreNote': 'Practice-item accuracy only; not an official TEF/TCF score or CEFR/NCLC level estimate.',
     }
 
 

@@ -1,9 +1,9 @@
 # French curriculum: source register and redesign blueprint
 
-- **Status:** Research and design specification; proposed modules are not learner-facing course content yet.
+- **Implementation status:** The mission-led A2–B2 draft content is integrated in the app; A1 has course and module outcome/capstone metadata. TEF Canada and TCF Canada now have distinct format references and original writing/speaking practice tasks, alongside shorter reading/listening practice sets. None of this content is independently educator-reviewed or certified.
 - **Research checked:** 25 October 2026.
 - **Scope:** Adult general French from A1 to B2, with a separate, optional TEF Canada / TCF Canada preparation pathway.
-- **Publication rule:** A1 remains the only level enabled by default. A2–B2 remain review-gated; this document does not approve or publish them.
+- **Publication rule:** A1 remains the only level enabled by default. A2–B2 remain unpublished by default and require qualified review before release.
 
 This document records a vetted starting set of curriculum references, open materials, and external practice resources, then proposes a task-led course spine. It deliberately distinguishes **authoritative references**, **materials with reuse permissions**, and **free-to-access materials that Parlez must not copy without permission**. It is a design brief, not a claim that existing modules are CEFR-validated or that a learner's progress predicts an official exam result.
 
@@ -34,12 +34,12 @@ The runtime course catalog is highly uneven in size and is organized mainly arou
 - The data model has lesson objectives, vocabulary, grammar, dialogues and exercises, but no first-class fields for level outcomes, communicative mode/skill evidence, module capstone, performance rubric, cumulative review plan, or content-rights provenance.
 - The current formats emphasize closed-answer practice. They do not, by themselves, demonstrate that learners can understand an unfamiliar text/audio, sustain an interaction, or produce a useful spoken or written artifact. Pronunciation/phonology is not mapped as a level-by-level strand.
 - There is no course-level rule requiring old language to return in new contexts. Existing flashcard scheduling is useful, but it is not a substitute for a curriculum-wide retrieval and review plan.
-- **Critical content-integrity defect in A2–B2:** a recursive audit of the loaded course data found 166 A2, 154 B1 and 130 B2 string values (450 total) ending in a literal backslash, including fragments such as `J\\`, `l\\` and `Il a dit qu\\`. These are incomplete French/English phrases, examples, dialogue lines and exercise prompts/answers; the modules import successfully, so syntax checks alone will not catch them. The `.bak` versions contain the same class of malformed content and are not clean restore candidates. The active A1 course has no such trailing-backslash fields; its legacy copy does contain them.
-- B1 also has a unit and lesson keyed with the ID `I am tired.` rather than a stable machine ID. Treat any ID correction as a migration, since IDs can be referenced by progress and publication settings.
+- **Historical content-integrity defect in A2–B2:** a recursive audit found 166 A2, 154 B1 and 130 B2 string values (450 total) in the original active drafts ending in a literal backslash, leaving phrases, examples, dialogue lines and exercises incomplete. The runtime A2–B2 files have since been replaced with newly authored draft content; the tracked `.bak` files remain corrupt legacy copies and are not imported or safe restore candidates. A runtime catalog scan now finds no course strings ending in a literal backslash. The active A1 course had no such fields; its legacy copy did.
+- B1 retains the legacy unit and lesson ID `I am tired.` to avoid losing existing completion and publication references. It is a known malformed ID, not a learner-facing title. Do not change it without a versioned migration that maps stored progress and unit-publication settings.
 - Source and status boundaries can be confusing: `courses/data.py` defines C1 material but omits it from `COURSE_CATALOG`; older/backup course files also remain beside the files imported by the catalog. Confirm all references before consolidating or deleting any of them.
-- The application publishes A1 by default and keeps higher levels review-gated. Preserve that safety boundary and **do not enable A2–B2 until the text corruption, ID issue, outcomes and assessments are repaired and reviewed**. A module title, lesson count, or learner XP must not be presented as proof of CEFR mastery.
+- The application publishes A1 by default. A2–B2 stay inaccessible until a version-bound qualified-educator review attestation is recorded and an administrator explicitly enables them. The attestation is self-reported and does not verify credentials or certify CEFR alignment; verify the reviewer independently. A module title, lesson count, XP, or practice accuracy must not be presented as proof of CEFR mastery.
 
-**Preserve and build on:** the practical themes, useful vocabulary, explanations, original dialogues and exercise IDs that are correct. Existing learner progress and publication settings may depend on IDs, so map/rewrite content through a versioned migration rather than casually renaming live units or lessons. Review damaged passages against authoritative language references and have a qualified French educator validate every repair; do not guess missing text from a backslash alone.
+**Preserve and build on:** existing unit and lesson IDs are retained, including the malformed B1 legacy ID, so learner completion and publication settings are not orphaned. New lessons use new IDs. The old `.bak` data remains only as an untrusted legacy copy; do not restore it. Any future ID cleanup must use a versioned migration.
 
 ## 3. Recommended course architecture
 
@@ -74,7 +74,7 @@ A1 practice can replay audio and provide transcripts. Only a clearly labeled, op
 
 ### 3.3 Proposed A1–B2 mission map
 
-This is a **planning spine**, not copied CEFR wording, a final syllabus, or a promise that eight units alone cover a CEFR level. It retains the current everyday subject matter while making the progression, task evidence and adult-life purpose clearer. Each future unit should be split into enough lessons and review to teach and assess its outcome.
+This eight-unit spine is now implemented as an original **draft curriculum** in the app, not copied CEFR wording, a final validated syllabus, or a promise that eight units alone cover a CEFR level. A1's existing 24 lessons are retained and annotated with outcomes and capstones; A2–B2 each have 16 newly authored draft lessons. The content still needs qualified French-educator review, learner pilots, and further lesson/review expansion where evidence shows gaps.
 
 #### A1 — handle familiar, immediate situations with simple language
 
@@ -161,8 +161,8 @@ Sources: [TEF Canada official examination page](https://www.lefrancaisdesaffaire
 ### Implementation guardrails
 
 - Keep two distinct test records and user flows: **TEF Canada** and **TCF Canada**. Do not mix TEF's two writing sections with TCF's three writing tasks, or introduce a generic language-structures section into either Canada variant.
-- The current `mock_tests/data.py` labels the banks generic “TEF” and “TCF,” includes an extra vocabulary/grammar section, uses stale counts/timings, and does not provide the Canada writing/speaking sequence. Do not market those banks as accurate Canada mock exams until the data and UI are rebuilt and reviewed.
-- Create new prompts in Parlez's own words. Match task type and time limits, not secure/live exam content. Make clear when a prompt is an unofficial practice item and a score is a local practice estimate.
+- The app now distinguishes **TEF Canada** from **TCF Canada**, shows provider-linked format references and official section counts/timings, and includes original writing/speaking prompts with self-checks. Listening/reading banks remain short Parlez practice sets; this is not a full-length mock exam. The older generic grammar-question arrays are not part of the Canada pathway.
+- Create prompts in Parlez's own words. Match task type and time limits, not secure/live exam content. Label practice as unofficial. A percentage reports accuracy on the selected practice items only; it is not a TEF/TCF score, a CEFR/NCLC estimate, or evidence of exam readiness.
 - Teach listening with replay/transcripts during normal learning; provide one-play conditions only in a clearly labeled, optional timed simulation. Do not use TV5MONDE/RFI material as embedded test stimuli without explicit rights.
 - Give separate feedback for listening, reading, writing and speaking. A percentage from a small multiple-choice set is not an official CEFR, TEF or TCF score. Open writing/speaking tasks need a transparent unofficial rubric and, before level claims, qualified human review.
 - The official [IRCC language-test page](https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry/documents/language-test.html) lists accepted tests and NCLC-related rules. Thresholds, programs and equivalencies can change. Link users to IRCC and the exam provider; do not tell users they qualify for immigration based on Parlez progress or offer immigration advice.

@@ -81,6 +81,9 @@ class Lesson:
     activities: list[Exercise] = field(default_factory=list)
     culturalNote: Optional[str] = None
     estimatedMinutes: int = 30
+    skillTags: list[str] = field(default_factory=list)
+    transferTask: Optional[str] = None
+    selfCheck: list[str] = field(default_factory=list)
 
 @dataclass
 class Unit:
@@ -90,6 +93,10 @@ class Unit:
     theme: str
     description: str
     lessons: list[Lesson] = field(default_factory=list)
+    outcomes: list[str] = field(default_factory=list)
+    skillTags: list[str] = field(default_factory=list)
+    capstone: Optional[str] = None
+    capstoneCriteria: list[str] = field(default_factory=list)
 
 @dataclass
 class Course:
@@ -100,6 +107,9 @@ class Course:
     cefrDescription: str
     color: str
     units: list[Unit] = field(default_factory=list)
+    levelOutcomes: list[str] = field(default_factory=list)
+    version: str = "1.0"
+    contentStatus: str = "draft"
 
 @dataclass
 class ScenarioTopic:

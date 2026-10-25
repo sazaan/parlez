@@ -2,7 +2,7 @@
 ## Affordable French learning, with a path toward TEF Canada and TCF Canada preparation
 
 **Project description · market evidence · product strategy · technical architecture · commercial feasibility**
-**Prepared:** 5 October 2026 · **Version:** 1.0
+**Prepared:** 25 October 2026 · **Version:** 1.1
 **Pricing assumption:** US$4.99 per month, before applicable taxes.
 **Status:** Existing prototype; proposed paid product and expansion roadmap.
 
@@ -22,7 +22,7 @@ The opportunity is specific: learners need more than a vocabulary habit, but man
 
 **Recommended business:** a US$4.99/month, text-first study companion with substantial reusable course content and a transparent AI allowance—not unlimited live voice or guaranteed exam scores. Public API rates suggest text inference can fit this price at thousands of paying users. The larger uncertainties are educational quality, acquisition cost, retention, support, payment access, and production reliability.
 
-**Important implementation findings:** A1 is enabled by default; the same-origin admin console can publish higher levels, but their existing content is still sparse and is not a complete offering. Current TEF/TCF practice is not yet an accurate four-skill Canada-exam simulator. Billing and production usage accounting are not implemented. These are launch requirements, not reasons to abandon the project.
+**Important implementation findings:** A1 (8 units, 24 lessons) is enabled by default. Original A2–B2 mission-led drafts (8 units and 16 lessons per level) are integrated but remain unpublished pending qualified review. TEF Canada and TCF Canada now have distinct provider-linked format references, original writing/speaking practice tasks, and shorter reading/listening sets; they are not complete mock exams, and Parlez reports practice-item accuracy rather than official scores or level estimates. Billing and production usage accounting are not implemented. These are launch requirements, not reasons to abandon the project.
 
 ---
 
@@ -114,19 +114,19 @@ A familiar chat layout reduces navigation friction, but chat is the interface—
 
 ## 3. Scope: current application versus planned product
 
-Repository reviewed: `sazaan/parlez`, working tree on `arena/01a10baa-parlez`, 5 October 2026. Findings below supersede broader claims in the older README.
+Repository reviewed: `sazaan/parlez`, working tree on `arena/01a10baa-parlez`, 25 October 2026. Findings below supersede broader claims in the older README.
 
 | Capability | Observed implementation | Required improvement |
 | --- | --- | --- |
 | Accounts and conversations | Signup/login, JWT authentication, persistent conversation history | Password recovery, verification, account deletion, session management and abuse controls |
 | Chat tutor | Lesson/scenario context, level-sensitive prompts, recent history, adaptive prompt additions; admin-selectable NVIDIA, Gemini, OpenRouter, and OpenCode Zen endpoints | Streaming, quality evaluation, reliable usage metering, and provider failover |
-| Course modules | Default publication is **A1: 8 units, 24 lessons**; administrators can publish A2–B2 after review | Review and restructure A2–B2; validate all levels against learning outcomes before publication |
-| Higher levels | A2/B1/B2 files and C1 material exist; higher levels are unpublished by default and require review | C1 expansion after core validation; C2 requires new curriculum |
+| Course modules | Default publication is **A1: 8 units, 24 lessons**; original A2–B2 drafts have 8 units and 16 lessons per level and remain unpublished by default | Qualified educator review, learner pilot, answer-key audit, and validation against learning outcomes before publication |
+| Higher levels | A2–B2 mission-led drafts are integrated but not independently reviewed; some C1 material exists | C1 expansion after core validation; C2 requires new curriculum |
 | Exercises | Multiple-choice, fill-blank, translation, conjugation, matching, dictation and other formats | Audit accepted answers, ambiguity, error feedback and item difficulty |
 | Flashcards | SM-2-style scheduling, due cards, ratings and statistics | Validate scheduling UX; better leech/difficult-card handling |
 | Adaptive practice | Rule-based weak-exercise-type detection and trend analysis | Not a trained learner model; add reliable skill/grammar tagging and mastery evidence |
 | Writing feedback | Model-generated correction with parsing and display | Rubric validation, structured-output enforcement, uncertainty and appeals/reporting |
-| TEF/TCF practice | Static question banks, timed-practice metadata, grading, history | Correct Canada formats, add productive-skill tasks, validate audio and score claims |
+| TEF/TCF practice | Separate TEF Canada / TCF Canada format references; original writing and speaking tasks; shorter reading/listening practice sets; practice-item accuracy/history | Qualified format/content review, fuller original receptive-skill banks, accessibility/audio review; no official-score or readiness claims |
 | Voice | Browser speech recognition for dictation; browser speech synthesis and server TTS | Not an oral examiner or pronunciation assessment; replace unsupported TTS dependency |
 | Content ingestion | Pasted-text vocabulary extraction, flashcard/quiz generation using local heuristics | Not a general document RAG pipeline; improve vocabulary coverage and review quality |
 | Progress and sharing | XP, streaks, results, comments, shared conversation snapshots, export endpoints | Privacy controls, retention, anti-gaming and deletion propagation |
@@ -161,15 +161,15 @@ No fixed “zero to B2 in six weeks” promise should be made. Progress depends 
 
 Sources: official TEF provider and France Éducation international. These are the immigration versions, not generic TEF/TCF variants. [2](https://www.lefrancaisdesaffaires.fr/en/candidate/test-evaluation-francais/tef-canada/examination/) [TCF Canada official format](https://www.france-education-international.fr/test/tcf-canada?langue=en)
 
-**Current gap:** `mock_tests/data.py` describes TEF reading/listening as 50/60 questions and includes a vocabulary/grammar section. Its TCF metadata uses 29 listening questions, 18 language-structure questions and 29 reading questions—different from TCF Canada. Neither listed exam format includes the complete Canada writing/speaking sequence.
+**Current gap:** TEF Canada and TCF Canada now have separate provider-linked format references, original writing/speaking practice tasks, and shorter reading/listening practice sets. The app is not a full-length four-skill mock exam: receptive practice banks are limited, open responses are not officially scored, and all tasks/formats still need qualified review. A percentage is practice-item accuracy only, not an official score, CEFR/NCLC estimate, or readiness prediction.
 
-**Additional course-content release blocker:** a recursive audit found 450 A2–B2 text fields ending in a literal backslash (166 A2, 154 B1, 130 B2), leaving phrases, examples and exercise prompts/answers incomplete. The `.bak` files contain the same class of corruption, and a B1 unit/lesson has the malformed ID `I am tired.` Keep A2–B2 unpublished until the data are repaired or reauthored, IDs migrated, and field-aware content validation is in place. Details and repair sequence: [CURRICULUM_REDESIGN.md](CURRICULUM_REDESIGN.md).
+**Course-content release gate:** the original A2–B2 drafts had 450 truncated string fields (166 A2, 154 B1, 130 B2); those active drafts have been replaced with newly authored course content. The malformed legacy B1 unit/lesson ID `I am tired.` remains intentionally preserved to avoid orphaning learner progress. A field-aware integrity validator now blocks publication when it finds structural content errors. `.bak` files remain corrupt and are not safe restore sources. Keep A2–B2 unpublished until qualified educators review the new lessons, tasks, and answer keys and learner pilots validate them. Details: [CURRICULUM_REDESIGN.md](CURRICULUM_REDESIGN.md).
 
-`main.py` also converts raw percentages into level labels using simple thresholds. This is a practice heuristic, **not a validated CEFR assessment or official score conversion**. Replace public readiness claims with skill-specific practice feedback until independent validation exists.
+New test submissions report practice-item accuracy and no longer estimate a CEFR level. Historical result records may still contain legacy level labels, but current exam statistics hide those fields. Do not make public readiness claims until independently validated.
 
 **Content policy:** use original or properly licensed questions, passages, images and recordings. Do not reproduce textbooks, leaked exams, or paid preparation banks without permission. Maintain a rights/provenance register and human approval history. Describe Parlez as independent and unaffiliated with IRCC, Alliance Française, the Council of Europe, and the test owners unless formal agreements exist.
 
-For the source/licensing register and proposed adult CEFR course spine, see [CURRICULUM_REDESIGN.md](CURRICULUM_REDESIGN.md). Its proposed modules are planning material, not released or validated course content.
+For the source/licensing register, implemented draft course spine, and review gates, see [CURRICULUM_REDESIGN.md](CURRICULUM_REDESIGN.md). Draft integration does not mean the content is independently validated or published.
 
 ---
 
@@ -510,7 +510,7 @@ Priorities:
 
 1. Confirm USD pricing and the currency/details of the founder's fee example.
 2. Audit course accuracy and content rights; publish only reviewed levels.
-3. Correct TEF Canada/TCF Canada positioning and build all four skills.
+3. Review and expand the distinct TEF Canada/TCF Canada practice pathways; keep practice accuracy separate from official test scoring.
 4. Benchmark paid production models, then choose on educational quality and measured cost.
 5. Implement transactional usage metering, billing, privacy controls and restore-tested storage.
 6. Run a small paid cohort and decide whether to expand from evidence.
@@ -521,7 +521,7 @@ Priorities:
 
 ## Research notes and source register
 
-Inline links identify the evidence behind external claims. Primary government, exam-owner and provider documentation is preferred; third-party news is explicitly identified. All sources were consulted for this document on **5 October 2026**. Rates and public pages may change. Numerical projections are calculations from stated assumptions, not provider performance guarantees.
+Inline links identify the evidence behind external claims. Primary government, exam-owner and provider documentation is preferred; third-party news is explicitly identified. All sources were consulted for this document on **25 October 2026**. Rates and public pages may change. Numerical projections are calculations from stated assumptions, not provider performance guarantees.
 
 ### Immigration and demand
 

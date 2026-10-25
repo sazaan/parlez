@@ -209,6 +209,15 @@ function setupDelegatedHandlers() {
             case 'start-exam-section':
                 if (typeof window.startExamSection === 'function') window.startExamSection(btn.dataset.type, btn.dataset.section, btn.dataset.set);
                 break;
+            case 'start-exam-task':
+                if (typeof window.startExamTask === 'function') window.startExamTask(btn.dataset.type, btn.dataset.section, btn.dataset.task);
+                break;
+            case 'start-task-timer':
+                if (typeof window.startExamTaskTimer === 'function') window.startExamTaskTimer(btn);
+                break;
+            case 'submit-writing-task':
+                if (typeof window.submitExamWritingTask === 'function') window.submitExamWritingTask();
+                break;
             case 'toggle-exam-pause':
                 if (typeof window.toggleExamPause === 'function') window.toggleExamPause();
                 break;
@@ -260,6 +269,15 @@ function setupDelegatedHandlers() {
         e.preventDefault();
         const id = input.dataset.exerciseId;
         if (id && typeof window.checkExercise === 'function') window.checkExercise(id, input);
+    });
+
+    document.addEventListener('input', (e) => {
+        if (e.target.id !== 'examTaskResponse') return;
+        const count = document.getElementById('examTaskWordCount');
+        if (!count) return;
+        const text = e.target.value.trim();
+        const words = text ? text.split(/\s+/).length : 0;
+        count.textContent = `${words} word${words === 1 ? '' : 's'}`;
     });
 }
 
@@ -1310,28 +1328,59 @@ async function loadCourses() {
         const course = await r.json();
         courseList.innerHTML = '';
 
+        const intro = document.createElement('section');
+        intro.className = 'course-intro';
+        intro.innerHTML = `<p class="course-description">${escapeHtml(course.description || '')}</p>`;
+        if (course.contentStatus === 'draft') {
+            intro.innerHTML += '<p class="course-draft-note"><strong>Draft course:</strong> This original practice content still needs independent French-educator review. It is not an official CEFR assessment.</p>';
+        } else {
+            intro.innerHTML += '<p class="course-draft-note">Practice content only—not an official CEFR, NCLC, TEF, or TCF assessment.</p>';
+        }
+        if (course.levelOutcomes && course.levelOutcomes.length) {
+            intro.innerHTML += '<h3>Course outcomes · Objectifs du cours</h3><ul class="course-outcomes">';
+            course.levelOutcomes.forEach(outcome => { intro.innerHTML += `<li>${escapeHtml(outcome)}</li>`; });
+            intro.innerHTML += '</ul>';
+        }
+        courseList.appendChild(intro);
+
         if (course.units) {
             course.units.forEach(u => {
-                const unitDiv = document.createElement('div');
+                const unitDiv = document.createElement('section');
                 unitDiv.className = 'course-unit';
-                unitDiv.innerHTML = `<div class="course-unit-title">${u.titleFr}</div>`;
+                let unitHtml = `<div class="course-unit-title"><span>${escapeHtml(u.titleFr || u.title)}</span><small>${escapeHtml(u.titleFr ? u.title : '')}</small></div>`;
+                if (u.description) unitHtml += `<p class="course-unit-mission">${escapeHtml(u.description)}</p>`;
+                if (u.skillTags && u.skillTags.length) {
+                    unitHtml += '<div class="course-skill-tags">' + u.skillTags.map(tag => `<span>${escapeHtml(tag)}</span>`).join('') + '</div>';
+                }
+                if (u.outcomes && u.outcomes.length) {
+                    unitHtml += '<h4 class="course-section-label">By the end, I can…</h4><ul class="course-outcomes">';
+                    u.outcomes.forEach(outcome => { unitHtml += `<li>${escapeHtml(outcome)}</li>`; });
+                    unitHtml += '</ul>';
+                }
+                if (u.capstone) {
+                    unitHtml += `<div class="course-capstone"><strong>Mission finale</strong><p>${escapeHtml(u.capstone)}</p>`;
+                    if (u.capstoneCriteria && u.capstoneCriteria.length) {
+                        unitHtml += '<ul>' + u.capstoneCriteria.map(criterion => `<li>${escapeHtml(criterion)}</li>`).join('') + '</ul>';
+                    }
+                    unitHtml += '</div>';
+                }
+                unitDiv.innerHTML = unitHtml;
 
                 if (u.lessons) {
                     u.lessons.forEach(l => {
                         const lessonItem = document.createElement('div');
                         lessonItem.className = 'lesson-item';
-                        // Prefer French title; fall back to English if missing
                         const titleFr = l.titleFr || l.title;
                         const titleEn = l.titleFr ? l.title : '';
                         lessonItem.innerHTML = `
                             <div class="lesson-info">
-                                <span class="lesson-title-fr">${titleFr}</span>
-                                ${titleEn ? `<span class="lesson-title-en">${titleEn}</span>` : ''}
-                                <span class="lesson-time">${l.estimatedMinutes || 30}min</span>
+                                <span class="lesson-title-fr">${escapeHtml(titleFr)}</span>
+                                ${titleEn ? `<span class="lesson-title-en">${escapeHtml(titleEn)}</span>` : ''}
+                                <span class="lesson-time">${Number(l.estimatedMinutes) || 30} min · ${Number(l.exerciseCount) || 0} practice items</span>
                             </div>
                             <div class="lesson-actions">
-                                <button class="lesson-learn-btn" data-action="start-lesson-view" data-level="${currentLevel}" data-id="${l.id}">📖 Learn</button>
-                                <button class="lesson-practice-btn" data-action="start-lesson-practice" data-level="${currentLevel}" data-id="${l.id}">Practice</button>
+                                <button class="lesson-learn-btn" data-action="start-lesson-view" data-level="${escapeHtml(currentLevel)}" data-id="${escapeHtml(l.id)}">📖 Learn</button>
+                                <button class="lesson-practice-btn" data-action="start-lesson-practice" data-level="${escapeHtml(currentLevel)}" data-id="${escapeHtml(l.id)}">Practice</button>
                             </div>
                         `;
                         unitDiv.appendChild(lessonItem);
@@ -1453,6 +1502,16 @@ function renderLessonView(lesson, level) {
         html += `<h3>Learning objectives · Objectifs</h3><ul class="lesson-objectives">`;
         lesson.objectives.forEach(o => { html += `<li>${escapeHtml(o)}</li>`; });
         html += `</ul>`;
+    }
+    if (lesson.skillTags && lesson.skillTags.length) {
+        html += '<div class="course-skill-tags lesson-skill-tags">' + lesson.skillTags.map(tag => `<span>${escapeHtml(tag)}</span>`).join('') + '</div>';
+    }
+    if (lesson.transferTask) {
+        html += `<div class="lesson-transfer-task"><h3>Use it · Mission pratique</h3><p>${escapeHtml(lesson.transferTask)}</p><p class="unscored-note">Open practice task — not automatically scored.</p>`;
+        if (lesson.selfCheck && lesson.selfCheck.length) {
+            html += '<ul>' + lesson.selfCheck.map(item => `<li>${escapeHtml(item)}</li>`).join('') + '</ul>';
+        }
+        html += '</div>';
     }
     html += `<div class="lesson-overview-meta">⏱️ ${lesson.estimatedMinutes || 30} min · ${(lesson.vocabulary||[]).length} words · ${(lesson.grammar||[]).length} grammar · ${(lesson.exercises||[]).length} exercises</div>`;
     html += `<div class="lesson-cta"><button class="lesson-learn-btn" data-action="start-lesson-practice" data-level="${level}" data-id="${lesson.id}">Start Practice →</button></div>`;
@@ -2202,44 +2261,173 @@ window.correctMyWriting = async function(text) {
 let examState = { testType: null, sectionId: null, setNum: null, questions: [], answers: {}, timer: null, timeLeft: 0, startTime: 0, phase: 'idle', paused: false, currentIdx: 0 };
 
 window.startMockTest = async function(testType) {
+    if (examTaskState.timer) clearInterval(examTaskState.timer);
     showToolView(`📝 ${testType} Exam`, spinnerHTML('Loading exam...', false));
     try {
-        const r = await apiFetch(`/api/exam/sets/${testType}`);
+        const r = await apiFetch(`/api/exam/sets/${encodeURIComponent(testType)}`);
+        if (!r.ok) throw new Error('Could not load test format');
         const exam = await r.json();
-        
+
         let html = '';
-        html += `<div class="exam-header" style="border-left:4px solid ${exam.color};padding-left:1rem;margin-bottom:1rem">`;
-        html += `<div style="font-size:1.1rem;font-weight:700;color:${exam.color}">${exam.fullName}</div>`;
-        html += `<div style="font-size:0.85rem;color:var(--muted-foreground)">${exam.description}</div>`;
-        html += `<div style="font-size:0.8rem;margin-top:0.25rem">📋 ${exam.administeredBy} | 🎯 ${exam.usedFor}</div>`;
-        html += '</div>';
-        
-        html += '<div style="margin-bottom:1rem;padding:0.75rem;background:rgba(0,0,0,0.02);border-radius:8px">';
-        html += '<div style="font-weight:600;margin-bottom:0.5rem">📋 Official Exam Format</div>';
-        for (const [sid, section] of Object.entries(exam.sections)) {
-            html += `<div style="display:flex;align-items:center;gap:0.5rem;padding:0.375rem 0;font-size:0.85rem">`;
-            html += `<span>${section.icon}</span>`;
-            html += `<span style="flex:1"><strong>${section.title}</strong> <span style="color:var(--muted-foreground)">${section.titleFr}</span></span>`;
-            html += `<span style="color:var(--muted-foreground)">${section.durationMinutes}min</span>`;
+        html += `<div class="exam-header" style="border-left:4px solid ${escapeHtml(exam.color)};padding-left:1rem;margin-bottom:1rem">`;
+        html += `<div style="font-size:1.1rem;font-weight:700;color:${escapeHtml(exam.color)}">${escapeHtml(exam.fullName)}</div>`;
+        html += `<div style="font-size:0.85rem;color:var(--muted-foreground)">${escapeHtml(exam.description)}</div>`;
+        html += `<div style="font-size:0.8rem;margin-top:0.25rem">📋 ${escapeHtml(exam.administeredBy)} | 🎯 ${escapeHtml(exam.usedFor)}</div>`;
+        html += `<div class="exam-practice-notice">${escapeHtml(exam.practiceNotice || 'Original, unofficial practice. This is not an official test or a score prediction.')}`;
+        if (exam.formatSourceUrl) html += ` <a href="${escapeHtml(exam.formatSourceUrl)}" target="_blank" rel="noopener noreferrer">Official provider format</a>`;
+        html += '</div></div>';
+
+        html += '<div class="exam-format-card">';
+        html += '<div class="exam-format-heading">📋 Official Exam Format</div>';
+        html += '<div class="exam-format-subtitle">Format and timings are references; check the provider for current requirements.</div>';
+        for (const [sid, section] of Object.entries(exam.sections || {})) {
+            const countText = section.questionCount != null
+                ? `${section.questionCount} questions`
+                : `${section.taskCount || 0} tasks`;
+            html += `<div class="exam-format-row">`;
+            html += `<span>${escapeHtml(section.icon || '')}</span>`;
+            html += `<span class="exam-format-name"><strong>${escapeHtml(section.title)}</strong> <span>${escapeHtml(section.titleFr)}</span></span>`;
+            html += `<span class="exam-format-count">${escapeHtml(countText)} · ${escapeHtml(section.durationMinutes)} min</span>`;
             html += '</div>';
         }
         html += '</div>';
-        
-        for (const [sid, section] of Object.entries(exam.sections)) {
-            html += `<div style="margin-bottom:1rem">`;
-            html += `<div style="font-weight:600;margin-bottom:0.5rem">${section.icon} ${section.title}</div>`;
-            html += '<div style="display:flex;flex-wrap:wrap;gap:0.375rem">';
-            for (const set of section.sets) {
-                const label = set.isAI ? '🤖 AI' : `Set ${set.setNum}`;
-                const cls = set.isAI ? 'exam-set-btn ai' : 'exam-set-btn';
-                html += `<button class="${cls}" data-action="start-exam-section" data-type="${testType}" data-section="${sid}" data-set="${set.setNum}" style="border-color:${exam.color}">${label}<br><small>${set.questionCount}Q</small></button>`;
+
+        for (const [sid, section] of Object.entries(exam.sections || {})) {
+            const sets = Array.isArray(section.sets) ? section.sets : [];
+            const tasks = Array.isArray(section.tasks) ? section.tasks : [];
+            if (!sets.length && !tasks.length) continue;
+            html += `<div class="exam-practice-section">`;
+            html += `<div class="exam-practice-section-title">${escapeHtml(section.icon || '')} ${escapeHtml(section.title)}</div>`;
+            if (sets.length) {
+                html += '<div class="exam-set-buttons">';
+                for (const set of sets) {
+                    const label = set.isAI ? '🤖 AI' : `Set ${set.setNum}`;
+                    const cls = set.isAI ? 'exam-set-btn ai' : 'exam-set-btn';
+                    html += `<button class="${cls}" data-action="start-exam-section" data-type="${escapeHtml(testType)}" data-section="${escapeHtml(sid)}" data-set="${escapeHtml(set.setNum)}" style="border-color:${escapeHtml(exam.color)}">${escapeHtml(label)}<br><small>${escapeHtml(set.questionCount)} practice questions</small></button>`;
+                }
+                html += '</div>';
             }
-            html += '</div></div>';
+            if (tasks.length) {
+                html += '<div class="exam-task-list">';
+                for (const task of tasks) {
+                    const limits = task.wordMin
+                        ? `${task.wordMin}${task.wordMax ? `–${task.wordMax}` : '+'} words · `
+                        : '';
+                    const timeLabel = task.durationMinutes != null
+                        ? `${task.durationMinutes} min`
+                        : `${section.durationMinutes} min for the full section`;
+                    html += `<button class="exam-task-button" data-action="start-exam-task" data-type="${escapeHtml(testType)}" data-section="${escapeHtml(sid)}" data-task="${escapeHtml(task.id)}">`;
+                    html += `<span>${escapeHtml(task.title)}</span><small>${escapeHtml(limits)}${escapeHtml(timeLabel)}</small></button>`;
+                }
+                html += '</div>';
+            }
+            html += '</div>';
         }
-        
-        getToolContent().innerHTML = `<div class="tool-header"><h2>📝 ${exam.fullName}</h2></div>` + html;
+
+        getToolContent().innerHTML = `<div class="tool-header"><h2>📝 ${escapeHtml(exam.fullName)}</h2></div>` + html;
     } catch(e) {
-        getToolContent().innerHTML = `<div class="tool-header"><h2>📝 ${testType} Exam</h2></div><p style="color:var(--incorrect);text-align:center;padding:2rem">Error loading exam. Try again.</p>`;
+        getToolContent().innerHTML = `<div class="tool-header"><h2>📝 ${escapeHtml(testType)} Exam</h2></div><p style="color:var(--incorrect);text-align:center;padding:2rem">Error loading exam. Try again.</p>`;
+    }
+};
+
+let examTaskState = { testType: null, sectionId: null, taskId: null, timer: null };
+
+window.startExamTask = async function(testType, sectionId, taskId) {
+    if (examTaskState.timer) clearInterval(examTaskState.timer);
+    examTaskState = { testType, sectionId, taskId, timer: null };
+    getToolContent().innerHTML = spinnerHTML('Loading practice task...', false);
+    try {
+        const path = `/api/exam/tasks/${encodeURIComponent(testType)}/${encodeURIComponent(sectionId)}/${encodeURIComponent(taskId)}`;
+        const r = await apiFetch(path);
+        if (!r.ok) throw new Error('Practice task not found');
+        const data = await r.json();
+        const task = data.task;
+        const isWritten = task.responseMode === 'written';
+        const taskTiming = task.durationMinutes != null
+            ? `${task.durationMinutes} min for this task`
+            : `${data.sectionDurationMinutes} min for the full section; pace the tasks yourself`;
+        const durationSeconds = Math.max(60, Math.round(Number(task.durationMinutes || 1) * 60));
+        let html = `<div class="tool-header"><h2>${escapeHtml(data.testName)} · ${escapeHtml(task.title)}</h2></div>`;
+        html += `<div class="exam-practice-notice">${escapeHtml(data.practiceNotice || 'Original, unofficial practice. This is not an official test or a score prediction.')}`;
+        if (data.formatSourceUrl) html += ` <a href="${escapeHtml(data.formatSourceUrl)}" target="_blank" rel="noopener noreferrer">Official provider format</a>`;
+        html += '</div>';
+        html += `<section class="exam-task-card"><div class="exam-task-meta">${escapeHtml(data.sectionTitle)} · ${escapeHtml(taskTiming)}${task.prepMinutes ? ` · includes up to ${escapeHtml(task.prepMinutes)} minutes of preparation` : ''}</div>`;
+        html += `<p class="exam-task-instructions">${escapeHtml(task.instructions)}</p>`;
+        html += `<div class="exam-task-prompt">${escapeHtml(task.prompt)}</div>`;
+        if (isWritten) {
+            html += '<label class="exam-task-label" for="examTaskResponse">Your practice response (not submitted for an exam score)</label>';
+            html += '<textarea id="examTaskResponse" class="exam-task-response" rows="9" maxlength="4000" placeholder="Rédigez votre réponse en français…"></textarea>';
+            html += '<div id="examTaskWordCount" class="exam-task-word-count">0 words</div>';
+            html += `<button class="exam-task-submit" data-action="submit-writing-task">Get language feedback · not a task score</button>`;
+            html += '<div id="examTaskFeedback" class="exam-task-feedback" aria-live="polite"></div>';
+        } else {
+            html += '<div class="exam-speaking-note">Practise aloud. Parlez does not record or automatically assess speaking proficiency.</div>';
+            html += `<div class="exam-task-timer-row"><strong id="examTaskTimer">${formatTime(durationSeconds)}</strong><button class="exam-task-submit" data-action="start-task-timer" data-seconds="${durationSeconds}">Start practice timer</button></div>`;
+        }
+        if (Array.isArray(task.selfCheck) && task.selfCheck.length) {
+            html += '<div class="exam-task-selfcheck"><strong>Self-check</strong>';
+            for (const item of task.selfCheck) {
+                html += `<label><input type="checkbox"> <span>${escapeHtml(item)}</span></label>`;
+            }
+            html += '</div>';
+        }
+        html += `<button class="exam-task-back" data-action="start-mock-test" data-type="${escapeHtml(data.testType)}">Back to ${escapeHtml(data.testName)} practice</button>`;
+        html += '</section>';
+        getToolContent().innerHTML = html;
+    } catch(e) {
+        getToolContent().innerHTML = '<div class="tool-header"><h2>Practice task</h2></div><p style="color:var(--incorrect);text-align:center;padding:2rem">Could not load this task. Please return to the practice menu and try again.</p>';
+    }
+};
+
+window.startExamTaskTimer = function(button) {
+    if (examTaskState.timer) clearInterval(examTaskState.timer);
+    const timerEl = document.getElementById('examTaskTimer');
+    let seconds = Math.max(1, parseInt(button.dataset.seconds || '60', 10));
+    button.disabled = true;
+    button.textContent = 'Practice in progress…';
+    const update = () => {
+        if (!timerEl) {
+            clearInterval(examTaskState.timer);
+            examTaskState.timer = null;
+            return;
+        }
+        timerEl.textContent = formatTime(seconds);
+        if (seconds <= 0) {
+            clearInterval(examTaskState.timer);
+            examTaskState.timer = null;
+            button.textContent = 'Time complete';
+            const note = document.createElement('p');
+            note.className = 'exam-speaking-note';
+            note.textContent = 'Time is up. Review your self-check; no score was generated.';
+            button.parentElement?.after(note);
+            return;
+        }
+        seconds -= 1;
+    };
+    update();
+    examTaskState.timer = setInterval(update, 1000);
+};
+
+window.submitExamWritingTask = async function() {
+    const response = document.getElementById('examTaskResponse');
+    const feedback = document.getElementById('examTaskFeedback');
+    if (!response || !feedback || !response.value.trim()) {
+        showToast('Write a response before requesting language feedback.', { kind: 'error' });
+        return;
+    }
+    feedback.innerHTML = spinnerHTML('Getting language feedback...', false);
+    try {
+        const r = await apiFetch('/api/writing/correct', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: response.value })
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Language feedback is unavailable.');
+        const safeText = escapeHtml(data.response || 'No feedback was returned.').replace(/\n/g, '<br>');
+        feedback.innerHTML = `<div class="exam-task-feedback-note">Language feedback only — it does not score this task or predict TEF/TCF results.</div><div>${safeText}</div>`;
+    } catch(e) {
+        feedback.textContent = e.message || 'Language feedback is unavailable. Please try again.';
     }
 };
 
@@ -2306,7 +2494,6 @@ function renderExamQuestion(idx) {
     if (q.audioText) {
         html += `<button class="btn-speak" data-action="speak" data-text="${escapeHtml(q.audioText)}">🔊 Listen to audio</button>`;
     }
-    html += `<div class="test-question-level">${escapeHtml(q.level || '')}</div>`;
     html += `<p class="test-question-prompt">${escapeHtml(q.prompt || '')}</p>`;
     html += '<div class="quiz-options">';
     q.options.forEach((o, j) => {
@@ -2450,22 +2637,8 @@ function renderExamResults(result) {
     html += `<div class="test-score-details">`;
     html += `<div style="font-size:1.1rem;font-weight:600">✅ ${result.correct}/${result.total} correct</div>`;
     html += `<div>⏱️ Time: ${formatTime(result.durationSec)}</div>`;
-    html += `<div>📊 Estimated Level: <strong style="color:var(--primary)">${result.level}</strong></div>`;
+    html += `<div class="exam-practice-notice">${escapeHtml(result.scoreNote || 'Practice-item accuracy only; not an official exam score or level estimate.')}</div>`;
     html += '</div></div>';
-    
-    if (result.levelBreakdown && Object.keys(result.levelBreakdown).length > 0) {
-        html += '<div style="margin:1rem 0;padding:0.75rem;background:rgba(0,0,0,0.02);border-radius:8px">';
-        html += '<div style="font-weight:600;margin-bottom:0.5rem">📊 Performance by Level</div>';
-        for (const [lvl, stats] of Object.entries(result.levelBreakdown)) {
-            const pct = stats.accuracy;
-            const color = pct >= 80 ? 'var(--correct)' : pct >= 60 ? 'var(--secondary)' : 'var(--incorrect)';
-            html += `<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.375rem">`;
-            html += `<span style="min-width:30px;font-weight:600">${lvl}</span>`;
-            html += `<div style="flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden"><div style="width:${pct}%;height:100%;background:${color};border-radius:4px"></div></div>`;
-            html += `<span style="min-width:40px;text-align:right;font-size:0.85rem">${stats.correct}/${stats.total}</span></div>`;
-        }
-        html += '</div>';
-    }
     
     html += '<div style="margin-top:1rem"><div style="font-weight:600;margin-bottom:0.5rem">📝 Question Review</div>';
     result.details.forEach((d, i) => {
@@ -2496,32 +2669,18 @@ window.showTestStats = async function() {
         ]);
         
         let html = '<div class="tool-header"><h2>📊 Test History</h2></div><div class="test-stats">';
-        html += '<div class="quiz-title">📊 Exam Statistics</div>';
+        html += '<div class="quiz-title">📊 Practice Accuracy</div>';
+        html += '<div class="exam-practice-notice">Percentages summarize only the Parlez practice items completed. They are not official TEF/TCF scores or CEFR/NCLC level estimates.</div>';
         
         for (const [type, stats] of [['TEF', tefStats], ['TCF', tcfStats]]) {
             if (stats.total === 0) continue;
             html += `<div style="margin:1rem 0;padding:1rem;background:rgba(0,0,0,0.02);border-radius:8px">`;
-            html += `<div style="font-weight:600;font-size:1rem;margin-bottom:0.5rem">${type} — ${stats.total} tests taken</div>`;
+            const testName = type === 'TEF' ? 'TEF Canada' : 'TCF Canada';
+            html += `<div style="font-weight:600;font-size:1rem;margin-bottom:0.5rem">${testName} — ${stats.total} practice sets</div>`;
             html += `<div class="flashcard-stats">`;
-            html += `<div class="flashcard-stat"><div class="flashcard-stat-value">${stats.avg_score}%</div><div class="flashcard-stat-label">Avg Score</div></div>`;
-            html += `<div class="flashcard-stat"><div class="flashcard-stat-value">${stats.best_score}%</div><div class="flashcard-stat-label">Best Score</div></div>`;
-            html += '</div>';
-            
-            // Level breakdown
-            if (stats.by_level && Object.keys(stats.by_level).length > 0) {
-                html += '<div style="margin-top:0.75rem">';
-                for (const [lvl, s] of Object.entries(stats.by_level)) {
-                    html += `<div style="display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;margin-bottom:0.25rem">`;
-                    html += `<span style="min-width:30px;font-weight:600">${lvl}</span>`;
-                    html += `<div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden">`;
-                    html += `<div style="width:${s.accuracy}%;height:100%;background:${s.accuracy >= 80 ? 'var(--correct)' : s.accuracy >= 60 ? 'var(--secondary)' : 'var(--incorrect)'};border-radius:3px"></div>`;
-                    html += '</div>';
-                    html += `<span style="min-width:40px;text-align:right">${s.correct}/${s.total}</span>`;
-                    html += '</div>';
-                }
-                html += '</div>';
-            }
-            html += '</div>';
+            html += `<div class="flashcard-stat"><div class="flashcard-stat-value">${stats.avg_score}%</div><div class="flashcard-stat-label">Average practice accuracy</div></div>`;
+            html += `<div class="flashcard-stat"><div class="flashcard-stat-value">${stats.best_score}%</div><div class="flashcard-stat-label">Best practice accuracy</div></div>`;
+            html += '</div></div>';
         }
         
         if (tefStats.total === 0 && tcfStats.total === 0) {

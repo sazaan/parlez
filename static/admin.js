@@ -121,18 +121,25 @@
             card.dataset.course = level.level;
             const checked = level.enabled ? 'checked' : '';
             const required = level.level === 'A1';
+            const pendingReview = !required && level.review_status !== 'reviewed';
+            const outcomes = Array.isArray(level.level_outcomes) ? level.level_outcomes : [];
+            const reviewPanel = required ? '' : (pendingReview
+                ? `<div class="course-review-panel"><strong>Release review required</strong><p>A qualified French educator must review this exact course version before release. This form records an administrator’s self-attestation only; it does not verify credentials or certify CEFR alignment.</p><label>Reviewer name<input type="text" maxlength="120" data-reviewer-name autocomplete="name"></label><label>Relevant qualification<textarea maxlength="300" data-reviewer-qualification rows="2" placeholder="Describe French-language teaching or curriculum-review experience"></textarea></label><label class="review-confirm"><input type="checkbox" data-review-confirm><span>I confirm the named qualified educator reviewed the lessons, tasks, and answer keys for this version.</span></label><button type="button" class="review-submit" data-course-review="${escapeHTML(level.level)}">Record review attestation</button></div>`
+                : `<div class="course-review-panel course-review-complete"><strong>Review attestation recorded</strong><p>${escapeHTML(level.reviewer_name || 'Reviewer')} · ${escapeHTML(level.reviewer_qualification || '')}${level.reviewed_at ? ` · ${escapeHTML(new Date(level.reviewed_at).toLocaleString())}` : ''}</p><p>Verify reviewer credentials independently. This attestation is not official certification.</p></div>`);
             const units = level.units.map(unit => `
                 <label class="module-row">
-                    <span><span class="module-name">${escapeHTML(unit.title)}</span><span class="module-count">${unit.lesson_count} lesson${unit.lesson_count === 1 ? '' : 's'}</span></span>
+                    <span><span class="module-name">${escapeHTML(unit.title)}</span><span class="module-count">${unit.lesson_count} lesson${unit.lesson_count === 1 ? '' : 's'}</span>${unit.capstone ? `<span class="module-capstone">Mission: ${escapeHTML(unit.capstone)}</span>` : ''}</span>
                     <input type="checkbox" data-unit-level="${escapeHTML(level.level)}" data-unit-id="${escapeHTML(unit.id)}" ${unit.enabled ? 'checked' : ''} aria-label="Publish ${escapeHTML(unit.title)}">
                 </label>
             `).join('');
             card.innerHTML = `
                 <div class="course-card-header">
-                    <div class="course-card-title"><span class="level-token">${escapeHTML(level.level)}</span><div><h3>${escapeHTML(level.title)}</h3><div class="course-meta">${level.module_count} modules · ${level.lesson_count} lessons</div></div></div>
-                    <label class="toggle-wrap"><input class="toggle" type="checkbox" data-level-toggle="${escapeHTML(level.level)}" ${checked} ${required ? 'disabled' : ''} aria-label="Publish ${escapeHTML(level.level)}">${required ? 'Required' : (level.enabled ? 'Live' : 'Off')}</label>
+                    <div class="course-card-title"><span class="level-token">${escapeHTML(level.level)}</span><div><h3>${escapeHTML(level.title)}</h3><div class="course-meta">${level.module_count} modules · ${level.lesson_count} lessons · v${escapeHTML(level.version || '1.0')} · ${escapeHTML(level.content_status || 'draft')}</div></div></div>
+                    <label class="toggle-wrap"><input class="toggle" type="checkbox" data-level-toggle="${escapeHTML(level.level)}" ${checked} ${(required || pendingReview) ? 'disabled' : ''} aria-label="Publish ${escapeHTML(level.level)}">${required ? 'Required' : (pendingReview ? 'Review first' : (level.enabled ? 'Live' : 'Off'))}</label>
                 </div>
                 ${level.release_warning ? `<p class="course-card-warning">${escapeHTML(level.release_warning)}</p>` : ''}
+                ${reviewPanel}
+                ${outcomes.length ? `<div class="course-level-outcomes"><strong>Level outcomes</strong><ul>${outcomes.map(outcome => `<li>${escapeHTML(outcome)}</li>`).join('')}</ul></div>` : ''}
                 <div class="module-list">${units}</div>
             `;
             grid.appendChild(card);
@@ -143,6 +150,34 @@
                 const label = toggle.closest('.toggle-wrap');
                 if (label && toggle.dataset.levelToggle !== 'A1') {
                     label.lastChild.textContent = toggle.checked ? 'Live' : 'Off';
+                }
+            });
+        });
+
+        grid.querySelectorAll('[data-course-review]').forEach(button => {
+            button.addEventListener('click', async () => {
+                const panel = button.closest('.course-review-panel');
+                const reviewer_name = panel.querySelector('[data-reviewer-name]').value.trim();
+                const qualification = panel.querySelector('[data-reviewer-qualification]').value.trim();
+                const confirm_review = panel.querySelector('[data-review-confirm]').checked;
+                if (!confirm_review) {
+                    setMessage(courseMessage, 'Confirm the qualified-educator review before recording it.');
+                    return;
+                }
+                button.disabled = true;
+                setMessage(courseMessage, 'Recording the version-specific review attestation…', 'info');
+                try {
+                    const courses = await adminRequest(`/api/admin/courses/${encodeURIComponent(button.dataset.courseReview)}/review`, {
+                        method: 'POST',
+                        body: JSON.stringify({ reviewer_name, qualification, confirm_review })
+                    });
+                    currentConfig.courses = courses;
+                    renderCourseCards(courses);
+                    updateSummary(currentConfig);
+                    setMessage(courseMessage, 'Review attestation recorded. Verify the reviewer’s credentials independently, then enable the level if it is ready.', 'success');
+                } catch (error) {
+                    button.disabled = false;
+                    setMessage(courseMessage, error.message);
                 }
             });
         });

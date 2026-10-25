@@ -1,32 +1,43 @@
+from dataclasses import asdict
+
 from .types import *
 from .expanded_data import TEF_EXPANDED, TCF_EXPANDED
 
-PRACTICE_SETS_COUNT = 6  # 5 pre-built + 1 AI-generated
+PRACTICE_SETS_COUNT = 6  # Maximum number of practice sets exposed by the API.
+
+TEF_CANADA_FORMAT_NOTE = "TEF Canada format reference; Parlez practice items are original and unofficial. Verify current details with the provider."
+TCF_CANADA_FORMAT_NOTE = "TCF Canada format reference; Parlez practice items are original and unofficial. Verify current details with the provider."
 
 tef_format = ExamFormat(
-    type='TEF', name='TEF', fullName="Test d'Évaluation de Français",
+    type='TEF', name='TEF Canada', fullName="Test d'évaluation de français (TEF) — Canada",
     color='#1D4ED8',
-    description="The TEF is an international reference test for French proficiency.",
-    administeredBy='Paris Île-de-France CCI (CCIP)',
-    usedFor='Canada immigration, French citizenship, university admission',
+    description=TEF_CANADA_FORMAT_NOTE,
+    administeredBy='Le français des affaires, CCI Paris Île-de-France',
+    usedFor='Canada-specific French-test practice; check current IRCC rules and accepted-test requirements.',
     sections=[
-        ExamSection(id='reading', title='Reading Comprehension', titleFr='Compréhension écrite', description='50 questions in 3 sections. 60 minutes.', icon='📖', questionCount=50, durationMinutes=60),
-        ExamSection(id='listening', title='Listening Comprehension', titleFr='Compréhension orale', description='60 questions. 40 minutes.', icon='🎧', questionCount=60, durationMinutes=40),
-        ExamSection(id='vocabulary_grammar', title='Vocabulary & Grammar', titleFr='Lexique et structure', description='40 questions. 30 minutes.', icon='✏️', questionCount=40, durationMinutes=30),
+        ExamSection(id='reading', title='Reading Comprehension', titleFr='Compréhension écrite', description='40 questions · 60 minutes', icon='📖', questionCount=40, durationMinutes=60),
+        ExamSection(id='listening', title='Listening Comprehension', titleFr='Compréhension orale', description='40 questions · 40 minutes', icon='🎧', questionCount=40, durationMinutes=40),
+        ExamSection(id='writing', title='Writing', titleFr='Expression écrite', description='2 tasks · 60 minutes · 25 and 35 minutes', icon='✍️', questionCount=2, durationMinutes=60),
+        ExamSection(id='speaking', title='Speaking', titleFr='Expression orale', description='2 tasks · 15 minutes · 5 and 10 minutes', icon='🗣️', questionCount=2, durationMinutes=15),
     ],
+    formatSourceUrl='https://www.lefrancaisdesaffaires.fr/en/candidate/test-evaluation-francais/tef-canada/examination/',
+    practiceNotice='Original, unofficial practice. This is not an official test or a score prediction.',
 )
 
 tcf_format = ExamFormat(
-    type='TCF', name='TCF', fullName='Test de Connaissance du Français',
+    type='TCF', name='TCF Canada', fullName='Test de connaissance du français — Canada',
     color='#B91C1C',
-    description="The TCF is the French Ministry of Education's test.",
-    administeredBy='France Éducation International (FEI)',
-    usedFor='French nationality, residency, Quebec CSQ, university admission',
+    description=TCF_CANADA_FORMAT_NOTE,
+    administeredBy='France Éducation international (FEI)',
+    usedFor='Canada-specific French-test practice; check current IRCC rules and accepted-test requirements.',
     sections=[
-        ExamSection(id='listening', title='Listening Comprehension', titleFr='Compréhension orale', description='29 questions progressive difficulty. 25 minutes.', icon='🎧', questionCount=29, durationMinutes=25),
-        ExamSection(id='language_structures', title='Language Structures', titleFr='Maîtrise des structures', description='18 questions grammar/vocab. 15 minutes.', icon='✏️', questionCount=18, durationMinutes=15),
-        ExamSection(id='reading', title='Reading Comprehension', titleFr='Compréhension écrite', description='29 questions progressive difficulty. 45 minutes.', icon='📖', questionCount=29, durationMinutes=45),
+        ExamSection(id='listening', title='Listening Comprehension', titleFr='Compréhension orale', description='39 questions · 35 minutes', icon='🎧', questionCount=39, durationMinutes=35),
+        ExamSection(id='reading', title='Reading Comprehension', titleFr='Compréhension écrite', description='39 questions · 60 minutes', icon='📖', questionCount=39, durationMinutes=60),
+        ExamSection(id='writing', title='Writing', titleFr='Expression écrite', description='3 tasks · 60 minutes · 60–120, 120–150 and 120–180 words', icon='✍️', questionCount=3, durationMinutes=60),
+        ExamSection(id='speaking', title='Speaking', titleFr='Expression orale', description='3 tasks · 12 minutes · interview, interaction and opinion', icon='🗣️', questionCount=3, durationMinutes=12),
     ],
+    formatSourceUrl='https://www.france-education-international.fr/en/test/tcf-canada',
+    practiceNotice='Original, unofficial practice. This is not an official test or a score prediction.',
 )
 
 exam_formats = {'TEF': tef_format, 'TCF': tcf_format}
@@ -57,29 +68,54 @@ tef_listening_questions = [
     TestQuestion(id='tef-l-10', level='A1', prompt='What does the person want to buy?', audioText="Excusez-moi, je cherche une robe pour une soirée. Vous avez quelque chose de bleu ?", options=['A blue dress for a party.', 'A red skirt.', 'A white shirt.', 'Black shoes.'], answer=0, explanation='A blue dress for a party.'),
 ]
 
-tef_vocab_grammar_questions = [
-    TestQuestion(id='tef-vg-1', level='A1', prompt='Complete: "Je _____ étudiant."', options=['es', 'est', 'suis', 'sommes'], answer=2, explanation='Je suis = I am.'),
-    TestQuestion(id='tef-vg-2', level='A1', prompt='"Bonsoir" is used in the:', options=['Morning', 'Afternoon', 'Evening', 'At bedtime'], answer=2, explanation='Bonsoir = evening.'),
-    TestQuestion(id='tef-vg-3', level='A2', prompt='Complete: "Hier, j\'ai mangé au restaurant."', options=['ai', 'étais', 'avais', 'suis'], answer=0, explanation='J\'ai mangé = passé composé with avoir.'),
-    TestQuestion(id='tef-vg-4', level='A2', prompt='Which preposition? "Je vais _____ Italie."', options=['au', 'en', 'aux', 'à la'], answer=1, explanation='Italie is feminine → en.'),
-    TestQuestion(id='tef-vg-5', level='B1', prompt='Complete: "Il faut que tu _____."', options=['viens', 'viennes', 'venir', 'venirs'], answer=1, explanation='Subjunctive after il faut que.'),
-    TestQuestion(id='tef-vg-6', level='B1', prompt='Which means "however"?', options=['De plus', 'Ensuite', 'Cependant', 'Donc'], answer=2, explanation='Cependant = however.'),
-    TestQuestion(id='tef-vg-7', level='B2', prompt='"Verlan" of "femme" is:', options=['famme', 'meuf', 'femme', 'feume'], answer=1, explanation='Verlan reverses syllables.'),
-    TestQuestion(id='tef-vg-8', level='B2', prompt='Formal way to say "I don\'t know":', options=['J\'en sais rien', 'Je ne sais pas', 'Je l\'ignore', 'No idea'], answer=2, explanation='Je l\'ignore is formal.'),
-    TestQuestion(id='tef-vg-9', level='A1', prompt='What is "15" in French?', options=['quatorze', 'quinze', 'seize', 'treize'], answer=1, explanation='15 = quinze.'),
-    TestQuestion(id='tef-vg-10', level='A2', prompt='Past participle of "prendre":', options=['prendu', 'pris', 'prendi', 'prendre'], answer=1, explanation='Prendre → pris.'),
-]
-
 tef_test = MockTest(
-    type='TEF', name='TEF', fullName="Test d'Évaluation de Français",
-    description="International French proficiency test for immigration and citizenship.",
-    administeredBy='Paris Île-de-France CCI (CCIP)',
-    usedFor='Canada immigration, French citizenship, university admission',
+    type='TEF', name='TEF Canada', fullName="Test d'évaluation de français (TEF) — Canada",
+    description=TEF_CANADA_FORMAT_NOTE,
+    administeredBy='Le français des affaires, CCI Paris Île-de-France',
+    usedFor='Canada-specific French-test practice; check current IRCC rules and accepted-test requirements.',
     color='#1D4ED8',
+    formatSourceUrl='https://www.lefrancaisdesaffaires.fr/en/candidate/test-evaluation-francais/tef-canada/examination/',
     sections=[
-        TestSectionData(id='reading', title='Reading Comprehension', titleFr='Compréhension écrite', description='Read texts and answer. Practice: 10 questions.', icon='📖', questionCount=10, durationMinutes=12, questions=tef_reading_questions),
-        TestSectionData(id='listening', title='Listening Comprehension', titleFr='Compréhension orale', description='Listen to audio and answer. Practice: 10 questions.', icon='🎧', questionCount=10, durationMinutes=10, questions=tef_listening_questions),
-        TestSectionData(id='vocabulary_grammar', title='Vocabulary & Grammar', titleFr='Lexique et structure', description='Vocabulary and grammar. Practice: 10 questions.', icon='✏️', questionCount=10, durationMinutes=8, questions=tef_vocab_grammar_questions),
+        TestSectionData(id='reading', title='Reading Comprehension', titleFr='Compréhension écrite', description='Official format: 40 questions in 60 minutes. Parlez practice sets are shorter.', icon='📖', questionCount=10, durationMinutes=60, questions=tef_reading_questions, officialQuestionCount=40),
+        TestSectionData(id='listening', title='Listening Comprehension', titleFr='Compréhension orale', description='Official format: 40 questions in 40 minutes. Parlez practice sets are shorter.', icon='🎧', questionCount=10, durationMinutes=40, questions=tef_listening_questions, officialQuestionCount=40),
+        TestSectionData(
+            id='writing', title='Writing', titleFr='Expression écrite',
+            description='Official format: 2 tasks in 60 minutes. These original prompts are for practice, not official test items.',
+            icon='✍️', questionCount=0, durationMinutes=60, officialTaskCount=2,
+            tasks=[
+                ExamTask(
+                    id='tef-writing-task-1', title='Task 1 · Continue a short news item',
+                    prompt='A local news site begins a story: « Un objet mystérieux a été découvert hier dans un autobus de la ville… » Continue the report. Explain what was found, who was involved, and what happened next.',
+                    instructions='Write at least 80 words. Keep the events clear and connected.', responseMode='written', durationMinutes=25, wordMin=80,
+                    selfCheck=['I wrote at least 80 words.', 'My report follows the opening and explains what happened.', 'I checked verb tense, agreement, and punctuation.'],
+                ),
+                ExamTask(
+                    id='tef-writing-task-2', title='Task 2 · Give and support an opinion',
+                    prompt='A city is considering making its central streets pedestrian-only on weekends. Do you support the idea? Write a short opinion piece for a local newsletter.',
+                    instructions='Write at least 200 words. State your position, support it with reasons and examples, and address a possible counterargument.', responseMode='written', durationMinutes=35, wordMin=200,
+                    selfCheck=['I wrote at least 200 words.', 'My position is clear and supported with relevant reasons.', 'My paragraphs and linking words make the argument easy to follow.'],
+                ),
+            ],
+        ),
+        TestSectionData(
+            id='speaking', title='Speaking', titleFr='Expression orale',
+            description='Official format: 2 tasks in 15 minutes (5 and 10 minutes). Practise aloud; Parlez does not score speaking proficiency.',
+            icon='🗣️', questionCount=0, durationMinutes=15, officialTaskCount=2,
+            tasks=[
+                ExamTask(
+                    id='tef-speaking-task-1', title='Task 1 · Ask for information',
+                    prompt='You see an announcement for a community garden that welcomes new members. Call the coordinator and ask about the schedule, costs, tools, and how to join.',
+                    instructions='Practise a natural phone conversation. Ask follow-up questions and note the information you need.', responseMode='spoken', durationMinutes=5,
+                    selfCheck=['I opened the conversation politely and explained why I was calling.', 'I asked clear questions about practical details.', 'I used follow-up questions when information was incomplete.'],
+                ),
+                ExamTask(
+                    id='tef-speaking-task-2', title='Task 2 · Persuade and respond',
+                    prompt='A friend is unsure about joining a neighbourhood repair café. Encourage them to come with you, explain the benefits, and respond to their concerns.',
+                    instructions='Speak continuously with clear reasons and examples. Practise answering a different objection without losing your main point.', responseMode='spoken', durationMinutes=10,
+                    selfCheck=['I stated my suggestion clearly.', 'I gave reasons and a concrete example.', 'I acknowledged a concern and responded respectfully.'],
+                ),
+            ],
+        ),
     ],
 )
 
@@ -109,29 +145,66 @@ tcf_listening_questions = [
     TestQuestion(id='tcf-l-10', level='B2', prompt='Main topic?', audioText="L'IA devrait être un outil complémentaire, pas un remplacement du professeur.", options=['AI should replace teachers.', 'AI is dangerous.', 'AI should complement teachers.', 'Academy opposes tech.'], answer=2, explanation='Complémentaire, pas remplacement.'),
 ]
 
-tcf_language_questions = [
-    TestQuestion(id='tcf-ls-1', level='A1', prompt='Complete: "Je _____ français."', options=['es', 'est', 'suis', 'sommes'], answer=2, explanation='Je suis.'),
-    TestQuestion(id='tcf-ls-2', level='A1', prompt='Correct: "Elle _____ à Paris."', options=['habite', 'habites', 'habitent', 'habiter'], answer=0, explanation='Elle habite.'),
-    TestQuestion(id='tcf-ls-3', level='A2', prompt='Complete: "Nous _____ mangé."', options=['avons', 'ai', 'as', 'a'], answer=0, explanation='Nous avons mangé.'),
-    TestQuestion(id='tcf-ls-4', level='A2', prompt='"Avoir" in "J\'ai vingt ans" means:', options=['To eat', 'To have', 'To be (age)', 'To go'], answer=2, explanation='Avoir + age = to be.'),
-    TestQuestion(id='tcf-ls-5', level='B1', prompt='Subjunctive of "être" for "que je":', options=['sois', 'suis', 'étais', 'serais'], answer=0, explanation='Que je sois.'),
-    TestQuestion(id='tcf-ls-6', level='B1', prompt='"Si j\'avais le temps, je _____ voyager."', options=['vais', 'irais', 'allais', 'irai'], answer=1, explanation='Si + imparfait → conditionnel.'),
-    TestQuestion(id='tcf-ls-7', level='B2', prompt='Passé simple of "aimer" (il):', options=['aimait', 'aima', 'aimera', 'aimerait'], answer=1, explanation='Il aima.'),
-    TestQuestion(id='tcf-ls-8', level='B2', prompt='"Je vous saurais gré de..." means:', options=['I would be grateful if...', 'I don\'t care...', 'I am angry...', 'I thank you...'], answer=0, explanation='Very formal gratitude.'),
-    TestQuestion(id='tcf-ls-9', level='A1', prompt='"Mange" is the form for:', options=['je', 'tu', 'il', 'nous'], answer=1, explanation='Tu manges.'),
-    TestQuestion(id='tcf-ls-10', level='A2', prompt='Passé composé of "aller" (elle):', options=['elle a allé', 'elle est allée', 'elle allait', 'elle ira'], answer=1, explanation='Aller uses être.'),
-]
-
 tcf_test = MockTest(
-    type='TCF', name='TCF', fullName='Test de Connaissance du Français',
-    description="French Ministry of Education's test. Evaluates A1 to C2.",
-    administeredBy='France Éducation International (FEI)',
-    usedFor='French nationality (B1), residency (A2), Quebec CSQ, university',
+    type='TCF', name='TCF Canada', fullName='Test de connaissance du français — Canada',
+    description=TCF_CANADA_FORMAT_NOTE,
+    administeredBy='France Éducation international (FEI)',
+    usedFor='Canada-specific French-test practice; check current IRCC rules and accepted-test requirements.',
     color='#B91C1C',
+    formatSourceUrl='https://www.france-education-international.fr/en/test/tcf-canada',
     sections=[
-        TestSectionData(id='reading', title='Reading Comprehension', titleFr='Compréhension écrite', description='Read texts. Practice: 10 questions.', icon='📖', questionCount=10, durationMinutes=10, questions=tcf_reading_questions),
-        TestSectionData(id='listening', title='Listening Comprehension', titleFr='Compréhension orale', description='Listen to audio. Practice: 10 questions.', icon='🎧', questionCount=10, durationMinutes=10, questions=tcf_listening_questions),
-        TestSectionData(id='language_structures', title='Language Structures', titleFr='Maîtrise des structures', description='Grammar and vocabulary. Practice: 10 questions.', icon='✏️', questionCount=10, durationMinutes=8, questions=tcf_language_questions),
+        TestSectionData(id='listening', title='Listening Comprehension', titleFr='Compréhension orale', description='Official format: 39 questions in 35 minutes. Parlez practice sets are shorter.', icon='🎧', questionCount=10, durationMinutes=35, questions=tcf_listening_questions, officialQuestionCount=39),
+        TestSectionData(id='reading', title='Reading Comprehension', titleFr='Compréhension écrite', description='Official format: 39 questions in 60 minutes. Parlez practice sets are shorter.', icon='📖', questionCount=10, durationMinutes=60, questions=tcf_reading_questions, officialQuestionCount=39),
+        TestSectionData(
+            id='writing', title='Writing', titleFr='Expression écrite',
+            description='Official format: 3 tasks in 60 minutes. These original prompts are for practice, not official test items.',
+            icon='✍️', questionCount=0, durationMinutes=60, officialTaskCount=3,
+            tasks=[
+                ExamTask(
+                    id='tcf-writing-task-1', title='Task 1 · Write a short message',
+                    prompt='You spent a weekend in a nearby town. Write a message to a friend describing where you went, what you did, and what you enjoyed most.',
+                    instructions='Write 60–120 words. Include enough detail for your friend to picture the weekend.', responseMode='written', durationMinutes=None, wordMin=60, wordMax=120,
+                    selfCheck=['I wrote between 60 and 120 words.', 'I included the place, activities, and a personal reaction.', 'I checked past-tense forms and basic agreement.'],
+                ),
+                ExamTask(
+                    id='tcf-writing-task-2', title='Task 2 · Describe an experience',
+                    prompt='For a community newsletter, describe a local event you attended recently. Explain what happened and give your opinion of the event.',
+                    instructions='Write 120–150 words. Organise the description and your opinion so they are easy to distinguish.', responseMode='written', durationMinutes=None, wordMin=120, wordMax=150,
+                    selfCheck=['I wrote between 120 and 150 words.', 'My description includes concrete details.', 'I explained my opinion with at least one reason.'],
+                ),
+                ExamTask(
+                    id='tcf-writing-task-3', title='Task 3 · Compare viewpoints and give your opinion',
+                    prompt='Two residents disagree about adding a new bus route: one values faster access to jobs and services; the other is concerned about noise and traffic. Explain both viewpoints, then state and support your own position.',
+                    instructions='Write 120–180 words. Present both viewpoints fairly before developing your own.', responseMode='written', durationMinutes=None, wordMin=120, wordMax=180,
+                    selfCheck=['I wrote between 120 and 180 words.', 'I represented both viewpoints fairly.', 'I stated and supported my own position.'],
+                ),
+            ],
+        ),
+        TestSectionData(
+            id='speaking', title='Speaking', titleFr='Expression orale',
+            description='Official format: 3 tasks in 12 minutes. The interaction task includes preparation time; practise aloud without treating this as a proficiency score.',
+            icon='🗣️', questionCount=0, durationMinutes=12, officialTaskCount=3,
+            tasks=[
+                ExamTask(
+                    id='tcf-speaking-task-1', title='Task 1 · Guided interview',
+                    prompt='Introduce yourself to a new colleague. Talk about your background, current activities, interests, and one plan for the coming year.',
+                    instructions='Speak for about 2 minutes. Use connected sentences and add a detail when you can.', responseMode='spoken', durationMinutes=2,
+                    selfCheck=['I introduced myself and gave relevant details.', 'I connected ideas rather than listing isolated words.', 'I spoke clearly enough to be understood.'],
+                ),
+                ExamTask(
+                    id='tcf-speaking-task-2', title='Task 2 · Obtain information',
+                    prompt='You are considering volunteering at a neighbourhood food-sharing project. Ask the coordinator about duties, schedule, training, and what volunteers should bring.',
+                    instructions='Take up to 2 minutes to prepare, then practise a short information-seeking exchange. Ask follow-up questions.', responseMode='spoken', durationMinutes=5.5, prepMinutes=2,
+                    selfCheck=['I asked relevant questions in a logical order.', 'I used polite forms and follow-up questions.', 'I checked or clarified key details.'],
+                ),
+                ExamTask(
+                    id='tcf-speaking-task-3', title='Task 3 · Express and develop an opinion',
+                    prompt='Some people prefer to work from home, while others prefer a shared workplace. Which arrangement do you prefer, and why?',
+                    instructions='Speak for about 4.5 minutes. Give reasons and examples, and acknowledge one reasonable alternative view.', responseMode='spoken', durationMinutes=4.5,
+                    selfCheck=['I stated my position early.', 'I supported it with reasons and examples.', 'I acknowledged another perspective and concluded clearly.'],
+                ),
+            ],
+        ),
     ],
 )
 
@@ -172,16 +245,33 @@ def get_section_sets(test_type, section_id):
         set_num += 1
     return sets
 
+def get_task(test_type, section_id, task_id):
+    """Return an original writing/speaking practice task, if it exists."""
+    test = get_test(test_type)
+    for section in test.sections:
+        if section.id != section_id:
+            continue
+        for task in section.tasks:
+            if task.id == task_id:
+                return asdict(task)
+    return None
+
+
 def get_all_section_sets(test_type):
-    """Get all practice sets for all sections of a test."""
+    """Get official section metadata and Parlez practice activities."""
     test = get_test(test_type)
     result = {}
     for section in test.sections:
         result[section.id] = {
             'title': section.title,
             'titleFr': section.titleFr,
+            'description': section.description,
             'icon': section.icon,
+            'questionCount': section.officialQuestionCount,
+            'taskCount': section.officialTaskCount,
+            'practiceQuestionCount': section.questionCount,
             'durationMinutes': section.durationMinutes,
+            'tasks': [asdict(task) for task in section.tasks],
             'sets': get_section_sets(test_type, section.id),
         }
     return result
