@@ -21,17 +21,23 @@ def test_a1_module_ids_are_unique():
     assert len(ids) == len(set(ids))
 
 
-def test_a1_modules_have_original_titles():
+def test_a1_unit_titles_are_unprefixed():
     course = get_course("A1")
+    expected_titles = [
+        "Premiers contacts",
+        "Mon identité",
+        "Ma famille et mes proches",
+        "Ma journée",
+        "En ville",
+        "Manger et boire",
+        "Chez moi",
+        "Projets et loisirs",
+    ]
     titles = [unit.title for unit in course.units]
-    assert "Module 1 — Premiers contacts" in titles
-    assert "Module 2 — Mon identité" in titles
-    assert "Module 3 — Ma famille et mes proches" in titles
-    assert "Module 4 — Ma journée" in titles
-    assert "Module 5 — En ville" in titles
-    assert "Module 6 — Manger et boire" in titles
-    assert "Module 7 — Chez moi" in titles
-    assert "Module 8 — Projets et loisirs" in titles
+    assert titles == expected_titles
+    assert [unit.titleFr for unit in course.units] == expected_titles
+    assert all(not title.startswith("Module ") for title in titles)
+    assert [unit.id for unit in course.units] == [f"a1-m{number}" for number in range(1, 9)]
 
 
 def test_a1_lessons_have_required_fields():

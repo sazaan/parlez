@@ -17,12 +17,12 @@ a1_course = Course(
     color='#2D6A4F',
     units=[
         # ============================================================
-        # Module 1 — Premiers contacts
+        # Premiers contacts
         # ============================================================
         Unit(
             id='a1-m1',
-            title='Module 1 — Premiers contacts',
-            titleFr='Module 1 — Premiers contacts',
+            title='Premiers contacts',
+            titleFr='Premiers contacts',
             theme='First contact with French',
             description='Greet people, introduce yourself, use the alphabet, and count to 20.',
             lessons=[
@@ -330,12 +330,12 @@ a1_course = Course(
             ],
         ),
         # ============================================================
-        # Module 2 — Mon identité
+        # Mon identité
         # ============================================================
         Unit(
             id='a1-m2',
-            title='Module 2 — Mon identité',
-            titleFr='Module 2 — Mon identité',
+            title='Mon identité',
+            titleFr='Mon identité',
             theme='Personal identity',
             description='Talk about your name, origin, nationality, languages, age, and profession.',
             lessons=[
@@ -649,12 +649,12 @@ a1_course = Course(
             ],
         ),
         # ============================================================
-        # Module 3 — Ma famille et mes proches
+        # Ma famille et mes proches
         # ============================================================
         Unit(
             id='a1-m3',
-            title='Module 3 — Ma famille et mes proches',
-            titleFr='Module 3 — Ma famille et mes proches',
+            title='Ma famille et mes proches',
+            titleFr='Ma famille et mes proches',
             theme='Family and close ones',
             description='Talk about your family, describe people, and discuss pets and animals.',
             lessons=[
@@ -965,12 +965,12 @@ a1_course = Course(
             ],
         ),
         # ============================================================
-        # Module 4 — Ma journée
+        # Ma journée
         # ============================================================
         Unit(
             id='a1-m4',
-            title='Module 4 — Ma journée',
-            titleFr='Module 4 — Ma journée',
+            title='Ma journée',
+            titleFr='Ma journée',
             theme='Daily routines and time',
             description='Talk about time, describe your daily routine, and discuss the weather and seasons.',
             lessons=[
@@ -1289,12 +1289,12 @@ a1_course = Course(
             ],
         ),
         # ============================================================
-        # Module 5 — En ville
+        # En ville
         # ============================================================
         Unit(
             id='a1-m5',
-            title='Module 5 — En ville',
-            titleFr='Module 5 — En ville',
+            title='En ville',
+            titleFr='En ville',
             theme='City life',
             description='Getting around town, asking directions, and using transport.',
             lessons=[
@@ -1621,12 +1621,12 @@ a1_course = Course(
             ],
         ),
         # ============================================================
-        # Module 6 — Manger et boire
+        # Manger et boire
         # ============================================================
         Unit(
             id='a1-m6',
-            title='Module 6 — Manger et boire',
-            titleFr='Module 6 — Manger et boire',
+            title='Manger et boire',
+            titleFr='Manger et boire',
             theme='Food and drink',
             description='Talk about meals and drinks, order politely in a café, and navigate a simple restaurant menu.',
             lessons=[
@@ -1936,12 +1936,12 @@ a1_course = Course(
             ],
         ),
         # ============================================================
-        # Module 7 — Chez moi
+        # Chez moi
         # ============================================================
         Unit(
             id='a1-m7',
-            title='Module 7 — Chez moi',
-            titleFr='Module 7 — Chez moi',
+            title='Chez moi',
+            titleFr='Chez moi',
             theme='Home and living',
             description='Describe your home, talk about where things are, and ask simple questions about accommodation.',
             lessons=[
@@ -2267,12 +2267,12 @@ a1_course = Course(
         ),
 
         # ============================================================
-        # Module 8 — Projets et loisirs
+        # Projets et loisirs
         # ============================================================
         Unit(
             id='a1-m8',
-            title='Module 8 — Projets et loisirs',
-            titleFr='Module 8 — Projets et loisirs',
+            title='Projets et loisirs',
+            titleFr='Projets et loisirs',
             theme='Hobbies and future plans',
             description='Talk about your hobbies and leisure activities, give dates and celebrate events, and make simple plans for the near future.',
             lessons=[
