@@ -67,11 +67,15 @@ if [ "$admin_credentials_complete" = false ]; then
     echo ""
     HOST_UID="$(id -u)"
     HOST_GID="$(id -g)"
-    "${COMPOSE[@]}" run --rm --no-deps \
+    if ! "${COMPOSE[@]}" run --rm --no-deps \
         --user "${HOST_UID}:${HOST_GID}" \
         -v "${PWD}:/workspace" \
         chatbot \
-        python /app/scripts/generate_admin_credentials.py --env-file /workspace/.env
+        python /app/scripts/generate_admin_credentials.py --env-file /workspace/.env; then
+        echo "❌ Admin credential setup did not complete. Parlez was not started." >&2
+        echo "Fix the setup error and rerun ./run.sh from an interactive terminal." >&2
+        exit 1
+    fi
 fi
 
 # Require at least one configured hosted provider key. The admin console can

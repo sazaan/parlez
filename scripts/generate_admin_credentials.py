@@ -13,6 +13,7 @@ import getpass
 import os
 import re
 import secrets
+import sys
 import tempfile
 from pathlib import Path
 
@@ -87,16 +88,26 @@ def write_admin_values(env_path: str | Path, values: dict[str, str]) -> Path:
     return path
 
 
+def _prompt_admin_password() -> str:
+    """Keep prompting until a bcrypt-safe password is entered and confirmed."""
+    while True:
+        password = getpass.getpass("Admin password (16+ characters, max 72 UTF-8 bytes): ")
+        if len(password) < 16:
+            print("Use a password of at least 16 characters; try again.", file=sys.stderr)
+            continue
+        if len(password.encode("utf-8")) > 72:
+            print("bcrypt passwords must be at most 72 UTF-8 bytes; choose a shorter password.", file=sys.stderr)
+            continue
+        confirmation = getpass.getpass("Confirm admin password: ")
+        if not secrets.compare_digest(password, confirmation):
+            print("Passwords did not match; start again.", file=sys.stderr)
+            continue
+        return password
+
+
 def _generate_values() -> tuple[dict[str, str], str]:
     username = _validate_username(input("Admin username [parlez-admin]: ") or "parlez-admin")
-    password = getpass.getpass("Admin password (at least 16 characters): ")
-    if len(password) < 16:
-        raise SystemExit("Use a password of at least 16 characters.")
-    if len(password.encode("utf-8")) > 72:
-        raise SystemExit("bcrypt passwords must be at most 72 bytes; choose a shorter password.")
-    confirmation = getpass.getpass("Confirm admin password: ")
-    if not secrets.compare_digest(password, confirmation):
-        raise SystemExit("Passwords did not match.")
+    password = _prompt_admin_password()
 
     totp_secret = pyotp.random_base32()
     values = {
