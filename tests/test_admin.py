@@ -46,14 +46,21 @@ def test_admin_shell_is_same_origin_and_not_indexed(client):
     assert "Parlez Admin" in response.text
     assert response.headers.get("x-robots-tag") == "noindex, nofollow, noarchive"
     assert response.headers.get("cache-control", "").startswith("no-cache")
+    assert 'data-section="users"' in response.text
+    assert 'id="statusUsers"' in response.text
+    assert 'id="usersTotalCount"' in response.text
     openapi = client.get("/openapi.json").json()
     assert "/api/admin/config" not in openapi.get("paths", {})
+    assert "/api/admin/users" not in openapi.get("paths", {})
+    assert "/api/admin/users/count" not in openapi.get("paths", {})
 
 
 def test_admin_endpoints_fail_closed_when_admin_is_not_configured(client, monkeypatch):
     monkeypatch.setattr(main, "ADMIN_AUTH_CONFIGURED", False)
     response = client.get("/api/admin/config")
     assert response.status_code == 503
+    assert client.get("/api/admin/users").status_code == 503
+    assert client.get("/api/admin/users/count").status_code == 503
     assert client.post("/api/admin/login", json={"username": "x", "password": "x", "totp": "abcdef"}).status_code == 503
 
 
@@ -85,6 +92,60 @@ def test_admin_login_starts_with_username_password_only_and_rejects_cross_origin
         json={"username": ADMIN_TEST_USERNAME, "password": ADMIN_TEST_PASSWORD},
     )
     assert cross_origin.status_code == 403
+
+
+def test_admin_users_directory_requires_an_authenticated_admin(client, monkeypatch):
+    monkeypatch.setattr(main, "ADMIN_AUTH_CONFIGURED", True)
+    response = client.get("/api/admin/users")
+    assert response.status_code == 401
+    assert client.get("/api/admin/users/count").status_code == 401
+
+
+def test_admin_users_directory_counts_and_paginates_without_private_fields(signed_admin):
+    client, _csrf = signed_admin
+    empty = client.get("/api/admin/users").json()
+    assert empty["total"] == 0
+    assert client.get("/api/admin/users/count").json() == {"total": 0}
+    assert empty["users"] == []
+    password_hash = bcrypt.hashpw(b"test-user-password", bcrypt.gensalt(rounds=4)).decode()
+    learners = [
+        ("zoeexample", "Zoe Example", "zoe@example.test", "B2", "2026-10-24"),
+        ("alexexample", "Alex Example", "alex@example.test", "A2", "2026-10-23"),
+        ("miraexample", "Mira Example", "mira@example.test", "B1", None),
+    ]
+    for index, (username, name, email, level, last_active) in enumerate(learners):
+        user = main.storage.create_user(username, password_hash, name, email)
+        user["created_at"] = time.time() - (index + 1) * 86400
+        user["level"] = level
+        user["progress"]["level"] = level
+        user["progress"]["last_active"] = last_active
+        main.storage.save_user(user)
+
+    assert client.get("/api/admin/users/count").json() == {"total": 3}
+    first_page_response = client.get("/api/admin/users?limit=2&offset=0")
+    assert first_page_response.status_code == 200, first_page_response.text
+    first_page = first_page_response.json()
+    assert first_page["total"] == 3
+    assert first_page["limit"] == 2
+    assert first_page["offset"] == 0
+    assert [user["username"] for user in first_page["users"]] == ["alexexample", "miraexample"]
+    assert first_page["users"][0]["level"] == "A2"
+    assert first_page["users"][0]["email"] == "alex@example.test"
+    assert first_page["users"][0]["last_active"] == "2026-10-23"
+    assert first_page["users"][1]["last_active"] is None
+    assert all(
+        set(user) == {"name", "username", "email", "level", "registered_at", "last_active"}
+        for user in first_page["users"]
+    )
+    assert "test-user-password" not in first_page_response.text
+    assert "password_hash" not in first_page_response.text
+    assert "conversations" not in first_page_response.text
+
+    second_page = client.get("/api/admin/users?limit=2&offset=2").json()
+    assert second_page["total"] == 3
+    assert [user["username"] for user in second_page["users"]] == ["zoeexample"]
+    assert client.get("/api/admin/users?limit=101").status_code == 400
+    assert client.get("/api/admin/users?offset=-1").status_code == 400
 
 
 def test_admin_can_enroll_and_toggle_authenticator_mfa_from_panel(signed_admin):
@@ -207,6 +268,8 @@ def test_regular_user_session_does_not_authorize_admin_api(client, monkeypatch):
     client.headers["Authorization"] = f"Bearer {login.json()['token']}"
     response = client.get("/api/admin/config")
     assert response.status_code == 401
+    assert client.get("/api/admin/users").status_code == 401
+    assert client.get("/api/admin/users/count").status_code == 401
 
 
 def test_admin_writes_require_csrf_and_publish_level_updates_are_enforced(signed_admin):

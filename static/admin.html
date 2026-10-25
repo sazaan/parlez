@@ -67,12 +67,14 @@
             <section class="status-grid" aria-label="Current system status">
                 <article class="status-card"><span class="status-label">ACTIVE AI</span><strong id="statusProvider">—</strong><small id="statusModel">—</small></article>
                 <article class="status-card"><span class="status-label">PUBLISHED LEVELS</span><strong id="statusLevels">—</strong><small>Course access for learners</small></article>
+                <article class="status-card"><span class="status-label">REGISTERED LEARNERS</span><strong id="statusUsers">—</strong><small>Accounts created in Parlez</small></article>
                 <article class="status-card"><span class="status-label">BACKEND</span><strong class="status-good" id="statusBackend">Healthy</strong><small id="statusDatabase">Database status loading…</small></article>
             </section>
 
             <nav class="tabs" aria-label="Admin sections">
                 <button class="tab active" type="button" data-section="ai">AI providers</button>
                 <button class="tab" type="button" data-section="courses">Course publishing</button>
+                <button class="tab" type="button" data-section="users">Users</button>
                 <button class="tab" type="button" data-section="security">Security</button>
                 <button class="tab" type="button" data-section="audit">Change log</button>
             </nav>
@@ -119,6 +121,35 @@
                 <div class="course-warning"><strong>A2–B2 are public without a reviewer attestation.</strong><span>No reviewer name or qualification is stored for this release. Public availability does not verify reviewer credentials or certify CEFR/NCLC alignment. You can keep review status transparent or record a qualified review if appropriate.</span></div>
                 <div class="course-grid" id="courseGrid"></div>
                 <div class="course-actions"><p class="inline-message" id="courseMessage" role="status" aria-live="polite"></p><button class="button button-primary" id="saveCoursesButton" type="button">Save publication settings <span aria-hidden="true">→</span></button></div>
+            </section>
+
+            <section class="panel-section" id="section-users" hidden>
+                <div class="section-heading">
+                    <div><p class="eyebrow">ACCOUNT DIRECTORY</p><h2>Registered learners</h2><p>View registered accounts and the total learner count. The directory excludes passwords and private learning records.</p></div>
+                    <span class="section-icon" aria-hidden="true">♙</span>
+                </div>
+                <div class="panel-card users-card">
+                    <div class="users-summary">
+                        <div class="users-total" aria-live="polite">
+                            <span class="status-label">TOTAL REGISTERED LEARNERS</span>
+                            <strong id="usersTotalCount">—</strong>
+                            <small>accounts across all pages</small>
+                        </div>
+                        <button class="button button-secondary" id="refreshUsersButton" type="button">Refresh list</button>
+                    </div>
+                    <p class="inline-message" id="usersMessage" role="status" aria-live="polite"></p>
+                    <div class="users-table-wrap">
+                        <table class="users-table" aria-label="Registered learner accounts">
+                            <thead><tr><th scope="col">Learner</th><th scope="col">Email</th><th scope="col">Level</th><th scope="col">Registered</th><th scope="col">Last active</th></tr></thead>
+                            <tbody id="registeredUsersBody"><tr><td class="users-empty" colspan="5">Loading registered accounts…</td></tr></tbody>
+                        </table>
+                    </div>
+                    <div class="users-pagination">
+                        <span id="usersPageLabel" aria-live="polite">Loading accounts…</span>
+                        <div><button class="button button-quiet" id="usersPreviousButton" type="button" disabled>Previous</button><button class="button button-quiet" id="usersNextButton" type="button" disabled>Next</button></div>
+                    </div>
+                    <p class="field-help">Account directory data is visible only to authenticated admins. Password hashes and detailed learning records are never included.</p>
+                </div>
             </section>
 
             <section class="panel-section" id="section-security" hidden>

@@ -23,6 +23,8 @@
     let csrfToken = '';
     let currentConfig = null;
     let testedModelKey = '';
+    const USERS_PAGE_SIZE = 25;
+    let currentUsersOffset = 0;
 
     function setVisible(element, visible) {
         element.hidden = !visible;
@@ -41,6 +43,7 @@
         const mfaCurrentCode = document.getElementById('mfaCurrentCode');
         if (mfaPassword) mfaPassword.value = '';
         if (mfaCurrentCode) mfaCurrentCode.value = '';
+        if (document.getElementById('registeredUsersBody')) clearAdminUsers();
         loginMessage.textContent = message;
     }
 
@@ -247,18 +250,107 @@
         document.getElementById('mfaPendingNote').hidden = status.setup_pending !== true;
     }
 
+    function formatRegisteredDate(timestamp) {
+        if (typeof timestamp !== 'number' || !Number.isFinite(timestamp) || timestamp <= 0) return '—';
+        const date = new Date(timestamp * 1000);
+        return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString();
+    }
+
+    function formatLastActiveDate(day) {
+        if (typeof day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return 'Never';
+        const [year, month, date] = day.split('-').map(Number);
+        const parsed = new Date(year, month - 1, date);
+        return Number.isNaN(parsed.getTime()) ? '—' : parsed.toLocaleDateString();
+    }
+
+    function renderRegisteredUserCount(value) {
+        const total = Number.isFinite(Number(value)) ? Math.max(0, Math.floor(Number(value))) : 0;
+        document.getElementById('statusUsers').textContent = total.toLocaleString();
+        document.getElementById('usersTotalCount').textContent = total.toLocaleString();
+    }
+
+    function renderAdminUsers(payload) {
+        const total = Number.isFinite(Number(payload.total)) ? Math.max(0, Math.floor(Number(payload.total))) : 0;
+        const rows = Array.isArray(payload.users) ? payload.users : [];
+        const offset = Number.isFinite(Number(payload.offset)) ? Math.max(0, Math.floor(Number(payload.offset))) : 0;
+        const body = document.getElementById('registeredUsersBody');
+        currentUsersOffset = offset;
+        setMessage(document.getElementById('usersMessage'), '');
+        renderRegisteredUserCount(total);
+
+        if (!rows.length) {
+            const message = total === 0 ? 'No learner accounts have registered yet.' : 'No accounts are available on this page.';
+            body.innerHTML = `<tr><td class="users-empty" colspan="5">${message}</td></tr>`;
+        } else {
+            body.innerHTML = rows.map(user => {
+                const username = typeof user.username === 'string' ? user.username : '';
+                const name = typeof user.name === 'string' && user.name.trim() ? user.name : username;
+                const email = typeof user.email === 'string' && user.email ? user.email : '—';
+                const level = typeof user.level === 'string' && user.level ? user.level : 'A1';
+                return `<tr>
+                    <td><strong>${escapeHTML(name || 'Learner')}</strong><small>@${escapeHTML(username)}</small></td>
+                    <td>${escapeHTML(email)}</td>
+                    <td><span class="users-level">${escapeHTML(level)}</span></td>
+                    <td>${escapeHTML(formatRegisteredDate(user.registered_at))}</td>
+                    <td>${escapeHTML(formatLastActiveDate(user.last_active))}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        const count = rows.length;
+        const first = count ? offset + 1 : 0;
+        const last = count ? offset + count : 0;
+        document.getElementById('usersPageLabel').textContent = total === 0
+            ? 'No registered learner accounts.'
+            : count
+                ? `Showing ${first.toLocaleString()}–${last.toLocaleString()} of ${total.toLocaleString()} learners`
+                : `No accounts on this page · ${total.toLocaleString()} total`;
+        document.getElementById('usersPreviousButton').disabled = offset <= 0;
+        document.getElementById('usersNextButton').disabled = offset + count >= total || count === 0;
+    }
+
+    function clearAdminUsers() {
+        currentUsersOffset = 0;
+        const total = document.getElementById('usersTotalCount');
+        const cardCount = document.getElementById('statusUsers');
+        const body = document.getElementById('registeredUsersBody');
+        const page = document.getElementById('usersPageLabel');
+        if (total) total.textContent = '—';
+        if (cardCount) cardCount.textContent = '—';
+        if (body) body.innerHTML = '<tr><td class="users-empty" colspan="5">Sign in to view registered accounts.</td></tr>';
+        if (page) page.textContent = 'Sign in to view accounts.';
+    }
+
+    async function loadAdminUsers(offset = 0) {
+        const message = document.getElementById('usersMessage');
+        const refresh = document.getElementById('refreshUsersButton');
+        setMessage(message, 'Loading registered accounts…', 'info');
+        refresh.disabled = true;
+        try {
+            const result = await adminRequest(`/api/admin/users?limit=${USERS_PAGE_SIZE}&offset=${offset}`);
+            renderAdminUsers(result);
+            setMessage(message, '');
+        } catch (error) {
+            setMessage(message, error.message || 'Could not load registered accounts.');
+        } finally {
+            refresh.disabled = false;
+        }
+    }
+
     async function loadDashboard() {
-        const [config, audit, health, mfa] = await Promise.all([
+        const [config, audit, health, mfa, userCount] = await Promise.all([
             adminRequest('/api/admin/config'),
             adminRequest('/api/admin/audit?limit=60'),
             adminRequest('/api/admin/health'),
-            adminRequest('/api/admin/mfa')
+            adminRequest('/api/admin/mfa'),
+            adminRequest('/api/admin/users/count')
         ]);
         currentConfig = config;
         renderProviderOptions(config.ai);
         renderCourseCards(config.courses);
         renderAudit(audit);
         renderMfaStatus(mfa);
+        renderRegisteredUserCount(userCount.total);
         updateSummary(config, health);
         setVisible(loginView, false);
         setVisible(setupView, false);
@@ -530,7 +622,16 @@
                 section.classList.toggle('active', active);
                 section.hidden = !active;
             });
+            if (tab.dataset.section === 'users') loadAdminUsers(0);
         });
+    });
+
+    document.getElementById('refreshUsersButton').addEventListener('click', () => loadAdminUsers(0));
+    document.getElementById('usersPreviousButton').addEventListener('click', () => {
+        loadAdminUsers(Math.max(0, currentUsersOffset - USERS_PAGE_SIZE));
+    });
+    document.getElementById('usersNextButton').addEventListener('click', () => {
+        loadAdminUsers(currentUsersOffset + USERS_PAGE_SIZE);
     });
 
     document.getElementById('logoutButton').addEventListener('click', async () => {

@@ -990,6 +990,20 @@ async def admin_session(admin=Depends(require_admin)):
     return {"username": admin["username"], "csrf_token": admin["csrf"]}
 
 
+@app.get("/api/admin/users/count", include_in_schema=False)
+async def admin_user_count(admin=Depends(require_admin)):
+    """Return only the number of registered learner accounts."""
+    return {"total": storage.count_users()}
+
+
+@app.get("/api/admin/users", include_in_schema=False)
+async def admin_users(limit: int = 25, offset: int = 0, admin=Depends(require_admin)):
+    """List basic learner account details without passwords or learning records."""
+    if not 1 <= limit <= 100 or not 0 <= offset <= 1_000_000:
+        raise HTTPException(status_code=400, detail="Choose a page size from 1 to 100 and a valid page offset.")
+    return storage.list_admin_users(limit=limit, offset=offset)
+
+
 @app.get("/api/admin/mfa", include_in_schema=False)
 async def admin_mfa_status(admin=Depends(require_admin)):
     state = _get_admin_mfa_state()

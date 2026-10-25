@@ -9,9 +9,10 @@ multiple worker processes stay consistent and can be scaled horizontally.
 
 import os
 import json
+import math
 import bcrypt
 from typing import Optional
-from sqlalchemy import create_engine, Column, String, Text, JSON, Integer, Float, text, inspect, Index
+from sqlalchemy import create_engine, Column, String, Text, JSON, Integer, Float, text, inspect, Index, func
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 Base = declarative_base()
@@ -178,6 +179,58 @@ class Storage:
     def email_exists(self, email: str) -> bool:
         with self.Session() as session:
             return session.query(User.id).filter_by(email=email).first() is not None
+
+    def count_users(self) -> int:
+        with self.Session() as session:
+            return session.query(func.count(User.id)).scalar() or 0
+
+    def list_admin_users(self, limit: int = 25, offset: int = 0) -> dict:
+        """Return a paginated, privacy-limited directory for authenticated admins."""
+        with self.Session() as session:
+            total = session.query(func.count(User.id)).scalar() or 0
+            rows = (
+                session.query(
+                    User.username,
+                    User.email,
+                    User.data["name"].as_string(),
+                    User.data["level"].as_string(),
+                    User.data["progress"]["level"].as_string(),
+                    User.data["created_at"].as_string(),
+                    User.data["progress"]["last_active"].as_string(),
+                )
+                .order_by(User.username.asc())
+                .offset(offset)
+                .limit(limit)
+                .all()
+            )
+
+        users = []
+        for username, email, name, level, progress_level, raw_registered_at, last_active in rows:
+            if not isinstance(name, str) or not name.strip():
+                name = username
+            if not isinstance(level, str) or not level.strip():
+                level = progress_level
+            if not isinstance(level, str) or not level.strip():
+                level = "A1"
+            try:
+                registered_at = None if isinstance(raw_registered_at, bool) else float(raw_registered_at)
+                if registered_at is not None and (not math.isfinite(registered_at) or registered_at <= 0):
+                    registered_at = None
+            except (TypeError, ValueError):
+                registered_at = None
+            if not isinstance(last_active, str) or not last_active.strip():
+                last_active = None
+
+            users.append({
+                "name": name,
+                "username": username,
+                "email": email if isinstance(email, str) and email.strip() else None,
+                "level": level,
+                "registered_at": registered_at,
+                "last_active": last_active,
+            })
+
+        return {"total": total, "users": users, "limit": limit, "offset": offset}
 
     def verify_user(self, username: str, password: str) -> Optional[str]:
         user = self.get_user_by_username(username)
