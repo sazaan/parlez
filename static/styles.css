@@ -3497,3 +3497,71 @@ textarea {
     .exam-format-count { margin-left: 1.4rem; text-align: left; }
     .exam-task-timer-row { align-items: flex-start; flex-direction: column; }
 }
+
+.exam-preparation {
+    margin: 1rem 0 1.5rem;
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--card, #fff);
+}
+.exam-preparation h3 { margin: 0 0 0.5rem; }
+.exam-prep-intro,
+.exam-set-note,
+.exam-task-group-note { color: var(--muted-foreground); font-size: 0.84rem; line-height: 1.5; }
+.exam-prep-intro { margin: 0 0 0.85rem; }
+.exam-study-plan,
+.exam-prep-module,
+.exam-task-rubric {
+    margin: 0.55rem 0;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--card, #fff);
+}
+.exam-study-plan > summary,
+.exam-prep-module > summary,
+.exam-prep-practice details > summary,
+.exam-prep-selfcheck > summary,
+.exam-task-rubric > summary {
+    cursor: pointer;
+    font-weight: 650;
+}
+.exam-prep-module > summary { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.8rem; }
+.exam-prep-module > summary small { flex: 0 0 auto; color: var(--muted-foreground); font-weight: 500; }
+.exam-prep-modules { display: grid; gap: 0.15rem; }
+.exam-prep-module h4 { margin: 0.85rem 0 0.3rem; }
+.exam-prep-module ul,
+.exam-prep-module ol,
+.exam-study-plan ol,
+.exam-task-rubric ul { padding-left: 1.3rem; }
+.exam-prep-module li,
+.exam-study-plan li,
+.exam-task-rubric li { margin: 0.25rem 0; line-height: 1.5; }
+.exam-prep-objective { margin: 0.8rem 0; line-height: 1.5; }
+.exam-prep-practice { margin: 0.75rem 0; padding: 0.8rem; border-left: 3px solid var(--secondary); border-radius: 0.35rem; background: rgba(201, 163, 92, 0.08); }
+.exam-prep-practice > p { margin: 0.5rem 0; line-height: 1.55; }
+.exam-prep-practice details,
+.exam-prep-selfcheck { margin-top: 0.55rem; }
+.exam-prep-transfer { margin: 0.75rem 0; line-height: 1.5; }
+.exam-prep-audio { margin: 0.5rem 0; }
+.exam-set-note { margin: 0.45rem 0 0.8rem; }
+.exam-task-group-note { margin: 0.35rem 0 0.65rem; }
+.exam-full-length-btn { min-width: 160px; border-width: 2px; background: linear-gradient(135deg, rgba(45,106,79,0.08), rgba(201,163,92,0.16)); }
+.exam-full-length-btn small { white-space: normal; }
+.exam-task-rubric { margin: 0.8rem 0; font-size: 0.88rem; }
+.exam-task-rubric p { color: var(--muted-foreground); }
+.exam-section-practice-btn {
+    display: block;
+    margin: 0 0 0.45rem;
+    padding: 0.7rem 0.9rem;
+    border: 1px solid var(--primary);
+    border-radius: var(--radius-md);
+    background: var(--primary);
+    color: #fff;
+    font-weight: 650;
+    cursor: pointer;
+}
+.exam-section-practice-btn:hover { filter: brightness(0.94); }
+.exam-writing-section-toolbar { position: sticky; top: 0.25rem; z-index: 2; padding: 0.7rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card, #fff); }
+.exam-writing-section-card h3 { margin-top: 0; }

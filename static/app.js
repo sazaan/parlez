@@ -176,6 +176,18 @@ function setupDelegatedHandlers() {
             case 'speak':
                 if (btn.dataset.text) speakText(btn.dataset.text);
                 break;
+            case 'play-exam-audio': {
+                const qid = btn.dataset.qid;
+                const onePlay = btn.dataset.singlePlay === 'true';
+                if (onePlay && examState.playedAudioIds?.has(qid)) break;
+                if (onePlay) {
+                    examState.playedAudioIds.add(qid);
+                    btn.disabled = true;
+                    btn.textContent = '🔊 Generated practice audio played';
+                }
+                if (btn.dataset.text) speakText(btn.dataset.text);
+                break;
+            }
             case 'quiz-answer':
                 if (typeof window.checkQuizAnswer === 'function') window.checkQuizAnswer(btn);
                 break;
@@ -220,6 +232,15 @@ function setupDelegatedHandlers() {
                 break;
             case 'start-exam-task':
                 if (typeof window.startExamTask === 'function') window.startExamTask(btn.dataset.type, btn.dataset.section, btn.dataset.task);
+                break;
+            case 'start-exam-writing-section':
+                if (typeof window.startExamWritingSection === 'function') window.startExamWritingSection(btn.dataset.type);
+                break;
+            case 'finish-writing-section':
+                if (typeof window.finishExamWritingSection === 'function') window.finishExamWritingSection();
+                break;
+            case 'submit-writing-section-feedback':
+                if (typeof window.submitExamWritingSectionFeedback === 'function') window.submitExamWritingSectionFeedback(parseInt(btn.dataset.idx || '0', 10));
                 break;
             case 'start-task-timer':
                 if (typeof window.startExamTaskTimer === 'function') window.startExamTaskTimer(btn);
@@ -281,12 +302,16 @@ function setupDelegatedHandlers() {
     });
 
     document.addEventListener('input', (e) => {
-        if (e.target.id !== 'examTaskResponse') return;
-        const count = document.getElementById('examTaskWordCount');
+        const countId = e.target.id === 'examTaskResponse'
+            ? 'examTaskWordCount'
+            : e.target.dataset.wordCountTarget;
+        if (!countId) return;
+        const count = document.getElementById(countId);
         if (!count) return;
         const text = e.target.value.trim();
         const words = text ? text.split(/\s+/).length : 0;
-        count.textContent = `${words} word${words === 1 ? '' : 's'}`;
+        const wordHint = e.target.dataset.wordCountHint;
+        count.textContent = `${words} word${words === 1 ? '' : 's'}${wordHint ? ` · ${wordHint}` : ''}`;
     });
 }
 
@@ -1134,6 +1159,7 @@ function showToolView(title, html, options = {}) {
     if (typeof examState !== 'undefined' && examState.phase === 'taking' && !examState.paused) {
         pauseExam();
     }
+    if (typeof stopExamWritingSectionTimer === 'function') stopExamWritingSectionTimer();
     courseLoadRequestId += 1;
     activeMainSection = options.section || 'tool';
     setCoursesNavActive(activeMainSection === 'courses');
@@ -1153,6 +1179,7 @@ function showChatView() {
     if (typeof examState !== 'undefined' && examState.phase === 'taking' && !examState.paused) {
         pauseExam();
     }
+    if (typeof stopExamWritingSectionTimer === 'function') stopExamWritingSectionTimer();
     courseLoadRequestId += 1;
     activeMainSection = 'chat';
     setCoursesNavActive(false);
@@ -2425,9 +2452,18 @@ window.correctMyWriting = async function(text) {
 // ============================================================
 // Exam Simulation Mode
 // ============================================================
-let examState = { testType: null, sectionId: null, setNum: null, questions: [], answers: {}, timer: null, timeLeft: 0, startTime: 0, phase: 'idle', paused: false, currentIdx: 0 };
+let examState = { testType: null, sectionId: null, setNum: null, questions: [], answers: {}, timer: null, timeLeft: 0, startTime: 0, phase: 'idle', paused: false, currentIdx: 0, fullLengthSimulation: false, reusesShortPracticeItems: false, singlePlayAudio: false, playedAudioIds: new Set() };
+let examWritingSectionState = { timer: null, timeLeft: 0, phase: 'idle' };
+const examWritingSectionAttempts = { TEF: 0, TCF: 0 };
+
+function stopExamWritingSectionTimer() {
+    if (examWritingSectionState.timer) clearInterval(examWritingSectionState.timer);
+    examWritingSectionState.timer = null;
+    if (examWritingSectionState.phase === 'taking') examWritingSectionState.phase = 'interrupted';
+}
 
 window.startMockTest = async function(testType) {
+    stopExamWritingSectionTimer();
     if (examTaskState.timer) clearInterval(examTaskState.timer);
     showToolView(`📝 ${testType} Exam`, spinnerHTML('Loading exam...', false));
     try {
@@ -2459,6 +2495,63 @@ window.startMockTest = async function(testType) {
         }
         html += '</div>';
 
+        const plan = Array.isArray(exam.studyPlan) ? exam.studyPlan : [];
+        const preparation = exam.preparation || {};
+        const modules = Array.isArray(preparation.modules) ? preparation.modules : [];
+        if (plan.length || modules.length) {
+            html += '<section class="exam-preparation">';
+            html += `<h3>${escapeHtml(preparation.title || 'Guided exam preparation')}</h3>`;
+            html += `<p class="exam-prep-intro">${escapeHtml(preparation.formatNote || '')} Lessons use original practice examples. Work through one skill at a time; these materials do not predict an official score or guarantee a pass.</p>`;
+            if (plan.length) {
+                html += '<details class="exam-study-plan"><summary>Suggested study sequence</summary><ol>';
+                for (const step of plan) {
+                    html += `<li><strong>${escapeHtml(step.step || '')}</strong><ul>`;
+                    for (const action of (step.actions || [])) html += `<li>${escapeHtml(action)}</li>`;
+                    html += '</ul></li>';
+                }
+                html += '</ol></details>';
+            }
+            html += '<div class="exam-prep-modules">';
+            for (const module of modules) {
+                html += `<details class="exam-prep-module"><summary><span>${escapeHtml(module.skill || '')} · ${escapeHtml(module.title || '')}</span><small>${escapeHtml(module.durationMinutes || '')} min</small></summary>`;
+                html += `<p class="exam-prep-objective"><strong>Goal:</strong> ${escapeHtml(module.objective || '')}</p>`;
+                if (Array.isArray(module.teach) && module.teach.length) {
+                    html += '<h4>Strategy</h4><ul>';
+                    for (const point of module.teach) html += `<li>${escapeHtml(point)}</li>`;
+                    html += '</ul>';
+                }
+                if (module.guidedPractice) {
+                    const practice = module.guidedPractice;
+                    html += '<div class="exam-prep-practice"><strong>Guided practice</strong>';
+                    if (practice.prompt) html += `<p>${escapeHtml(practice.prompt)}</p>`;
+                    if (practice.audioText) {
+                        html += `<button class="btn-speak exam-prep-audio" data-action="speak" data-text="${escapeHtml(practice.audioText)}">🔊 Play generated practice audio</button>`;
+                        html += `<details><summary>Reveal audio transcript</summary><p>${escapeHtml(practice.audioText)}</p></details>`;
+                    }
+                    if (practice.answer || practice.reasoning) {
+                        html += '<details><summary>Reveal a sample answer and reasoning</summary>';
+                        if (practice.answer) html += `<p><strong>Sample answer:</strong> ${escapeHtml(practice.answer)}</p>`;
+                        if (practice.reasoning) html += `<p><strong>Why:</strong> ${escapeHtml(practice.reasoning)}</p>`;
+                        html += '</details>';
+                    }
+                    if (Array.isArray(practice.modelPlan) && practice.modelPlan.length) {
+                        html += '<details><summary>Open a planning outline</summary><ol>';
+                        for (const point of practice.modelPlan) html += `<li>${escapeHtml(point)}</li>`;
+                        html += '</ol></details>';
+                    }
+                    html += '</div>';
+                }
+                if (module.transferTask) html += `<p class="exam-prep-transfer"><strong>Transfer:</strong> ${escapeHtml(module.transferTask)}</p>`;
+                if (Array.isArray(module.selfCheck) && module.selfCheck.length) {
+                    html += '<details class="exam-prep-selfcheck"><summary>Self-check</summary><ul>';
+                    for (const item of module.selfCheck) html += `<li>${escapeHtml(item)}</li>`;
+                    html += '</ul></details>';
+                }
+                html += '</details>';
+            }
+            html += '</div></section>';
+        }
+
         for (const [sid, section] of Object.entries(exam.sections || {})) {
             const sets = Array.isArray(section.sets) ? section.sets : [];
             const tasks = Array.isArray(section.tasks) ? section.tasks : [];
@@ -2468,13 +2561,25 @@ window.startMockTest = async function(testType) {
             if (sets.length) {
                 html += '<div class="exam-set-buttons">';
                 for (const set of sets) {
-                    const label = set.isAI ? '🤖 AI' : `Set ${set.setNum}`;
-                    const cls = set.isAI ? 'exam-set-btn ai' : 'exam-set-btn';
-                    html += `<button class="${cls}" data-action="start-exam-section" data-type="${escapeHtml(testType)}" data-section="${escapeHtml(sid)}" data-set="${escapeHtml(set.setNum)}" style="border-color:${escapeHtml(exam.color)}">${escapeHtml(label)}<br><small>${escapeHtml(set.questionCount)} practice questions</small></button>`;
+                    const label = set.fullLengthSimulation ? '🎯 Full-length rehearsal' : (set.isAI ? '🤖 AI' : `Set ${set.setNum}`);
+                    const cls = set.fullLengthSimulation ? 'exam-set-btn exam-full-length-btn' : (set.isAI ? 'exam-set-btn ai' : 'exam-set-btn');
+                    const durationLabel = set.timeLimitMinutes != null ? ` · ${set.timeLimitMinutes} min` : '';
+                    html += `<button class="${cls}" data-action="start-exam-section" data-type="${escapeHtml(testType)}" data-section="${escapeHtml(sid)}" data-set="${escapeHtml(set.setNum)}" style="border-color:${escapeHtml(exam.color)}">${escapeHtml(label)}<br><small>${escapeHtml(set.questionCount)} questions${escapeHtml(durationLabel)}</small></button>`;
                 }
                 html += '</div>';
+                if (Number(section.practiceQuestionCount) > 0) {
+                    html += `<p class="exam-set-note">${escapeHtml(section.practiceQuestionCount)} original items across the short skill-drill bank.</p>`;
+                }
+                if (sets.some(set => set.reusesShortPracticeItems)) {
+                    html += '<p class="exam-set-note">The timed rehearsal uses original questions also found in the short drills. It is for pacing practice, not a fresh or official mock.</p>';
+                }
+            }
+            if (sid === 'writing' && tasks.length) {
+                html += `<button class="exam-section-practice-btn" data-action="start-exam-writing-section" data-type="${escapeHtml(testType)}">Start full writing-section rehearsal · ${escapeHtml(section.durationMinutes)} min</button>`;
+                html += '<p class="exam-set-note">One original prompt from each official task type; a shared section timer, word counts, and optional language feedback are provided. Responses are not scored.</p>';
             }
             if (tasks.length) {
+                html += `<p class="exam-task-group-note">Official format: ${escapeHtml(section.taskCount || 0)} task slots · ${escapeHtml(section.practiceTaskCount || tasks.length)} original practice prompts. Use the criteria as a self-check, not an official rubric or score.</p>`;
                 html += '<div class="exam-task-list">';
                 for (const task of tasks) {
                     const limits = task.wordMin
@@ -2500,6 +2605,7 @@ window.startMockTest = async function(testType) {
 let examTaskState = { testType: null, sectionId: null, taskId: null, timer: null };
 
 window.startExamTask = async function(testType, sectionId, taskId) {
+    stopExamWritingSectionTimer();
     if (examTaskState.timer) clearInterval(examTaskState.timer);
     examTaskState = { testType, sectionId, taskId, timer: null };
     getToolContent().innerHTML = spinnerHTML('Loading practice task...', false);
@@ -2512,7 +2618,7 @@ window.startExamTask = async function(testType, sectionId, taskId) {
         const isWritten = task.responseMode === 'written';
         const taskTiming = task.durationMinutes != null
             ? `${task.durationMinutes} min for this task`
-            : `${data.sectionDurationMinutes} min for the full section; pace the tasks yourself`;
+            : `${data.sectionDurationMinutes} min total across the section; use the full-section rehearsal for shared timing`;
         const durationSeconds = Math.max(60, Math.round(Number(task.durationMinutes || 1) * 60));
         let html = `<div class="tool-header"><h2>${escapeHtml(data.testName)} · ${escapeHtml(task.title)}</h2></div>`;
         html += `<div class="exam-practice-notice">${escapeHtml(data.practiceNotice || 'Original, unofficial practice. This is not an official test or a score prediction.')}`;
@@ -2521,7 +2627,15 @@ window.startExamTask = async function(testType, sectionId, taskId) {
         html += `<section class="exam-task-card"><div class="exam-task-meta">${escapeHtml(data.sectionTitle)} · ${escapeHtml(taskTiming)}${task.prepMinutes ? ` · includes up to ${escapeHtml(task.prepMinutes)} minutes of preparation` : ''}</div>`;
         html += `<p class="exam-task-instructions">${escapeHtml(task.instructions)}</p>`;
         html += `<div class="exam-task-prompt">${escapeHtml(task.prompt)}</div>`;
+        if (Array.isArray(task.rubric) && task.rubric.length) {
+            html += '<details class="exam-task-rubric"><summary>Unofficial practice criteria</summary><p>Use these only for self-review; they are not the provider\'s official rubric and produce no task score.</p><ul>';
+            for (const criterion of task.rubric) html += `<li>${escapeHtml(criterion)}</li>`;
+            html += '</ul></details>';
+        }
         if (isWritten) {
+            if (task.durationMinutes != null) {
+                html += `<div class="exam-task-timer-row"><strong id="examTaskTimer">${formatTime(durationSeconds)}</strong><button class="exam-task-submit" data-action="start-task-timer" data-seconds="${durationSeconds}">Start writing timer</button></div>`;
+            }
             html += '<label class="exam-task-label" for="examTaskResponse">Your practice response (not submitted for an exam score)</label>';
             html += '<textarea id="examTaskResponse" class="exam-task-response" rows="9" maxlength="4000" placeholder="Rédigez votre réponse en français…"></textarea>';
             html += '<div id="examTaskWordCount" class="exam-task-word-count">0 words</div>';
@@ -2546,6 +2660,121 @@ window.startExamTask = async function(testType, sectionId, taskId) {
     }
 };
 
+window.startExamWritingSection = async function(testType) {
+    stopExamWritingSectionTimer();
+    if (examTaskState.timer) clearInterval(examTaskState.timer);
+    const normalizedType = String(testType || '').toUpperCase();
+    getToolContent().innerHTML = spinnerHTML('Preparing the writing section...', false);
+    try {
+        const response = await apiFetch(`/api/exam/sets/${encodeURIComponent(normalizedType)}/writing`);
+        if (!response.ok) throw new Error('Writing section is unavailable');
+        const section = await response.json();
+        const tasks = Array.isArray(section.tasks) ? section.tasks : [];
+        const families = [...new Set(tasks.map(task => task.taskFamily).filter(Boolean))];
+        if (!families.length) throw new Error('No writing prompts are available');
+
+        const attempt = examWritingSectionAttempts[normalizedType] || 0;
+        const variantNumber = (attempt % 3) + 1;
+        examWritingSectionAttempts[normalizedType] = attempt + 1;
+        const selectedTasks = families.map(family => {
+            const choices = tasks.filter(task => task.taskFamily === family);
+            return choices.find(task => task.variantNumber === variantNumber) || choices[0];
+        });
+        const sectionMinutes = Number(section.durationMinutes || 60);
+        examWritingSectionState = { timer: null, timeLeft: Math.round(sectionMinutes * 60), phase: 'taking' };
+        const testName = normalizedType === 'TEF' ? 'TEF Canada' : 'TCF Canada';
+        let html = `<div class="tool-header"><h2>${escapeHtml(testName)} · Full writing-section rehearsal</h2></div>`;
+        html += '<div class="exam-practice-notice">Original, unofficial prompts · one prompt per official task type · shared section timer. Language feedback is optional and does not score your writing or predict an exam result. Leaving this page ends the timed session; responses are not saved.</div>';
+        html += `<div class="exam-task-timer-row exam-writing-section-toolbar"><strong id="examWritingSectionTimer">${formatTime(examWritingSectionState.timeLeft)}</strong><button class="exam-task-back" data-action="finish-writing-section">Finish rehearsal</button></div>`;
+        html += '<p id="examWritingSectionStatus" class="exam-speaking-note" aria-live="polite">The section timer is running. Responses remain on this page and are not submitted for an exam score.</p>';
+
+        selectedTasks.forEach((task, index) => {
+            const responseId = `examSectionResponse-${index}`;
+            const countId = `examSectionWordCount-${index}`;
+            const feedbackId = `examSectionFeedback-${index}`;
+            const wordTarget = task.wordMin
+                ? `${task.wordMax ? `Target ${task.wordMin}–${task.wordMax} words` : `At least ${task.wordMin} words`}`
+                : 'Use the task instructions';
+            html += `<section class="exam-task-card exam-writing-section-card"><h3>${escapeHtml(task.title)}</h3>`;
+            if (task.durationMinutes != null) html += `<div class="exam-task-meta">Task pacing reference: ${escapeHtml(task.durationMinutes)} min within the shared section limit</div>`;
+            html += `<p class="exam-task-instructions">${escapeHtml(task.instructions)}</p>`;
+            html += `<div class="exam-task-prompt">${escapeHtml(task.prompt)}</div>`;
+            html += `<label class="exam-task-label" for="${responseId}">Your practice response</label>`;
+            html += `<textarea id="${responseId}" class="exam-task-response exam-writing-section-response" data-word-count-target="${countId}" data-word-count-hint="${escapeHtml(wordTarget)}" rows="7" maxlength="4000" placeholder="Rédigez votre réponse en français…"></textarea>`;
+            html += `<div id="${countId}" class="exam-task-word-count">0 words · ${escapeHtml(wordTarget)}</div>`;
+            html += `<button class="exam-task-submit" data-action="submit-writing-section-feedback" data-idx="${index}">Get language feedback · not a task score</button>`;
+            html += `<div id="${feedbackId}" class="exam-task-feedback" aria-live="polite"></div>`;
+            if (Array.isArray(task.rubric) && task.rubric.length) {
+                html += '<details class="exam-task-rubric"><summary>Unofficial practice criteria</summary><p>For self-review only; not an official rubric or score.</p><ul>';
+                for (const criterion of task.rubric) html += `<li>${escapeHtml(criterion)}</li>`;
+                html += '</ul></details>';
+            }
+            if (Array.isArray(task.selfCheck) && task.selfCheck.length) {
+                html += '<div class="exam-task-selfcheck"><strong>Self-check</strong>';
+                for (const item of task.selfCheck) html += `<label><input type="checkbox"> <span>${escapeHtml(item)}</span></label>`;
+                html += '</div>';
+            }
+            html += '</section>';
+        });
+        html += `<button class="exam-task-back" data-action="start-mock-test" data-type="${escapeHtml(normalizedType)}">Back to ${escapeHtml(testName)} practice</button>`;
+        getToolContent().innerHTML = html;
+
+        examWritingSectionState.timer = setInterval(() => {
+            if (examWritingSectionState.phase !== 'taking') return;
+            examWritingSectionState.timeLeft = Math.max(0, examWritingSectionState.timeLeft - 1);
+            const timer = document.getElementById('examWritingSectionTimer');
+            if (timer) timer.textContent = formatTime(examWritingSectionState.timeLeft);
+            if (examWritingSectionState.timeLeft === 0) window.finishExamWritingSection(true);
+        }, 1000);
+    } catch (error) {
+        examWritingSectionState = { timer: null, timeLeft: 0, phase: 'idle' };
+        getToolContent().innerHTML = '<div class="tool-header"><h2>Writing section</h2></div><p class="exam-speaking-note">Could not load the full writing rehearsal. Return to the practice menu and try again.</p>';
+    }
+};
+
+window.finishExamWritingSection = function(timeExpired = false) {
+    if (examWritingSectionState.timer) clearInterval(examWritingSectionState.timer);
+    examWritingSectionState.timer = null;
+    if (examWritingSectionState.phase !== 'taking') return;
+    examWritingSectionState.phase = timeExpired ? 'complete' : 'finished';
+    if (timeExpired) examWritingSectionState.timeLeft = 0;
+    const status = document.getElementById('examWritingSectionStatus');
+    if (status) status.textContent = timeExpired
+        ? 'Time is up. Review your responses and self-checks; no task score was generated.'
+        : 'Rehearsal finished. Review your responses and self-checks; no task score was generated.';
+    document.querySelectorAll('.exam-writing-section-response').forEach(textarea => { textarea.readOnly = true; });
+    const timer = document.getElementById('examWritingSectionTimer');
+    if (timer && timeExpired) timer.textContent = '00:00';
+    const button = document.querySelector('[data-action="finish-writing-section"]');
+    if (button) {
+        button.disabled = true;
+        button.textContent = timeExpired ? 'Time complete' : 'Rehearsal finished';
+    }
+};
+
+window.submitExamWritingSectionFeedback = async function(index) {
+    const response = document.getElementById(`examSectionResponse-${index}`);
+    const feedback = document.getElementById(`examSectionFeedback-${index}`);
+    if (!response || !feedback || !response.value.trim()) {
+        showToast('Write a response before requesting language feedback.', { kind: 'error' });
+        return;
+    }
+    feedback.innerHTML = spinnerHTML('Getting language feedback...', false);
+    try {
+        const result = await apiFetch('/api/writing/correct', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: response.value })
+        });
+        const data = await result.json();
+        if (!result.ok) throw new Error(data.detail || 'Language feedback is unavailable.');
+        const safeText = escapeHtml(data.response || 'No feedback was returned.').replace(/\n/g, '<br>');
+        feedback.innerHTML = `<div class="exam-task-feedback-note">Language feedback only — it does not score this task or predict TEF/TCF results.</div><div>${safeText}</div>`;
+    } catch (error) {
+        feedback.textContent = error.message || 'Language feedback is unavailable. Please try again.';
+    }
+};
+
 window.startExamTaskTimer = function(button) {
     if (examTaskState.timer) clearInterval(examTaskState.timer);
     const timerEl = document.getElementById('examTaskTimer');
@@ -2565,7 +2794,7 @@ window.startExamTaskTimer = function(button) {
             button.textContent = 'Time complete';
             const note = document.createElement('p');
             note.className = 'exam-speaking-note';
-            note.textContent = 'Time is up. Review your self-check; no score was generated.';
+            note.textContent = 'Time is up. Review your response and self-check; no task score was generated.';
             button.parentElement?.after(note);
             return;
         }
@@ -2599,6 +2828,7 @@ window.submitExamWritingTask = async function() {
 };
 
 window.startExamSection = async function(testType, sectionId, setNum) {
+    stopExamWritingSectionTimer();
     getToolContent().innerHTML = spinnerHTML('Loading questions...', false);
     try {
         const r = await apiFetch(`/api/exam/questions/${testType}/${sectionId}/${setNum}`);
@@ -2609,12 +2839,19 @@ window.startExamSection = async function(testType, sectionId, setNum) {
             return;
         }
         
-        examState = { testType, sectionId, setNum, questions: data.questions, answers: {}, timer: null, timeLeft: 0, startTime: Date.now(), phase: 'taking', paused: false, currentIdx: 0 };
+        examState = {
+            testType, sectionId, setNum, questions: data.questions, answers: {}, timer: null,
+            timeLeft: 0, startTime: Date.now(), phase: 'taking', paused: false,
+            currentIdx: 0, fullLengthSimulation: Boolean(data.fullLengthSimulation),
+            reusesShortPracticeItems: Boolean(data.reusesShortPracticeItems),
+            singlePlayAudio: Boolean(data.singlePlayAudio), playedAudioIds: new Set()
+        };
         
         const examR = await apiFetch(`/api/exam/sets/${testType}`);
         const exam = await examR.json();
-        const section = exam.sections[sectionId];
-        examState.timeLeft = (section?.durationMinutes || 15) * 60;
+        const section = exam.sections?.[sectionId];
+        const durationMinutes = Number(data.timeLimitMinutes ?? section?.durationMinutes ?? 15);
+        examState.timeLeft = Math.max(1, Math.round(durationMinutes * 60));
         
         renderExamQuestion(0);
         startExamTimer();
@@ -2635,12 +2872,17 @@ function renderExamQuestion(idx) {
     let html = `<div class="exam-container" id="examContainer">`;
     
     examState.currentIdx = idx;
+    if (examState.fullLengthSimulation) {
+        html += '<div class="exam-practice-notice">Timed full-length rehearsal · Parlez-authored item order, not an official exam form. There is no in-test pause button; leaving ends the attempt, and answers are not saved.</div>';
+        if (examState.reusesShortPracticeItems) html += '<div class="exam-set-note">This rehearsal reuses questions from the short skill drills; accuracy is not a fresh-item result.</div>';
+        if (examState.singlePlayAudio) html += '<div class="exam-set-note">The audio button is limited to one play per question, like the provider format. This is generated practice audio, not official test audio.</div>';
+    }
 
     // Header with timer and progress
     html += `<div class="exam-toolbar">`;
     html += `<div style="display:flex;align-items:center;gap:0.75rem">`;
     html += `<div class="test-timer" id="examTimer">⏱️ ${formatTime(examState.timeLeft)}</div>`;
-    html += `<button class="exam-nav-btn" id="examPauseBtn" data-action="toggle-exam-pause" title="Pause/resume test">${examState.paused ? '▶️ Resume' : '⏸️ Pause'}</button>`;
+    if (!examState.fullLengthSimulation) html += `<button class="exam-nav-btn" id="examPauseBtn" data-action="toggle-exam-pause" title="Pause/resume test">${examState.paused ? '▶️ Resume' : '⏸️ Pause'}</button>`;
     html += `</div>`;
     html += `<div style="font-size:0.85rem;color:var(--muted-foreground)">Question ${idx+1} of ${total}</div>`;
     html += '</div>';
@@ -2659,7 +2901,11 @@ function renderExamQuestion(idx) {
     html += `<div class="test-question-num">${idx + 1}</div>`;
     html += `<div class="test-question-content">`;
     if (q.audioText) {
-        html += `<button class="btn-speak" data-action="speak" data-text="${escapeHtml(q.audioText)}">🔊 Listen to audio</button>`;
+        const alreadyPlayed = examState.singlePlayAudio && examState.playedAudioIds?.has(q.id);
+        const audioLabel = alreadyPlayed
+            ? '🔊 Generated practice audio already played'
+            : (examState.singlePlayAudio ? '🔊 Play generated practice audio once' : '🔊 Play generated practice audio');
+        html += `<button class="btn-speak" data-action="play-exam-audio" data-qid="${escapeHtml(q.id)}" data-single-play="${examState.singlePlayAudio}" data-text="${escapeHtml(q.audioText)}"${alreadyPlayed ? ' disabled' : ''}>${audioLabel}</button>`;
     }
     html += `<p class="test-question-prompt">${escapeHtml(q.prompt || '')}</p>`;
     html += '<div class="quiz-options">';
@@ -2802,6 +3048,7 @@ function renderExamResults(result) {
     html += `<div class="test-score-value">${result.score}%</div>`;
     html += '</div>';
     html += `<div class="test-score-details">`;
+    if (result.fullLengthSimulation) html += '<div class="exam-practice-notice">Full-length timing rehearsal using items also available in short drills; this is not a fresh mock.</div>';
     html += `<div style="font-size:1.1rem;font-weight:600">✅ ${result.correct}/${result.total} correct</div>`;
     html += `<div>⏱️ Time: ${formatTime(result.durationSec)}</div>`;
     html += `<div class="exam-practice-notice">${escapeHtml(result.scoreNote || 'Practice-item accuracy only; not an official exam score or level estimate.')}</div>`;

@@ -2,8 +2,15 @@ from dataclasses import asdict
 
 from .types import *
 from .expanded_data import TEF_EXPANDED, TCF_EXPANDED
+from .task_variations import (
+    SPEAKING_RUBRIC,
+    TEF_TASK_VARIATIONS,
+    TCF_TASK_VARIATIONS,
+    WRITING_RUBRIC,
+)
 
-PRACTICE_SETS_COUNT = 6  # Maximum number of practice sets exposed by the API.
+FULL_LENGTH_SET_NUM = 4
+PRACTICE_SETS_COUNT = FULL_LENGTH_SET_NUM  # Sets 1–3 are drills; set 4 is one full-length rehearsal.
 
 TEF_CANADA_FORMAT_NOTE = "TEF Canada format reference; Parlez practice items are original and unofficial. Verify current details with the provider."
 TCF_CANADA_FORMAT_NOTE = "TCF Canada format reference; Parlez practice items are original and unofficial. Verify current details with the provider."
@@ -194,7 +201,7 @@ tcf_test = MockTest(
                 ExamTask(
                     id='tcf-speaking-task-2', title='Task 2 · Obtain information',
                     prompt='You are considering volunteering at a neighbourhood food-sharing project. Ask the coordinator about duties, schedule, training, and what volunteers should bring.',
-                    instructions='Take up to 2 minutes to prepare, then practise a short information-seeking exchange. Ask follow-up questions.', responseMode='spoken', durationMinutes=5.5, prepMinutes=2,
+                    instructions='Complete the information-seeking interaction within about 5.5 minutes total, including up to 2 minutes of preparation. Ask follow-up questions.', responseMode='spoken', durationMinutes=5.5, prepMinutes=2,
                     selfCheck=['I asked relevant questions in a logical order.', 'I used polite forms and follow-up questions.', 'I checked or clarified key details.'],
                 ),
                 ExamTask(
@@ -216,6 +223,59 @@ def get_test(test_type):
             return t
     return tef_test
 
+
+def _attach_task_variations():
+    for test_type, variations in (("TEF", TEF_TASK_VARIATIONS), ("TCF", TCF_TASK_VARIATIONS)):
+        test = get_test(test_type)
+        for section in test.sections:
+            rubric = WRITING_RUBRIC if section.id == "writing" else SPEAKING_RUBRIC
+            for task in section.tasks:
+                task.taskFamily = f"{section.id}-{task.id.rsplit('-', 1)[-1]}"
+                task.variantNumber = 1
+                task.rubric = rubric[:]
+            section.tasks.extend(variations.get(section.id, []))
+
+
+_attach_task_variations()
+
+
+def _build_full_length_practice_sets():
+    """Create one exact-length, no-duplicate rehearsal from the original item bank.
+
+    The simulation deliberately reuses some questions from the shorter skill
+    drills. It rehearses pacing and attention; it is not a fresh official mock.
+    """
+    level_order = {"A1": 0, "A2": 1, "B1": 2, "B2": 3, "C1": 4, "C2": 5}
+    for test_type, bank in (("TEF", TEF_EXPANDED), ("TCF", TCF_EXPANDED)):
+        test = next(item for item in mock_tests if item.type == test_type)
+        for section_id in ("reading", "listening"):
+            section = next(item for item in test.sections if item.id == section_id)
+            section_bank = bank.get(section_id, {})
+            source = [question for key in sorted(section_bank) for question in section_bank[key]]
+            target_count = section.officialQuestionCount or 0
+            if len(source) < target_count:
+                continue
+            # Keep the practice path gradually more challenging without claiming
+            # that these author-assigned labels are calibrated exam levels.
+            ordered = [
+                question for _, question in sorted(
+                    enumerate(source),
+                    key=lambda item: (level_order.get(item[1].get("level", "A1"), 0), item[0]),
+                )
+            ]
+            section_bank["set4"] = ordered[:target_count]
+
+
+_build_full_length_practice_sets()
+
+
+def get_short_practice_question_count(test_type, section_id):
+    """Count distinct questions across short drills, excluding the rehearsal reuse."""
+    expanded = TEF_EXPANDED if test_type.upper() == 'TEF' else TCF_EXPANDED
+    section = expanded.get(section_id, {})
+    return sum(len(questions) for key, questions in section.items() if key != "set4")
+
+
 def get_practice_set_questions(test_type, section_id, set_num):
     """Get questions for a specific practice set.
     set_num: 1-based index into the section's sets.
@@ -230,19 +290,30 @@ def get_practice_set_questions(test_type, section_id, set_num):
     return section.get(set_key, [])
 
 def get_section_sets(test_type, section_id):
-    """Get available practice sets for a section."""
-    expanded = TEF_EXPANDED if test_type.upper() == 'TEF' else TCF_EXPANDED
-    section = expanded.get(section_id, {})
+    """Return drills plus an exact-count objective-skill rehearsal."""
+    normalized_type = test_type.upper()
+    expanded = TEF_EXPANDED if normalized_type == 'TEF' else TCF_EXPANDED
+    section_questions = expanded.get(section_id, {})
+    test = get_test(normalized_type)
+    section_meta = next((item for item in test.sections if item.id == section_id), None)
     sets = []
-    set_num = 1
-    for set_key in sorted(section.keys()):
-        questions = section[set_key]
+    for set_num, set_key in enumerate(sorted(section_questions), start=1):
+        questions = section_questions[set_key]
+        is_full_length = set_key == "set4"
+        official_count = section_meta.officialQuestionCount if section_meta else None
+        if is_full_length or not official_count:
+            time_limit = section_meta.durationMinutes if section_meta else None
+        else:
+            time_limit = round(section_meta.durationMinutes * len(questions) / official_count, 1)
         sets.append({
             'setNum': set_num,
+            'label': 'Full-length rehearsal' if is_full_length else f'Skill drill {set_num}',
             'questionCount': len(questions),
+            'timeLimitMinutes': time_limit,
+            'fullLengthSimulation': is_full_length,
+            'reusesShortPracticeItems': is_full_length,
             'isAI': False,
         })
-        set_num += 1
     return sets
 
 def get_task(test_type, section_id, task_id):
@@ -269,7 +340,8 @@ def get_all_section_sets(test_type):
             'icon': section.icon,
             'questionCount': section.officialQuestionCount,
             'taskCount': section.officialTaskCount,
-            'practiceQuestionCount': section.questionCount,
+            'practiceTaskCount': len(section.tasks),
+            'practiceQuestionCount': get_short_practice_question_count(test_type, section.id),
             'durationMinutes': section.durationMinutes,
             'tasks': [asdict(task) for task in section.tasks],
             'sets': get_section_sets(test_type, section.id),

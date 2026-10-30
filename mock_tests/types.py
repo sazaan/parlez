@@ -25,6 +25,9 @@ class ExamTask:
     wordMin: Optional[int] = None
     wordMax: Optional[int] = None
     prepMinutes: int = 0
+    taskFamily: Optional[str] = None
+    variantNumber: int = 1
+    rubric: list[str] = field(default_factory=list)
 
 @dataclass
 class TestSectionData:

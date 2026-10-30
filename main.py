@@ -158,7 +158,15 @@ from engine.adaptive import analyze_weak_areas, get_difficulty_adjustments, buil
 from engine.content_ingestion import process_french_content
 from engine.writing import build_writing_correction_prompt, parse_correction_response, format_correction_for_display
 from mock_tests import mock_tests, get_test
-from mock_tests.data import get_practice_set_questions, get_section_sets, get_all_section_sets, get_task, PRACTICE_SETS_COUNT
+from mock_tests.data import (
+    get_practice_set_questions,
+    get_short_practice_question_count,
+    get_section_sets,
+    get_all_section_sets,
+    get_task,
+    PRACTICE_SETS_COUNT,
+)
+from mock_tests.preparation import get_exam_preparation, get_exam_study_plan
 
 def build_limiter(redis_url: str | None = None) -> Limiter:
     """Create a rate limiter. Use Redis storage when a URL is provided."""
@@ -2648,6 +2656,8 @@ async def get_exam_sets(test_type: str):
         'color': test.color,
         'formatSourceUrl': test.formatSourceUrl,
         'practiceNotice': test.practiceNotice,
+        'studyPlan': get_exam_study_plan(),
+        'preparation': get_exam_preparation(test_type),
         'sections': get_all_section_sets(test_type),
     }
 
@@ -2665,6 +2675,8 @@ async def get_section_detail(test_type: str, section_id: str):
                 'icon': s.icon,
                 'questionCount': s.officialQuestionCount,
                 'taskCount': s.officialTaskCount,
+                'practiceQuestionCount': get_short_practice_question_count(test_type, s.id),
+                'practiceTaskCount': len(s.tasks),
                 'durationMinutes': s.durationMinutes,
                 'tasks': [asdict(task) for task in s.tasks],
                 'sets': get_section_sets(test_type, section_id),
@@ -2699,15 +2711,25 @@ async def get_exam_questions(request: Request, test_type: str, section_id: str, 
     
     questions = get_practice_set_questions(test_type, section_id, set_num)
     if not questions:
-        return {"questions": [], "message": "No questions available for this set. Try sets 1-3."}
+        return {"questions": [], "message": "No questions are available for this set. Return to the practice menu."}
 
+    set_info = next((item for item in get_section_sets(test_type, section_id) if item['setNum'] == set_num), {})
     # Task 3.6 (S7 fix): strip answer+explanation so users can't read them in
     # the network tab. The submit endpoint returns them with grading.
     sanitized = [
         {k: v for k, v in q.items() if k not in ('answer', 'explanation')}
         for q in questions
     ]
-    return {"questions": sanitized, "total": len(sanitized)}
+    full_length = bool(set_info.get('fullLengthSimulation'))
+    single_play_audio = full_length and test_type.upper() == 'TCF' and section_id == 'listening'
+    return {
+        "questions": sanitized,
+        "total": len(sanitized),
+        "timeLimitMinutes": set_info.get('timeLimitMinutes'),
+        "fullLengthSimulation": full_length,
+        "reusesShortPracticeItems": bool(set_info.get('reusesShortPracticeItems')),
+        "singlePlayAudio": single_play_audio,
+    }
 
 @app.post("/api/exam/submit/{test_type}/{section_id}/{set_num}")
 @limiter.limit("20/minute")
@@ -2740,10 +2762,12 @@ async def submit_exam(request: Request, test_type: str, section_id: str, set_num
     
     score = round((correct / total) * 100) if total > 0 else 0
     
+    set_info = next((item for item in get_section_sets(test_type, section_id) if item['setNum'] == set_num), {})
     result = {
         'testType': test_type.upper(),
         'section': section_id,
         'setNum': set_num,
+        'fullLengthSimulation': bool(set_info.get('fullLengthSimulation')),
         'score': score,
         'correct': correct,
         'total': total,
