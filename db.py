@@ -333,6 +333,9 @@ class Storage:
                 ]
                 if stale_ids:
                     session.query(AdminAudit).filter(AdminAudit.id.in_(stale_ids)).delete(synchronize_session=False)
+        # Keep logs useful without duplicating admin usernames or sensitive audit details.
+        from observability import log_event
+        log_event("admin.audit.recorded", action=action, actor_type="admin")
 
     def list_admin_audit(self, limit: int = 100) -> list[dict]:
         bounded_limit = max(1, min(int(limit), 200))

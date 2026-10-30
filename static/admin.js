@@ -25,12 +25,17 @@
     let testedModelKey = '';
     const USERS_PAGE_SIZE = 25;
     let currentUsersOffset = 0;
+    let observabilityTimer = null;
 
     function setVisible(element, visible) {
         element.hidden = !visible;
     }
 
     function showLogin(message = '') {
+        if (observabilityTimer !== null) {
+            clearInterval(observabilityTimer);
+            observabilityTimer = null;
+        }
         setVisible(loginView, true);
         setVisible(setupView, false);
         setVisible(dashboardView, false);
@@ -218,6 +223,81 @@
         }).join('');
     }
 
+    function formatObservabilityTime(timestamp) {
+        if (typeof timestamp !== 'number' || !Number.isFinite(timestamp) || timestamp <= 0) return '—';
+        const date = new Date(timestamp * 1000);
+        return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString();
+    }
+
+    function renderObservability(data) {
+        const metrics = data.metrics || {};
+        const retention = data.retention || {};
+        document.getElementById('observabilityUpdated').textContent = `Updated ${formatObservabilityTime(data.generated_at)}`;
+        document.getElementById('observabilityRetention').textContent = `${retention.scope || 'Process-local samples'} · OTLP ${retention.otlp_export_configured ? 'configured' : 'not configured'} · Prometheus scrape ${retention.prometheus_scrape_enabled ? 'enabled' : 'disabled'}`;
+        document.getElementById('obsCoreRequests').textContent = Number(metrics.core_requests_24h || 0).toLocaleString();
+        document.getElementById('obsCoreErrorRate').textContent = metrics.core_5xx_rate_5m == null ? '—' : `${(metrics.core_5xx_rate_5m * 100).toFixed(2)}%`;
+        document.getElementById('obsCoreLatency').textContent = metrics.core_p95_ms_1h == null ? '—' : `${Number(metrics.core_p95_ms_1h).toFixed(0)} ms`;
+        document.getElementById('obsAiCalls').textContent = Number(metrics.ai_calls_24h || 0).toLocaleString();
+        document.getElementById('obsAiFailures').textContent = Number(metrics.ai_failures_5m || 0).toLocaleString();
+        document.getElementById('obsAiLatency').textContent = metrics.ai_p95_ms_1h == null ? '—' : `${Number(metrics.ai_p95_ms_1h).toFixed(0)} ms`;
+
+        const alerts = Array.isArray(data.alerts) ? data.alerts : [];
+        document.getElementById('observabilityAlerts').innerHTML = alerts.length
+            ? alerts.map(alert => `<article class="alert-item ${alert.severity === 'warning' ? 'warning' : ''}"><span class="alert-severity">${escapeHTML(alert.severity || 'alert')}</span><div><strong>${escapeHTML(alert.title || alert.id || 'Active alert')}</strong><p>${escapeHTML(alert.summary || '')} · since ${escapeHTML(formatObservabilityTime(alert.since))}</p></div></article>`).join('')
+            : '<div class="alert-empty">No active alerts in this worker’s recent sample window.</div>';
+
+        const slos = Array.isArray(data.slos) ? data.slos : [];
+        document.getElementById('observabilitySLOs').innerHTML = slos.length
+            ? slos.map(slo => {
+                const state = ['met', 'breached', 'insufficient_data'].includes(slo.state) ? slo.state : 'insufficient_data';
+                const value = slo.value == null ? 'Insufficient data' : `${Number(slo.value).toLocaleString(undefined, { maximumFractionDigits: 2 })}${slo.unit === 'percent' ? '%' : ' ms'}`;
+                return `<article class="slo-card ${state}"><header><strong>${escapeHTML(slo.name || slo.id || 'SLO')}</strong><span class="slo-state">${escapeHTML(state.replaceAll('_', ' '))}</span></header><div class="slo-value">${escapeHTML(value)}</div><div class="slo-target">Target ${escapeHTML(slo.target || '—')} · ${Number(slo.sample_size || 0).toLocaleString()} samples</div></article>`;
+            }).join('')
+            : '<p class="empty-state">No SLOs are currently defined.</p>';
+
+        const events = Array.isArray(data.events) ? data.events : [];
+        document.getElementById('observabilityEventRows').innerHTML = events.length
+            ? events.map(item => {
+                const fields = item.fields && typeof item.fields === 'object' ? item.fields : {};
+                const details = Object.entries(fields).map(([key, value]) => `${key.replaceAll('_', ' ')}: ${Array.isArray(value) ? value.join(', ') : value}`).join(' · ');
+                const severity = String(item.severity || 'info').toLowerCase();
+                return `<tr><td>${escapeHTML(formatObservabilityTime(item.timestamp))}</td><td><code>${escapeHTML(item.event || 'event')}</code></td><td class="event-severity ${escapeHTML(severity)}">${escapeHTML(severity)}</td><td>${escapeHTML(details || '—')}</td><td><code>${escapeHTML(item.correlation_id || item.request_id || '—')}</code></td><td><code>${escapeHTML(item.trace_id || '—')}</code></td></tr>`;
+            }).join('')
+            : '<tr><td colspan="6" class="users-empty">No recent operational events.</td></tr>';
+
+        const traces = Array.isArray(data.traces) ? data.traces : [];
+        document.getElementById('observabilityTraceRows').innerHTML = traces.length
+            ? traces.map(span => {
+                const attributes = span.attributes && typeof span.attributes === 'object' ? span.attributes : {};
+                const detail = Object.entries(attributes).map(([key, value]) => `${key.replaceAll('parlez.', '').replaceAll('http.', '')}: ${value}`).join(' · ');
+                const status = String(span.status || 'ok').toLowerCase();
+                return `<tr><td>${escapeHTML(formatObservabilityTime(span.start_time))}</td><td><strong>${escapeHTML(span.name || 'span')}</strong><small>${escapeHTML(span.kind || 'internal')}</small></td><td class="trace-status ${escapeHTML(status)}">${escapeHTML(status)}</td><td>${Number(span.duration_ms || 0).toFixed(1)} ms</td><td><code>${escapeHTML(span.trace_id || '—')}</code></td><td>${escapeHTML(detail || '—')}</td></tr>`;
+            }).join('')
+            : '<tr><td colspan="6" class="users-empty">No trace spans have been captured yet.</td></tr>';
+    }
+
+    async function loadObservability() {
+        const button = document.getElementById('refreshObservabilityButton');
+        const message = document.getElementById('observabilityMessage');
+        button.disabled = true;
+        try {
+            renderObservability(await adminRequest('/api/admin/observability'));
+            setMessage(message, '');
+        } catch (error) {
+            setMessage(message, error.message || 'Could not load observability data.');
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    function startObservabilityRefresh() {
+        if (observabilityTimer !== null) return;
+        observabilityTimer = setInterval(() => {
+            const section = document.getElementById('section-observability');
+            if (!dashboardView.hidden && section.classList.contains('active')) loadObservability();
+        }, 30000);
+    }
+
     function updateSummary(config, health = null) {
         const provider = config.ai.providers.find(item => item.id === config.ai.provider);
         document.getElementById('statusProvider').textContent = provider ? provider.label : config.ai.provider;
@@ -355,6 +435,7 @@
         setVisible(loginView, false);
         setVisible(setupView, false);
         setVisible(dashboardView, true);
+        startObservabilityRefresh();
     }
 
     async function checkSession() {
@@ -623,9 +704,11 @@
                 section.hidden = !active;
             });
             if (tab.dataset.section === 'users') loadAdminUsers(0);
+            if (tab.dataset.section === 'observability') loadObservability();
         });
     });
 
+    document.getElementById('refreshObservabilityButton').addEventListener('click', loadObservability);
     document.getElementById('refreshUsersButton').addEventListener('click', () => loadAdminUsers(0));
     document.getElementById('usersPreviousButton').addEventListener('click', () => {
         loadAdminUsers(Math.max(0, currentUsersOffset - USERS_PAGE_SIZE));

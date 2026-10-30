@@ -76,6 +76,7 @@
                 <button class="tab" type="button" data-section="courses">Course publishing</button>
                 <button class="tab" type="button" data-section="users">Users</button>
                 <button class="tab" type="button" data-section="security">Security</button>
+                <button class="tab" type="button" data-section="observability">Observability</button>
                 <button class="tab" type="button" data-section="audit">Change log</button>
             </nav>
 
@@ -194,6 +195,42 @@
                     </div>
                     <p class="inline-message" id="mfaMessage" role="status" aria-live="polite"></p>
                     <p class="field-help">Enabling, replacing, or disabling MFA signs out all admin sessions. Keep access to the authenticator app; recovery requires server-side admin recovery.</p>
+                </div>
+            </section>
+
+            <section class="panel-section" id="section-observability" hidden>
+                <div class="section-heading">
+                    <div><p class="eyebrow">OPERATIONS</p><h2>Observability</h2><p>Review request health, provider usage, SLOs, active alerts, recent events, and trace spans. Correlation IDs are returned in X-Request-ID and X-Correlation-ID response headers.</p></div>
+                    <span class="section-icon" aria-hidden="true">⌁</span>
+                </div>
+                <div class="panel-card observability-card">
+                    <div class="observability-toolbar">
+                        <div><strong id="observabilityUpdated">Waiting for first refresh</strong><small id="observabilityRetention">Operational samples are process-local.</small></div>
+                        <button class="button button-secondary" id="refreshObservabilityButton" type="button">Refresh telemetry</button>
+                    </div>
+                    <p class="inline-message" id="observabilityMessage" role="status" aria-live="polite"></p>
+                    <div class="alert-list" id="observabilityAlerts" aria-live="polite"><p class="empty-state">Loading active alerts…</p></div>
+                    <div class="observability-metrics" id="observabilityMetricCards">
+                        <article class="metric-card"><span>Core API requests · 24h</span><strong id="obsCoreRequests">—</strong></article>
+                        <article class="metric-card"><span>Core API server errors · 5m</span><strong id="obsCoreErrorRate">—</strong></article>
+                        <article class="metric-card"><span>Core API p95 · 1h</span><strong id="obsCoreLatency">—</strong></article>
+                        <article class="metric-card"><span>AI provider calls · 24h</span><strong id="obsAiCalls">—</strong></article>
+                        <article class="metric-card"><span>AI failures · 5m</span><strong id="obsAiFailures">—</strong></article>
+                        <article class="metric-card"><span>AI provider p95 · 1h</span><strong id="obsAiLatency">—</strong></article>
+                    </div>
+                    <div class="observability-block">
+                        <div class="observability-block-heading"><div><h3>Service-level objectives</h3><p>Targets are initial operational guardrails; process-local samples reset when this worker restarts.</p></div></div>
+                        <div class="slo-grid" id="observabilitySLOs"><p class="empty-state">Loading SLO status…</p></div>
+                    </div>
+                    <div class="observability-block">
+                        <div class="observability-block-heading"><div><h3>Recent events</h3><p>Sanitized operational events only. Prompts, learner content, credentials, and account identities are excluded.</p></div></div>
+                        <div class="observability-table-wrap"><table class="observability-table"><thead><tr><th scope="col">Time</th><th scope="col">Event</th><th scope="col">Severity</th><th scope="col">Route / details</th><th scope="col">Correlation ID</th><th scope="col">Trace ID</th></tr></thead><tbody id="observabilityEventRows"><tr><td colspan="6" class="users-empty">Loading events…</td></tr></tbody></table></div>
+                    </div>
+                    <div class="observability-block">
+                        <div class="observability-block-heading"><div><h3>Recent trace spans</h3><p>HTTP request spans and child AI-provider spans. Configure an OTLP endpoint to export traces to an external collector.</p></div></div>
+                        <div class="observability-table-wrap"><table class="observability-table"><thead><tr><th scope="col">Started</th><th scope="col">Span</th><th scope="col">Status</th><th scope="col">Duration</th><th scope="col">Trace ID</th><th scope="col">Attributes</th></tr></thead><tbody id="observabilityTraceRows"><tr><td colspan="6" class="users-empty">Loading traces…</td></tr></tbody></table></div>
+                    </div>
+                    <div class="info-callout observability-note"><strong>Production monitoring</strong><p>Logs are emitted as JSON to stdout. The optional token-protected <code>/metrics</code> endpoint is for Prometheus, and OTLP traces can be exported using an environment-configured collector. For multi-worker or durable SLOs, store telemetry in external monitoring; the panel’s recent samples belong to this process only.</p></div>
                 </div>
             </section>
 

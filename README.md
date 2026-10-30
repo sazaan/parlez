@@ -274,6 +274,25 @@ is separate from the SQLite crash; install Docker's Buildx plugin if needed.
 python -m pytest tests/
 ```
 
+## Observability
+
+The admin console’s **Observability** tab shows recent sanitized events, request and AI-provider metrics, trace spans, initial SLO status, and active threshold alerts. Requests include a validated `X-Request-ID` / `X-Correlation-ID` response header and `X-Trace-ID`; JSON stdout logs and trace spans carry the same correlation and trace identifiers. Operational events include request completion/errors, authentication outcomes, rate limits, database probes, AI-provider calls/retries, TTS calls, admin audit actions, and alert transitions. Request bodies, learner prompts, passwords, tokens, email addresses, and account identities are intentionally excluded.
+
+For external monitoring, configure in `.env`:
+
+```dotenv
+LOG_LEVEL=INFO
+OTEL_SERVICE_NAME=parlez
+OTEL_TRACE_SAMPLE_RATIO=1.0
+OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://otel-collector:4318/v1/traces
+METRICS_ENABLED=true
+METRICS_TOKEN=<at-least-32-random-characters>
+```
+
+The OTLP HTTP trace endpoint is optional; without it, spans are still available in the bounded admin-panel buffer. The Prometheus `/metrics` endpoint is disabled by default and requires `Authorization: Bearer <METRICS_TOKEN>` when enabled. Keep the token secret and restrict network access to the scraper. Prometheus alert rules for 5xx rate, API/AI latency, provider failures, database health, and authentication-failure bursts are in [`monitoring/prometheus-alerts.yml`](monitoring/prometheus-alerts.yml); connect those rules to your Prometheus/Alertmanager notification channel.
+
+Initial panel SLOs are core API availability ≥99.5% over 24 hours, core API p95 latency ≤2 seconds over one hour, AI-provider success ≥99% over 24 hours, and AI-provider p95 latency ≤30 seconds over one hour. These are starting objectives, not measured guarantees. Panel samples are bounded and **process-local**, reset on restart, and are not shared across workers. Use Prometheus/OTLP storage for durable, multi-worker SLOs and production alerts. The current SQLite deployment is intended to run as a single app process; do not interpret the local panel as a long-term monitoring backend.
+
 ## License
 
 MIT License. See [`LICENSE`](./LICENSE) (or add a `LICENSE` file with your chosen terms before public release).

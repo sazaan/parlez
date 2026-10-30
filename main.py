@@ -23,12 +23,28 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Configure structured-ish request logging for production.
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-    handlers=[logging.StreamHandler()],
+from opentelemetry import propagate, trace
+from opentelemetry.trace import SpanKind, Status, StatusCode
+from observability import (
+    OBSERVABILITY,
+    configure_json_logging,
+    get_tracer,
+    initialize_tracing,
+    log_event,
+    metrics_bytes,
+    metrics_content_type,
+    observe_ai_call,
+    observe_http_request,
+    record_database_health,
+    reset_request_context,
+    route_service_class,
+    safe_route,
+    set_request_context,
+    valid_correlation_id,
 )
+
+configure_json_logging()
+tracer = initialize_tracing()
 logger = logging.getLogger("parlez")
 
 import httpx
@@ -152,31 +168,58 @@ def build_limiter(redis_url: str | None = None) -> Limiter:
 
 
 REDIS_URL = os.getenv("REDIS_URL")
+METRICS_ENABLED = os.getenv("METRICS_ENABLED", "false").lower() in {"1", "true", "yes"}
+METRICS_TOKEN = os.getenv("METRICS_TOKEN", "").strip()
 limiter = build_limiter(REDIS_URL)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan: startup and graceful shutdown."""
-    logger.info("Starting Parlez server")
-    yield
-    logger.info("Shutting down Parlez server")
+    # Uvicorn's CLI configures logging after importing this module; reapply the
+    # privacy-safe JSON formatter at startup for the python main.py entrypoint.
+    configure_json_logging()
+    log_event("application.startup", service="parlez")
     try:
-        storage.close()
-    except Exception as exc:
-        logger.exception("Error closing storage during shutdown: %s", exc)
+        yield
+    finally:
+        log_event("application.shutdown", service="parlez")
+        try:
+            storage.close()
+        except Exception as exc:
+            logger.exception(
+                "Database engine shutdown failed",
+                extra={"event_name": "application.shutdown.database_error", "event_fields": {"error_type": type(exc).__name__}},
+            )
+        from observability import shutdown_tracing
+        shutdown_tracing()
 
 
 app = FastAPI(lifespan=lifespan)
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
+    """Record rate-limit events without logging client IPs or request bodies."""
+    log_event(
+        "security.rate_limit.exceeded",
+        logging.WARNING,
+        method=request.method,
+        route=safe_route(request.scope),
+        outcome="failure",
+    )
+    return _rate_limit_exceeded_handler(request, exc)
+
+
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 app.mount("/static", StaticFiles(directory="static", html=True), name="static")
 
-class RequestLoggingMiddleware:
-    """Pure ASGI middleware for request logging.
 
-    Implemented as a class instead of @app.middleware to avoid the
-    Starlette BaseHTTPMiddleware + TestClient EndOfStream issue.
+class RequestLoggingMiddleware:
+    """Request correlation, structured access logs, metrics, and server traces.
+
+    Implemented as pure ASGI middleware to avoid the Starlette
+    BaseHTTPMiddleware + TestClient EndOfStream issue.
     """
 
     def __init__(self, app):
@@ -186,30 +229,165 @@ class RequestLoggingMiddleware:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
-        start = time.time()
-        request = Request(scope, receive)
-        status_code = None
+
+        request_headers = {
+            key.decode("latin-1").lower(): value.decode("latin-1")
+            for key, value in scope.get("headers", [])
+            if key.lower() in {b"x-correlation-id", b"x-request-id", b"traceparent"}
+        }
+        supplied_id = request_headers.get("x-correlation-id") or request_headers.get("x-request-id")
+        request_id = supplied_id if valid_correlation_id(supplied_id) else uuid.uuid4().hex
+        correlation_id = request_id
+        context_token = set_request_context(request_id, correlation_id)
+        parent_context = propagate.extract(request_headers)
+        started = time.perf_counter()
+        status_code = 500
+        route = safe_route(scope)
+        service_class = route_service_class(route)
 
         async def wrapped_send(message):
             nonlocal status_code
             if message["type"] == "http.response.start":
-                status_code = message["status"]
+                status_code = int(message.get("status", 500))
+                headers = [
+                    (key, value)
+                    for key, value in message.get("headers", [])
+                    if key.lower() not in {b"x-request-id", b"x-correlation-id", b"x-trace-id"}
+                ]
+                span_context = trace.get_current_span().get_span_context()
+                if span_context.is_valid:
+                    scope.setdefault("state", {})["parlez_trace_id"] = f"{span_context.trace_id:032x}"
+                headers.extend([
+                    (b"x-request-id", request_id.encode("ascii")),
+                    (b"x-correlation-id", correlation_id.encode("ascii")),
+                ])
+                if span_context.is_valid:
+                    headers.append((b"x-trace-id", f"{span_context.trace_id:032x}".encode("ascii")))
+                message["headers"] = headers
             await send(message)
 
         try:
-            await self.app(scope, request.receive, wrapped_send)
-            duration = round((time.time() - start) * 1000, 2)
-            logger.info(
-                "method=%s path=%s status=%s duration_ms=%s",
-                request.method, request.url.path, status_code, duration,
-            )
-        except Exception as exc:
-            duration = round((time.time() - start) * 1000, 2)
-            logger.exception(
-                "method=%s path=%s duration_ms=%s error=%s",
-                request.method, request.url.path, duration, exc,
-            )
-            raise
+            with get_tracer().start_as_current_span(
+                "http.server.request",
+                context=parent_context,
+                kind=SpanKind.SERVER,
+                record_exception=False,
+                set_status_on_exception=False,
+            ) as span:
+                span.set_attribute("http.request.method", str(scope.get("method", "GET")))
+                span.set_attribute("parlez.request_id", request_id)
+                span.set_attribute("parlez.correlation_id", correlation_id)
+                try:
+                    await self.app(scope, receive, wrapped_send)
+                except Exception as exc:
+                    status_code = status_code if status_code >= 500 else 500
+                    span.set_attribute("parlez.error_type", type(exc).__name__[:80])
+                    span.set_status(Status(StatusCode.ERROR))
+                    log_event(
+                        "http.request.unhandled_exception",
+                        logging.ERROR,
+                        method=str(scope.get("method", "GET")),
+                        route=safe_route(scope),
+                        error_type=type(exc).__name__,
+                    )
+                    logger.exception(
+                        "Unhandled HTTP request exception",
+                        extra={
+                            "event_name": "http.request.exception.stack",
+                            "event_fields": {"method": str(scope.get("method", "GET")), "route": safe_route(scope)},
+                        },
+                    )
+                    raise
+                finally:
+                    duration_seconds = max(0.0, time.perf_counter() - started)
+                    route = safe_route(scope)
+                    service_class = route_service_class(route)
+                    trace_context = span.get_span_context()
+                    trace_id = f"{trace_context.trace_id:032x}" if trace_context.is_valid else None
+                    if trace_id is not None:
+                        scope.setdefault("state", {})["parlez_trace_id"] = trace_id
+                    span.set_attribute("http.route", route)
+                    span.set_attribute("http.response.status_code", status_code)
+                    span.set_attribute("parlez.slo_class", service_class)
+                    if status_code >= 500:
+                        span.set_status(Status(StatusCode.ERROR))
+                    observe_http_request(
+                        method=str(scope.get("method", "GET")),
+                        route=route,
+                        status_code=status_code,
+                        duration_seconds=duration_seconds,
+                        service_class=service_class,
+                        request_id=request_id,
+                        correlation_id=correlation_id,
+                        trace_id=trace_id,
+                    )
+                    event_level = logging.ERROR if status_code >= 500 else logging.WARNING if status_code >= 400 else logging.INFO
+                    log_event(
+                        "http.request.completed" if status_code < 500 else "http.request.failed",
+                        event_level,
+                        method=str(scope.get("method", "GET")),
+                        route=route,
+                        status_code=status_code,
+                        duration_ms=round(duration_seconds * 1000, 2),
+                        slo_class=service_class,
+                    )
+        finally:
+            reset_request_context(context_token)
+
+
+class ResponseCorrelationMiddleware:
+    """Outermost ASGI wrapper so even framework-generated 500s get a request ID."""
+
+    def __init__(self, app):
+        self.app = app
+
+    def __getattr__(self, name):
+        # Preserve FastAPI conveniences used by tests, lifespan tooling, and ops.
+        return getattr(self.app, name)
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        headers = {
+            key.decode("latin-1").lower(): value.decode("latin-1")
+            for key, value in scope.get("headers", [])
+            if key.lower() in {b"x-correlation-id", b"x-request-id"}
+        }
+        supplied_id = headers.get("x-correlation-id") or headers.get("x-request-id")
+        request_id = supplied_id if valid_correlation_id(supplied_id) else uuid.uuid4().hex
+        normalized_headers = [
+            (key, value)
+            for key, value in scope.get("headers", [])
+            if key.lower() not in {b"x-request-id", b"x-correlation-id"}
+        ]
+        normalized_headers.extend([
+            (b"x-request-id", request_id.encode("ascii")),
+            (b"x-correlation-id", request_id.encode("ascii")),
+        ])
+        scope["headers"] = normalized_headers
+        state = scope.setdefault("state", {})
+        state["parlez_request_id"] = request_id
+        state["parlez_correlation_id"] = request_id
+
+        async def wrapped_send(message):
+            if message["type"] == "http.response.start":
+                response_headers = [
+                    (key, value)
+                    for key, value in message.get("headers", [])
+                    if key.lower() not in {b"x-request-id", b"x-correlation-id", b"x-trace-id"}
+                ]
+                response_headers.extend([
+                    (b"x-request-id", request_id.encode("ascii")),
+                    (b"x-correlation-id", request_id.encode("ascii")),
+                ])
+                trace_id = state.get("parlez_trace_id")
+                if isinstance(trace_id, str) and re.fullmatch(r"[0-9a-f]{32}", trace_id):
+                    response_headers.append((b"x-trace-id", trace_id.encode("ascii")))
+                message["headers"] = response_headers
+            await send(message)
+
+        await self.app(scope, receive, wrapped_send)
 
 
 class NoCacheMiddleware:
@@ -815,13 +993,16 @@ def _decode_admin_session(request: Request):
     try:
         payload = jwt.decode(token, ADMIN_SESSION_SECRET, algorithms=[JWT_ALGORITHM])
     except jwt.PyJWTError:
+        log_event("auth.admin_session.failure", logging.WARNING, outcome="failure", reason_code="invalid_token")
         raise HTTPException(status_code=401, detail="Admin session expired. Sign in again.")
     if payload.get("scope") != "parlez_admin" or not secrets.compare_digest(
         str(payload.get("sub", "")), ADMIN_USERNAME
     ):
+        log_event("auth.admin_session.failure", logging.WARNING, outcome="failure", reason_code="invalid_scope")
         raise HTTPException(status_code=401, detail="Admin session expired. Sign in again.")
     session_id = str(payload.get("jti", ""))
     if not session_id or not storage.admin_session_is_active(session_id, ADMIN_USERNAME):
+        log_event("auth.admin_session.failure", logging.WARNING, outcome="failure", reason_code="expired_or_revoked")
         raise HTTPException(status_code=401, detail="Admin session expired. Sign in again.")
     return payload
 
@@ -833,8 +1014,10 @@ def require_admin(request: Request):
         supplied_csrf = request.headers.get("X-CSRF-Token", "")
         expected_csrf = str(payload.get("csrf", ""))
         if not expected_csrf or not secrets.compare_digest(supplied_csrf, expected_csrf):
+            log_event("auth.admin_session.failure", logging.WARNING, outcome="failure", reason_code="csrf_rejected")
             raise HTTPException(status_code=403, detail="Admin request could not be verified.")
         if not _admin_origin_is_same(request):
+            log_event("auth.admin_session.failure", logging.WARNING, outcome="failure", reason_code="origin_rejected")
             raise HTTPException(status_code=403, detail="Cross-origin admin requests are not allowed.")
     return {"username": ADMIN_USERNAME, "csrf": payload["csrf"], "session_id": payload["jti"]}
 
@@ -861,13 +1044,51 @@ def check_daily_llm_budget(user):
     return llm_daily['count']
 
 
-async def call_ai_provider(messages, provider: str, model: str, max_tokens: int = 2048):
-    """Call a configured OpenAI-compatible provider without exposing its key."""
+async def call_ai_provider(
+    messages,
+    provider: str,
+    model: str,
+    max_tokens: int = 2048,
+    operation: str = "chat",
+):
+    """Call a configured provider with traces and usage metrics, never logging prompts."""
     spec = AI_PROVIDER_SPECS.get(provider)
     api_key = _provider_key(provider)
+    started = time.perf_counter()
+    call_span = get_tracer().start_as_current_span
+    normalized_operation = operation if operation in {"chat", "writing_correction", "provider_test"} else "other"
+    recorded = False
+
+    def record_failure(error_type: str, http_status: int | None = None, attempts: int = 0) -> None:
+        nonlocal recorded
+        if recorded:
+            return
+        duration = max(0.0, time.perf_counter() - started)
+        observe_ai_call(
+            provider=provider if provider in AI_PROVIDER_SPECS else "unknown",
+            operation=normalized_operation,
+            outcome="failure",
+            duration_seconds=duration,
+        )
+        log_event(
+            "ai.provider.call.failed",
+            logging.ERROR,
+            provider=provider if provider in AI_PROVIDER_SPECS else "unknown",
+            model=model,
+            operation=normalized_operation,
+            outcome="failure",
+            attempts=attempts,
+            error_type=error_type,
+            http_status=http_status or 0,
+            duration_ms=round(duration * 1000, 2),
+        )
+        recorded = True
+
     if not spec or not api_key:
+        record_failure("provider_not_configured")
         raise HTTPException(status_code=503, detail="The selected AI provider is not configured.")
     if not model or len(model) > 200:
+        record_failure("invalid_model")
         raise HTTPException(status_code=503, detail="The selected AI model is not configured correctly.")
 
     payload = {
@@ -877,42 +1098,147 @@ async def call_ai_provider(messages, provider: str, model: str, max_tokens: int 
         "temperature": 0.6,
         "top_p": 0.95,
     }
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        last_error = "provider unavailable"
-        for attempt in range(3):
-            try:
-                response = await client.post(
-                    spec["base_url"],
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json=payload,
-                )
-                if response.status_code == 200:
-                    return response.json()
-                if response.status_code == 429 or response.status_code >= 500:
-                    # Retry transient capacity/rate errors, but never log prompt or provider body.
-                    last_error = f"{provider} returned HTTP {response.status_code}"
-                    logger.warning("AI provider attempt %s failed: %s", attempt + 1, last_error)
-                else:
-                    logger.warning("AI provider rejected request: provider=%s status=%s", provider, response.status_code)
-                    raise HTTPException(status_code=502, detail=f"AI request failed ({response.status_code}).")
-            except httpx.RequestError as exc:
-                last_error = f"{provider} request failed: {type(exc).__name__}"
-                logger.warning("AI provider attempt %s failed: %s", attempt + 1, last_error)
-
-            if attempt < 2:
-                await asyncio.sleep(2 ** attempt)
-
-        logger.error("AI provider failed after retries: %s", last_error)
+    attempts = 0
+    last_http_status = None
+    last_error_type = "ProviderUnavailable"
+    provider_span = None
+    try:
+        with call_span(
+            "ai.provider.call",
+            kind=SpanKind.CLIENT,
+            attributes={
+                "parlez.provider": provider,
+                "parlez.model": model[:160],
+                "parlez.operation": normalized_operation,
+            },
+            record_exception=False,
+            set_status_on_exception=False,
+        ) as provider_span:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                for attempt in range(3):
+                    attempts = attempt + 1
+                    try:
+                        with get_tracer().start_as_current_span(
+                            "ai.provider.attempt",
+                            kind=SpanKind.CLIENT,
+                            attributes={
+                                "parlez.provider": provider,
+                                "parlez.operation": normalized_operation,
+                                "parlez.attempt": attempts,
+                            },
+                            record_exception=False,
+                            set_status_on_exception=False,
+                        ) as attempt_span:
+                            response = await client.post(
+                                spec["base_url"],
+                                headers={
+                                    "Authorization": f"Bearer {api_key}",
+                                    "Content-Type": "application/json",
+                                },
+                                json=payload,
+                            )
+                            last_http_status = response.status_code
+                            attempt_span.set_attribute("http.response.status_code", response.status_code)
+                            if response.status_code == 200:
+                                try:
+                                    result = response.json()
+                                except ValueError as exc:
+                                    attempt_span.set_attribute("parlez.error_type", type(exc).__name__)
+                                    attempt_span.set_status(Status(StatusCode.ERROR))
+                                    raise HTTPException(status_code=502, detail="AI provider returned an invalid response.") from exc
+                                usage = result.get("usage") if isinstance(result, dict) else None
+                                input_tokens = _safe_token_count(usage, "prompt_tokens", "input_tokens")
+                                output_tokens = _safe_token_count(usage, "completion_tokens", "output_tokens")
+                                duration = max(0.0, time.perf_counter() - started)
+                                observe_ai_call(
+                                    provider=provider,
+                                    operation=normalized_operation,
+                                    outcome="success",
+                                    duration_seconds=duration,
+                                    input_tokens=input_tokens,
+                                    output_tokens=output_tokens,
+                                )
+                                provider_span.set_attribute("parlez.outcome", "success")
+                                provider_span.set_attribute("parlez.attempt", attempts)
+                                provider_span.set_status(Status(StatusCode.OK))
+                                log_event(
+                                    "ai.provider.call.completed",
+                                    logging.INFO,
+                                    provider=provider,
+                                    model=model,
+                                    operation=normalized_operation,
+                                    outcome="success",
+                                    attempts=attempts,
+                                    input_tokens=input_tokens or 0,
+                                    output_tokens=output_tokens or 0,
+                                    duration_ms=round(duration * 1000, 2),
+                                )
+                                recorded = True
+                                return result
+                            if response.status_code == 429 or response.status_code >= 500:
+                                last_error_type = "ProviderHTTPError"
+                                attempt_span.set_status(Status(StatusCode.ERROR))
+                            else:
+                                last_error_type = "ProviderRejectedRequest"
+                                attempt_span.set_status(Status(StatusCode.ERROR))
+                                raise HTTPException(status_code=502, detail=f"AI request failed ({response.status_code}).")
+                    except httpx.RequestError as exc:
+                        last_error_type = type(exc).__name__
+                        attempt_span.set_attribute("parlez.error_type", last_error_type[:80])
+                        attempt_span.set_status(Status(StatusCode.ERROR))
+                    except HTTPException:
+                        raise
+                    if attempt < 2:
+                        log_event(
+                            "ai.provider.retry",
+                            logging.WARNING,
+                            provider=provider,
+                            model=model,
+                            operation=normalized_operation,
+                            attempt=attempts,
+                            http_status=last_http_status or 0,
+                            error_type=last_error_type,
+                        )
+                        await asyncio.sleep(2 ** attempt)
+            provider_span.set_attribute("parlez.outcome", "failure")
+            provider_span.set_attribute("parlez.attempt", attempts)
+            provider_span.set_status(Status(StatusCode.ERROR))
+        record_failure(last_error_type, last_http_status, attempts)
         raise HTTPException(status_code=503, detail="AI service is temporarily unavailable. Please try again in a moment.")
+    except HTTPException as exc:
+        if provider_span is not None:
+            provider_span.set_attribute("parlez.error_type", type(exc).__name__[:80])
+            provider_span.set_attribute("parlez.outcome", "failure")
+            provider_span.set_status(Status(StatusCode.ERROR))
+        if not recorded:
+            record_failure("HTTPException", last_http_status, attempts)
+        raise
+    except Exception as exc:
+        if provider_span is not None:
+            provider_span.set_attribute("parlez.error_type", type(exc).__name__[:80])
+            provider_span.set_attribute("parlez.outcome", "failure")
+            provider_span.set_status(Status(StatusCode.ERROR))
+        if not recorded:
+            record_failure(type(exc).__name__, last_http_status, attempts)
+        raise
 
 
-async def call_nvidia(messages, max_tokens=2048):
+def _safe_token_count(usage, *keys) -> int | None:
+    if not isinstance(usage, dict):
+        return None
+    for key in keys:
+        value = usage.get(key)
+        if isinstance(value, int) and not isinstance(value, bool) and 0 <= value < 2**31:
+            return value
+    return None
+
+
+async def call_nvidia(messages, max_tokens=2048, operation="chat"):
     """Legacy call-site name; dispatches through the admin-selected provider."""
     config = get_active_ai_config()
-    return await call_ai_provider(messages, config["provider"], config["model"], max_tokens)
+    return await call_ai_provider(
+        messages, config["provider"], config["model"], max_tokens, operation=operation
+    )
 
 
 # ============================================================
@@ -937,6 +1263,26 @@ async def admin_page():
     )
 
 
+@app.get("/metrics", include_in_schema=False)
+async def prometheus_metrics(request: Request):
+    """Expose Prometheus metrics only when explicitly enabled and token-protected."""
+    if not METRICS_ENABLED:
+        raise HTTPException(status_code=404, detail="Metrics endpoint is disabled.")
+    if len(METRICS_TOKEN) < 32:
+        log_event("observability.metrics.misconfigured", logging.ERROR, reason_code="missing_or_weak_token")
+        raise HTTPException(status_code=503, detail="Metrics endpoint requires a strong METRICS_TOKEN.")
+    supplied = request.headers.get("authorization", "")
+    expected = f"Bearer {METRICS_TOKEN}"
+    if not hmac.compare_digest(supplied, expected):
+        log_event("observability.metrics.access_denied", logging.WARNING, reason_code="invalid_bearer")
+        raise HTTPException(status_code=401, detail="Metrics authorization required.")
+    return Response(
+        content=metrics_bytes(),
+        media_type=metrics_content_type(),
+        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+    )
+
+
 @app.post("/api/admin/login", include_in_schema=False)
 @limiter.limit("5/minute")
 async def admin_login(request: Request, credentials: AdminLoginRequest, response: Response):
@@ -944,15 +1290,19 @@ async def admin_login(request: Request, credentials: AdminLoginRequest, response
     if not ADMIN_AUTH_CONFIGURED:
         raise HTTPException(status_code=503, detail="Admin access is not configured on this server.")
     if not _admin_origin_is_same(request) or request.headers.get("sec-fetch-site") == "cross-site":
+        log_event("auth.admin_login.failure", logging.WARNING, outcome="failure", reason_code="origin_rejected")
         raise HTTPException(status_code=403, detail="Cross-origin admin sign-in is not allowed.")
 
     if not _admin_password_matches(credentials.username, credentials.password):
+        log_event("auth.admin_login.failure", logging.WARNING, outcome="failure", reason_code="credentials_rejected")
         raise HTTPException(status_code=401, detail="Invalid admin credentials or verification code.")
 
     mfa = _get_admin_mfa_state()
     if mfa["enabled"] and not credentials.totp:
+        log_event("auth.admin_login.mfa_challenge", logging.INFO, outcome="challenge")
         raise HTTPException(status_code=428, detail="Authenticator code required.")
     if mfa["enabled"] and not _valid_admin_totp(mfa["secret"], credentials.totp):
+        log_event("auth.admin_login.failure", logging.WARNING, outcome="failure", reason_code="totp_rejected")
         raise HTTPException(status_code=401, detail="Invalid admin credentials or verification code.")
 
     now = datetime.datetime.now(datetime.timezone.utc)
@@ -1266,6 +1616,7 @@ async def test_admin_ai_provider(request: Request, test: AdminAITestRequest, adm
         provider,
         model,
         max_tokens=40,
+        operation="provider_test",
     )
     try:
         message = result["choices"][0]["message"]["content"]
@@ -1411,15 +1762,26 @@ async def admin_audit(limit: int = 50, admin=Depends(require_admin)):
     return storage.list_admin_audit(limit)
 
 
+@app.get("/api/admin/observability", include_in_schema=False)
+async def admin_observability(admin=Depends(require_admin)):
+    """Return bounded, sanitized metrics, alerts, SLOs, events, and trace spans."""
+    return OBSERVABILITY.snapshot()
+
+
 @app.get("/api/admin/health", include_in_schema=False)
 async def admin_health(admin=Depends(require_admin)):
     database = "connected"
+    database_started = time.perf_counter()
     try:
         with storage.engine.connect() as connection:
             connection.execute(db.text("SELECT 1"))
-    except Exception:
-        logger.exception("Admin dashboard database health check failed")
+    except Exception as exc:
+        logger.exception(
+            "Admin dashboard database health check failed",
+            extra={"event_name": "dependency.database.admin_probe_failed", "event_fields": {"error_type": type(exc).__name__}},
+        )
         database = "unavailable"
+    record_database_health(database == "connected", time.perf_counter() - database_started)
     active_ai = get_active_ai_config()
     return {
         "backend": "healthy" if database == "connected" else "degraded",
@@ -1441,17 +1803,22 @@ async def login_page():
 
 
 @app.get("/health")
-async def health():
+async def health(response: Response):
     """Public health check including database connectivity."""
     db_ok = False
+    database_started = time.perf_counter()
     try:
         with storage.engine.connect() as conn:
             conn.execute(db.text("SELECT 1"))
             db_ok = True
     except Exception as exc:
-        logger.error("Health check database connection failed: %s", exc)
+        logger.error(
+            "Health check database connection failed",
+            extra={"event_name": "dependency.database.probe_failed", "event_fields": {"error_type": type(exc).__name__}},
+        )
 
-    status = 200 if db_ok else 503
+    record_database_health(db_ok, time.perf_counter() - database_started)
+    response.status_code = 200 if db_ok else 503
     return {
         "status": "healthy" if db_ok else "unhealthy",
         "database": "ok" if db_ok else "error",
@@ -1470,10 +1837,13 @@ async def signup(request: Request, req: SignupRequest, response: Response):
     try:
         email = validate_email(req.email.strip(), check_deliverability=False, allow_smtputf8=False).normalized.casefold()
     except EmailNotValidError:
+        log_event("auth.signup.failure", logging.WARNING, outcome="failure", reason_code="invalid_email")
         raise HTTPException(400, "Please enter a valid email address")
     if len(email) > 254:
+        log_event("auth.signup.failure", logging.WARNING, outcome="failure", reason_code="email_too_long")
         raise HTTPException(400, "Email address must be at most 254 characters")
     if storage.email_exists(email):
+        log_event("auth.signup.failure", logging.INFO, outcome="failure", reason_code="email_exists")
         raise HTTPException(409, "Email address already registered. Please log in.")
 
     # Validate username
@@ -1503,8 +1873,11 @@ async def signup(request: Request, req: SignupRequest, response: Response):
         user = storage.create_user(req.username, password_hash, req.name, email=email)
     except IntegrityError:
         # Unique DB constraints are authoritative if two requests race the prechecks.
+        log_event("auth.signup.failure", logging.INFO, outcome="failure", reason_code="account_exists")
         raise HTTPException(409, "Username or email address already registered. Please log in.")
-    
+
+    log_event("auth.signup.success", logging.INFO, outcome="success", learner_level=user.get("level", "A1"))
+
     # Generate token
     token = create_token(user['id'])
     
@@ -1534,9 +1907,11 @@ async def login(request: Request, req: LoginRequest, response: Response):
     """Log in an existing user."""
     user_id = storage.verify_user(req.username, req.password)
     if not user_id:
+        log_event("auth.login.failure", logging.WARNING, outcome="failure", reason_code="credentials_rejected")
         raise HTTPException(401, "Invalid username or password")
-    
+
     user = storage.get_user_by_id(user_id)
+    log_event("auth.login.success", logging.INFO, outcome="success", learner_level=user.get("level", "A1"))
     token = create_token(user_id)
     
     response.set_cookie(
@@ -1563,6 +1938,7 @@ async def login(request: Request, req: LoginRequest, response: Response):
 async def logout(request: Request, response: Response):
     """Log out the current user."""
     response.delete_cookie(key='token')
+    log_event("auth.logout.success", logging.INFO, outcome="success")
     return {"ok": True}
 
 @app.get("/api/auth/me")
@@ -2444,7 +2820,7 @@ async def correct_writing(req: WritingCorrectionRequest, user=Depends(require_au
     ]
     
     try:
-        r = await call_nvidia(messages)
+        r = await call_nvidia(messages, operation="writing_correction")
         resp = r["choices"][0]["message"]["content"]
     except HTTPException:
         raise
@@ -2761,14 +3137,63 @@ async def text_to_speech(request: Request, req: TTSRequest, user=Depends(require
                 "https://translate.google.com/translate_tts"
                 f"?ie=UTF-8&client=tw-ob&tl={req.lang}&q={urllib.parse.quote(chunk)}"
             )
-            r = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
-            if r.status_code != 200:
-                logger.warning("TTS chunk request failed: status=%s url=%s", r.status_code, url[:80])
-                raise HTTPException(502, f"TTS provider returned status {r.status_code}")
-            if not r.content or not r.headers.get("content-type", "").lower().startswith("audio/"):
-                logger.warning("TTS provider returned empty or non-audio content")
-                raise HTTPException(502, "TTS provider did not return valid audio")
-            return r.content
+            started = time.perf_counter()
+            span = None
+            try:
+                with get_tracer().start_as_current_span(
+                    "tts.provider.request",
+                    kind=SpanKind.CLIENT,
+                    attributes={"parlez.provider": "google_translate_tts", "parlez.operation": "tts"},
+                    record_exception=False,
+                    set_status_on_exception=False,
+                ) as span:
+                    r = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
+                    span.set_attribute("http.response.status_code", r.status_code)
+                    if r.status_code != 200:
+                        span.set_status(Status(StatusCode.ERROR))
+                        raise HTTPException(502, f"TTS provider returned status {r.status_code}")
+                    if not r.content or not r.headers.get("content-type", "").lower().startswith("audio/"):
+                        span.set_status(Status(StatusCode.ERROR))
+                        raise HTTPException(502, "TTS provider did not return valid audio")
+                    audio = r.content
+            except Exception as exc:
+                if span is not None:
+                    span.set_attribute("parlez.error_type", type(exc).__name__[:80])
+                    span.set_status(Status(StatusCode.ERROR))
+                duration = max(0.0, time.perf_counter() - started)
+                observe_ai_call(
+                    provider="google_translate_tts",
+                    operation="tts",
+                    outcome="failure",
+                    duration_seconds=duration,
+                )
+                log_event(
+                    "tts.provider.request.failed",
+                    logging.WARNING,
+                    provider="google_translate_tts",
+                    operation="tts",
+                    outcome="failure",
+                    error_type=type(exc).__name__,
+                    duration_ms=round(duration * 1000, 2),
+                )
+                raise
+
+            duration = max(0.0, time.perf_counter() - started)
+            observe_ai_call(
+                provider="google_translate_tts",
+                operation="tts",
+                outcome="success",
+                duration_seconds=duration,
+            )
+            log_event(
+                "tts.provider.request.completed",
+                logging.INFO,
+                provider="google_translate_tts",
+                operation="tts",
+                outcome="success",
+                duration_ms=round(duration * 1000, 2),
+            )
+            return audio
 
         try:
             # Download chunks concurrently; MP3 frames can be concatenated byte-wise.
@@ -2776,7 +3201,10 @@ async def text_to_speech(request: Request, req: TTSRequest, user=Depends(require
         except HTTPException:
             raise
         except Exception as exc:
-            logger.exception("TTS generation failed: %s", exc)
+            logger.exception(
+                "TTS generation failed",
+                extra={"event_name": "tts.generation.failed", "event_fields": {"error_type": type(exc).__name__}},
+            )
             raise HTTPException(500, "TTS generation failed") from exc
 
     if not any(audio_parts):
@@ -2797,6 +3225,11 @@ async def clear_history(user=Depends(require_auth)):
     user['conversations'] = {}
     storage.save_user(user)
     return {"ok": True}
+
+
+# Keep this wrapper outside FastAPI's ServerErrorMiddleware so request IDs are
+# present even on framework-generated internal-server-error responses.
+app = ResponseCorrelationMiddleware(app)
 
 
 if __name__ == "__main__":

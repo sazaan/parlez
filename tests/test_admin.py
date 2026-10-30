@@ -47,6 +47,8 @@ def test_admin_shell_is_same_origin_and_not_indexed(client):
     assert response.headers.get("x-robots-tag") == "noindex, nofollow, noarchive"
     assert response.headers.get("cache-control", "").startswith("no-cache")
     assert 'data-section="users"' in response.text
+    assert 'data-section="observability"' in response.text
+    assert 'id="section-observability"' in response.text
     assert 'id="statusUsers"' in response.text
     assert 'id="usersTotalCount"' in response.text
     openapi = client.get("/openapi.json").json()
@@ -61,7 +63,35 @@ def test_admin_endpoints_fail_closed_when_admin_is_not_configured(client, monkey
     assert response.status_code == 503
     assert client.get("/api/admin/users").status_code == 503
     assert client.get("/api/admin/users/count").status_code == 503
+    assert client.get("/api/admin/observability").status_code == 503
     assert client.post("/api/admin/login", json={"username": "x", "password": "x", "totp": "abcdef"}).status_code == 503
+
+
+def test_observability_panel_is_admin_only_and_shows_slos_alerts_and_traces(signed_admin):
+    client, _ = signed_admin
+    main.OBSERVABILITY.reset_recent()
+    for _ in range(20):
+        main.OBSERVABILITY.record_request(
+            method="GET",
+            route="/api/progress",
+            status_code=500,
+            duration_seconds=0.15,
+            service_class="core",
+            request_id=None,
+            correlation_id=None,
+            trace_id=None,
+        )
+    with main.tracer.start_as_current_span("admin.observability.test"):
+        pass
+
+    response = client.get("/api/admin/observability")
+    assert response.status_code == 200, response.text
+    assert response.headers.get("x-request-id")
+    payload = response.json()
+    assert payload["metrics"]["core_requests_24h"] == 20
+    assert any(item["id"] == "core_api_availability" and item["state"] == "breached" for item in payload["slos"])
+    assert any(item["id"] == "http_5xx_rate" for item in payload["alerts"])
+    assert any(item["name"] == "admin.observability.test" for item in payload["traces"])
 
 
 def test_admin_login_starts_with_username_password_only_and_rejects_cross_origin(client, monkeypatch):
@@ -412,7 +442,7 @@ def test_admin_can_rollback_to_last_known_ai_model(signed_admin, monkeypatch):
     monkeypatch.setattr(main, "NVIDIA_API_KEY", "test-nvidia-key")
     monkeypatch.setenv("GEMINI_API_KEY", "test-secret-gemini-key")
 
-    async def fake_call(messages, provider, model, max_tokens=2048):
+    async def fake_call(messages, provider, model, max_tokens=2048, operation="chat"):
         return {"choices": [{"message": {"content": "test ok"}}]}
 
     monkeypatch.setattr(main, "call_ai_provider", fake_call)

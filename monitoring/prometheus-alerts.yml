@@ -1,0 +1,111 @@
+groups:
+  - name: parlez-availability-and-latency
+    interval: 30s
+    rules:
+      - alert: ParlezCoreApiHigh5xxRate
+        expr: |
+          (
+            sum(rate(parlez_http_requests_total{service_class="core", status_code=~"5.."}[5m]))
+            /
+            clamp_min(sum(rate(parlez_http_requests_total{service_class="core"}[5m])), 0.000001)
+          ) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+          service: parlez
+        annotations:
+          summary: Parlez core API 5xx rate is elevated
+          description: More than 1% of core API requests returned 5xx responses for 5 minutes.
+
+      - alert: ParlezCoreApiLatencySloBreach
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (rate(parlez_http_request_duration_seconds_bucket{service_class="core"}[5m]))
+          ) > 2
+        for: 10m
+        labels:
+          severity: warning
+          service: parlez
+        annotations:
+          summary: Parlez core API p95 latency exceeds its 2 second objective
+          description: Core API p95 latency has exceeded 2 seconds for 10 minutes.
+
+      - alert: ParlezCoreApiErrorBudgetBurn
+        expr: |
+          (
+            sum(rate(parlez_http_requests_total{service_class="core", status_code=~"5.."}[5m]))
+            /
+            clamp_min(sum(rate(parlez_http_requests_total{service_class="core"}[5m])), 0.000001)
+          ) > 0.072
+          and
+          (
+            sum(rate(parlez_http_requests_total{service_class="core", status_code=~"5.."}[1h]))
+            /
+            clamp_min(sum(rate(parlez_http_requests_total{service_class="core"}[1h])), 0.000001)
+          ) > 0.03
+        for: 5m
+        labels:
+          severity: critical
+          service: parlez
+        annotations:
+          summary: Parlez is burning its 99.5% availability error budget quickly
+          description: Core API error budget burn is above 14.4x over 5 minutes and 6x over one hour.
+
+  - name: parlez-ai-provider
+    interval: 30s
+    rules:
+      - alert: ParlezAiProviderFailureRateHigh
+        expr: |
+          (
+            sum(rate(parlez_ai_provider_calls_total{operation!="provider_test", outcome="failure"}[5m]))
+            /
+            clamp_min(sum(rate(parlez_ai_provider_calls_total{operation!="provider_test"}[5m])), 0.000001)
+          ) > 0.10
+        for: 5m
+        labels:
+          severity: critical
+          service: parlez
+        annotations:
+          summary: Parlez AI provider failure rate is elevated
+          description: More than 10% of non-test AI provider calls failed over 5 minutes.
+
+      - alert: ParlezAiProviderLatencySloBreach
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (rate(parlez_ai_provider_call_duration_seconds_bucket{operation!="provider_test"}[5m]))
+          ) > 30
+        for: 10m
+        labels:
+          severity: warning
+          service: parlez
+        annotations:
+          summary: Parlez AI provider p95 latency exceeds its 30 second objective
+          description: Non-test AI provider p95 latency has exceeded 30 seconds for 10 minutes.
+
+  - name: parlez-dependencies-and-security
+    interval: 30s
+    rules:
+      - alert: ParlezDatabaseHealthCheckFailed
+        expr: |
+          (parlez_database_health == 0)
+          and
+          (parlez_database_last_check_timestamp_seconds > time() - 300)
+        for: 1m
+        labels:
+          severity: critical
+          service: parlez
+        annotations:
+          summary: Parlez database health check failed
+          description: The most recent Parlez database probe failed within the last five minutes.
+
+      - alert: ParlezAuthenticationFailureBurst
+        expr: sum(increase(parlez_auth_events_total{outcome="failure"}[5m])) >= 10
+        for: 1m
+        labels:
+          severity: warning
+          service: parlez
+        annotations:
+          summary: Parlez authentication failures spiked
+          description: At least 10 authentication failures were recorded in five minutes. Review sanitized security logs and rate-limit status.
