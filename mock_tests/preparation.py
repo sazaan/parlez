@@ -34,8 +34,8 @@ STUDY_PLAN = [
     {
         "step": "4. Rehearse and review",
         "actions": [
-            "Take the full-length reading/listening rehearsal under its displayed time limit.",
-            "Return to missed item types, then practise the official section sequence using provider materials.",
+            "Take the full-length reading/listening rehearsal under its displayed time limit and try the shared writing-section timer.",
+            "Practise speaking tasks with their stated timers; then review missed item types and verify current provider instructions.",
         ],
     },
 ]
@@ -81,7 +81,7 @@ _PREPARATION = {
                     "answer": "Shared bicycles help with some trips, but access and travel time limit their use in some areas.",
                     "reasoning": "The passage gives a benefit and a limitation. It does not say that shared bicycles replace all car journeys or that the service has failed.",
                 },
-                "transferTask": "After a B1/B2 reading item, write one sentence stating the author's position and one detail that limits it.",
+                "transferTask": "After a more complex reading item, write one sentence stating the author's position and one detail that limits it.",
                 "selfCheck": ["I noticed contrast markers.", "I distinguished the author's view from a reported fact.", "My inference did not go beyond the passage."],
             },
             {
@@ -237,7 +237,7 @@ _PREPARATION = {
                     "answer": "Amine emphasizes travel savings; Claire sees value in remote meetings but prefers an in-person first meeting for trust.",
                     "reasoning": "The answer preserves each person's reason and does not claim that either person rejects all online meetings.",
                 },
-                "transferTask": "After a B1/B2 reading item, write a two-column note: viewpoint A / viewpoint B, with one supporting clue each.",
+                "transferTask": "After a more complex reading item, write a two-column note: viewpoint A / viewpoint B, with one supporting clue each.",
                 "selfCheck": ["I attributed each opinion to the correct person.", "I used evidence from the whole passage.", "I avoided absolute wording unsupported by the text."],
             },
             {

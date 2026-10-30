@@ -234,7 +234,7 @@ function setupDelegatedHandlers() {
                 if (typeof window.startExamTask === 'function') window.startExamTask(btn.dataset.type, btn.dataset.section, btn.dataset.task);
                 break;
             case 'start-exam-writing-section':
-                if (typeof window.startExamWritingSection === 'function') window.startExamWritingSection(btn.dataset.type);
+                if (typeof window.startExamWritingSection === 'function') window.startExamWritingSection(btn.dataset.type, btn);
                 break;
             case 'finish-writing-section':
                 if (typeof window.finishExamWritingSection === 'function') window.finishExamWritingSection();
@@ -2513,7 +2513,7 @@ window.startMockTest = async function(testType) {
             }
             html += '<div class="exam-prep-modules">';
             for (const module of modules) {
-                html += `<details class="exam-prep-module"><summary><span>${escapeHtml(module.skill || '')} · ${escapeHtml(module.title || '')}</span><small>${escapeHtml(module.durationMinutes || '')} min</small></summary>`;
+                html += `<details class="exam-prep-module"><summary><span>${escapeHtml(module.skill || '')} · ${escapeHtml(module.title || '')}</span><small>${escapeHtml(module.durationMinutes || '')} min lesson</small></summary>`;
                 html += `<p class="exam-prep-objective"><strong>Goal:</strong> ${escapeHtml(module.objective || '')}</p>`;
                 if (Array.isArray(module.teach) && module.teach.length) {
                     html += '<h4>Strategy</h4><ul>';
@@ -2524,6 +2524,7 @@ window.startMockTest = async function(testType) {
                     const practice = module.guidedPractice;
                     html += '<div class="exam-prep-practice"><strong>Guided practice</strong>';
                     if (practice.prompt) html += `<p>${escapeHtml(practice.prompt)}</p>`;
+                    html += '<p class="exam-prep-instruction">Try the prompt before opening the transcript, sample reasoning, or outline.</p>';
                     if (practice.audioText) {
                         html += `<button class="btn-speak exam-prep-audio" data-action="speak" data-text="${escapeHtml(practice.audioText)}">🔊 Play generated practice audio</button>`;
                         html += `<details><summary>Reveal audio transcript</summary><p>${escapeHtml(practice.audioText)}</p></details>`;
@@ -2580,18 +2581,30 @@ window.startMockTest = async function(testType) {
             }
             if (tasks.length) {
                 html += `<p class="exam-task-group-note">Official format: ${escapeHtml(section.taskCount || 0)} task slots · ${escapeHtml(section.practiceTaskCount || tasks.length)} original practice prompts. Use the criteria as a self-check, not an official rubric or score.</p>`;
-                html += '<div class="exam-task-list">';
+                const taskGroups = new Map();
                 for (const task of tasks) {
-                    const limits = task.wordMin
-                        ? `${task.wordMin}${task.wordMax ? `–${task.wordMax}` : '+'} words · `
-                        : '';
-                    const timeLabel = task.durationMinutes != null
-                        ? `${task.durationMinutes} min`
-                        : `${section.durationMinutes} min for the full section`;
-                    html += `<button class="exam-task-button" data-action="start-exam-task" data-type="${escapeHtml(testType)}" data-section="${escapeHtml(sid)}" data-task="${escapeHtml(task.id)}">`;
-                    html += `<span>${escapeHtml(task.title)}</span><small>${escapeHtml(limits)}${escapeHtml(timeLabel)}</small></button>`;
+                    const family = task.taskFamily || task.id;
+                    if (!taskGroups.has(family)) taskGroups.set(family, []);
+                    taskGroups.get(family).push(task);
                 }
-                html += '</div>';
+                for (const group of taskGroups.values()) {
+                    const orderedTasks = group.slice().sort((a, b) => a.variantNumber - b.variantNumber);
+                    const familyHeading = String(orderedTasks[0].title || '').split('·').slice(0, 2).join('·').trim();
+                    html += `<div class="exam-task-group"><h4 class="exam-task-family-title">${escapeHtml(familyHeading)}</h4><div class="exam-task-list">`;
+                    for (const task of orderedTasks) {
+                        const limits = task.wordMin
+                            ? `${task.wordMin}${task.wordMax ? `–${task.wordMax}` : '+'} words · `
+                            : '';
+                        const timeLabel = task.durationMinutes != null
+                            ? `${task.durationMinutes} min`
+                            : `${section.durationMinutes} min for the full section`;
+                        const variantLabel = task.variantNumber === 1 ? 'Original prompt' : `Practice variation ${task.variantNumber}`;
+                        const buttonTitle = String(task.title || '').split('·').slice(1).join('·').replace(/\s*Variation\s+\d+$/i, '').trim();
+                        html += `<button class="exam-task-button" data-action="start-exam-task" data-type="${escapeHtml(testType)}" data-section="${escapeHtml(sid)}" data-task="${escapeHtml(task.id)}">`;
+                        html += `<span>${escapeHtml(buttonTitle || task.title)}</span><small>${escapeHtml(variantLabel)} · ${escapeHtml(limits)}${escapeHtml(timeLabel)}</small></button>`;
+                    }
+                    html += '</div></div>';
+                }
             }
             html += '</div>';
         }
@@ -2660,7 +2673,9 @@ window.startExamTask = async function(testType, sectionId, taskId) {
     }
 };
 
-window.startExamWritingSection = async function(testType) {
+window.startExamWritingSection = async function(testType, triggerButton = null) {
+    if (triggerButton?.disabled) return;
+    if (triggerButton) triggerButton.disabled = true;
     stopExamWritingSectionTimer();
     if (examTaskState.timer) clearInterval(examTaskState.timer);
     const normalizedType = String(testType || '').toUpperCase();
@@ -2729,6 +2744,8 @@ window.startExamWritingSection = async function(testType) {
     } catch (error) {
         examWritingSectionState = { timer: null, timeLeft: 0, phase: 'idle' };
         getToolContent().innerHTML = '<div class="tool-header"><h2>Writing section</h2></div><p class="exam-speaking-note">Could not load the full writing rehearsal. Return to the practice menu and try again.</p>';
+    } finally {
+        if (triggerButton) triggerButton.disabled = false;
     }
 };
 
@@ -2759,6 +2776,11 @@ window.submitExamWritingSectionFeedback = async function(index) {
         showToast('Write a response before requesting language feedback.', { kind: 'error' });
         return;
     }
+    const submitButton = document.querySelector(`[data-action="submit-writing-section-feedback"][data-idx="${index}"]`);
+    if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.textContent = 'Getting language feedback…';
+    }
     feedback.innerHTML = spinnerHTML('Getting language feedback...', false);
     try {
         const result = await apiFetch('/api/writing/correct', {
@@ -2772,6 +2794,11 @@ window.submitExamWritingSectionFeedback = async function(index) {
         feedback.innerHTML = `<div class="exam-task-feedback-note">Language feedback only — it does not score this task or predict TEF/TCF results.</div><div>${safeText}</div>`;
     } catch (error) {
         feedback.textContent = error.message || 'Language feedback is unavailable. Please try again.';
+    } finally {
+        if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.textContent = 'Get language feedback · not a task score';
+        }
     }
 };
 
@@ -2811,6 +2838,11 @@ window.submitExamWritingTask = async function() {
         showToast('Write a response before requesting language feedback.', { kind: 'error' });
         return;
     }
+    const submitButton = document.querySelector('[data-action="submit-writing-task"]');
+    if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.textContent = 'Getting language feedback…';
+    }
     feedback.innerHTML = spinnerHTML('Getting language feedback...', false);
     try {
         const r = await apiFetch('/api/writing/correct', {
@@ -2824,6 +2856,11 @@ window.submitExamWritingTask = async function() {
         feedback.innerHTML = `<div class="exam-task-feedback-note">Language feedback only — it does not score this task or predict TEF/TCF results.</div><div>${safeText}</div>`;
     } catch(e) {
         feedback.textContent = e.message || 'Language feedback is unavailable. Please try again.';
+    } finally {
+        if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.textContent = 'Get language feedback · not a task score';
+        }
     }
 };
 
@@ -2852,6 +2889,7 @@ window.startExamSection = async function(testType, sectionId, setNum) {
         const section = exam.sections?.[sectionId];
         const durationMinutes = Number(data.timeLimitMinutes ?? section?.durationMinutes ?? 15);
         examState.timeLeft = Math.max(1, Math.round(durationMinutes * 60));
+        examState.startTime = Date.now();
         
         renderExamQuestion(0);
         startExamTimer();
@@ -2982,7 +3020,7 @@ function pauseExam() {
             <div class="exam-paused-card">
                 <div style="font-size:2rem;margin-bottom:0.5rem">⏸️</div>
                 <div style="font-size:1.1rem;font-weight:600;margin-bottom:0.25rem">Test Paused</div>
-                <div style="font-size:0.85rem;color:var(--muted-foreground);margin-bottom:1rem">Take your time. Your progress is saved.</div>
+                <div style="font-size:0.85rem;color:var(--muted-foreground);margin-bottom:1rem">Your in-session answers remain here. Submit the set to save a practice result.</div>
                 <button class="exam-nav-btn" data-action="resume-exam" style="font-size:1rem;padding:0.6rem 1.25rem">▶️ Resume Test</button>
             </div>
         `;

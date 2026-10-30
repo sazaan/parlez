@@ -3454,6 +3454,8 @@ textarea {
 .exam-set-buttons,
 .exam-task-list { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .exam-task-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.exam-task-group { margin: 0.85rem 0; }
+.exam-task-family-title { margin: 0 0 0.4rem; font-size: 0.9rem; }
 .exam-task-button {
     display: flex;
     flex-direction: column;
@@ -3541,6 +3543,7 @@ textarea {
 .exam-prep-objective { margin: 0.8rem 0; line-height: 1.5; }
 .exam-prep-practice { margin: 0.75rem 0; padding: 0.8rem; border-left: 3px solid var(--secondary); border-radius: 0.35rem; background: rgba(201, 163, 92, 0.08); }
 .exam-prep-practice > p { margin: 0.5rem 0; line-height: 1.55; }
+.exam-prep-instruction { color: var(--muted-foreground); font-size: 0.78rem; }
 .exam-prep-practice details,
 .exam-prep-selfcheck { margin-top: 0.55rem; }
 .exam-prep-transfer { margin: 0.75rem 0; line-height: 1.5; }
@@ -3565,3 +3568,12 @@ textarea {
 .exam-section-practice-btn:hover { filter: brightness(0.94); }
 .exam-writing-section-toolbar { position: sticky; top: 0.25rem; z-index: 2; padding: 0.7rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card, #fff); }
 .exam-writing-section-card h3 { margin-top: 0; }
+.exam-task-button:focus-visible,
+.exam-set-btn:focus-visible,
+.exam-section-practice-btn:focus-visible,
+.exam-task-submit:focus-visible,
+.exam-preparation summary:focus-visible,
+.exam-task-rubric summary:focus-visible {
+    outline: 3px solid var(--primary);
+    outline-offset: 2px;
+}
