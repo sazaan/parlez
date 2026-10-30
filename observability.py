@@ -172,7 +172,7 @@ class JsonLogFormatter(logging.Formatter):
             # or request/provider response data.
             frames = traceback.extract_tb(record.exc_info[2])
             payload["stacktrace"] = "".join(
-                f"{os.path.basename(frame.filename)}:{frame.lineno} in {frame.name}\\n"
+                f"{os.path.basename(frame.filename)}:{frame.lineno} in {frame.name}\n"
                 for frame in frames
             )[-6000:]
         return json.dumps(payload, ensure_ascii=False, separators=(",", ":"), default=str)
