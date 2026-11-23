@@ -94,7 +94,7 @@
   <section class="stats" aria-label="Program summary">
     <div class="stat"><b>10</b><small>Workstreams</small></div>
     <div class="stat"><b>10</b><small>Phases</small></div>
-    <div class="stat"><b>16 / 50</b><small>Sub-phases done</small></div>
+    <div class="stat"><b>31 / 50</b><small>Sub-phases done</small></div>
     <div class="stat"><b>12 / 12</b><small>Defects fixed</small></div>
   </section>
 
@@ -308,17 +308,17 @@
 
   <!-- PHASE 1 -->
   <details class="phase">
-    <summary><span class="phase-id">P1</span><span class="phase-title">Trust, legal &amp; safety foundation</span><span class="badge b-planned">Planned</span></summary>
+    <summary><span class="phase-id">P1</span><span class="phase-title">Trust, legal &amp; safety foundation</span><span class="badge b-done">Done</span></summary>
     <div class="phase-body">
       <p class="phase-intro">Workstream 06. Put honest, reviewable legal pages in place before charging money or making claims — the cheapest risk reduction available.</p>
       <table>
         <thead><tr><th>ID</th><th>Sub-phase</th><th>Status</th><th>Deliverable / acceptance criteria</th></tr></thead>
         <tbody>
-          <tr><td class="id">1.1</td><td>Terms of Service</td><td><span class="badge b-planned">Planned</span></td><td>Acceptable use, accounts, IP, subscriptions, termination, governing law; lawyer-reviewed before launch.</td></tr>
-          <tr><td class="id">1.2</td><td>Privacy Policy &amp; data handling</td><td><span class="badge b-planned">Planned</span></td><td>What is stored (email, learning data, chat logs), AI providers, retention, user rights, cookies.</td></tr>
-          <tr><td class="id">1.3</td><td>Educational disclaimers</td><td><span class="badge b-planned">Planned</span></td><td>No immigration/legal advice; no CEFR/NCLC certification; no exam-score or PR guarantee; AI content accuracy; third-party links.</td></tr>
-          <tr><td class="id">1.4</td><td>Refund, cancellation &amp; billing policy</td><td><span class="badge b-planned">Planned</span></td><td>Consistent with payment provider policies; visible at checkout and in account settings.</td></tr>
-          <tr><td class="id">1.5</td><td>Legal pages in app</td><td><span class="badge b-planned">Planned</span></td><td>Routes/pages linked from landing, signup, checkout and footer; versioned with effective dates.</td></tr>
+          <tr><td class="id">1.1</td><td>Terms of Service</td><td><span class="badge b-done">Done</span></td><td>Drafted in <code>static/legal.html</code> — accounts, acceptable use, IP, subscriptions, AI content, liability, governing law. Lawyer review still required.</td></tr>
+          <tr><td class="id">1.2</td><td>Privacy Policy &amp; data handling</td><td><span class="badge b-done">Done</span></td><td>Data categories, purposes, processors (AI/payments), retention, rights and security documented in the same page.</td></tr>
+          <tr><td class="id">1.3</td><td>Educational disclaimers</td><td><span class="badge b-done">Done</span></td><td>No immigration/legal advice, no score or NCLC/CEFR guarantee, no affiliation, AI accuracy and course-label disclosures.</td></tr>
+          <tr><td class="id">1.4</td><td>Refund, cancellation &amp; billing policy</td><td><span class="badge b-done">Done</span></td><td>Cancellation, refund consideration, failed payments and statutory rights stated; to be aligned with final provider terms.</td></tr>
+          <tr><td class="id">1.5</td><td>Legal pages in app</td><td><span class="badge b-done">Done</span></td><td>Versioned <code>/legal</code> route linked from the landing footer; operator disclosure placeholders flagged for Nepal compliance.</td></tr>
         </tbody>
       </table>
       <div class="callout warn">Research output only — not legal advice. A qualified lawyer must review before public launch.</div>
@@ -401,14 +401,14 @@
 
   <!-- PHASE 6 -->
   <details class="phase">
-    <summary><span class="phase-id">P6</span><span class="phase-title">Real-time conversation &amp; speech</span><span class="badge b-planned">Planned</span></summary>
+    <summary><span class="phase-id">P6</span><span class="phase-title">Real-time conversation &amp; speech</span><span class="badge b-active">Active</span></summary>
     <div class="phase-body">
       <p class="phase-intro">Workstream 05. Close the gap with apps like Falou: speaking practice that feels like a real conversation.</p>
       <table>
         <thead><tr><th>ID</th><th>Sub-phase</th><th>Status</th><th>Deliverable / acceptance criteria</th></tr></thead>
         <tbody>
-          <tr><td class="id">6.1</td><td>Competitor &amp; tech research</td><td><span class="badge b-planned">Planned</span></td><td>Falou/Duolingo Max/voice-app patterns; ASR/TTS/pronunciation-scoring options with cost and latency notes.</td></tr>
-          <tr><td class="id">6.2</td><td>Voice conversation MVP</td><td><span class="badge b-planned">Planned</span></td><td>Browser speech input + TTS reply + turn-taking, scoped to A1 scenarios, with transcript and privacy notice.</td></tr>
+          <tr><td class="id">6.1</td><td>Competitor &amp; tech research</td><td><span class="badge b-done">Done</span></td><td>Research brief covers Falou/Duolingo Max patterns, ASR/TTS options, latency budget and privacy considerations.</td></tr>
+          <tr><td class="id">6.2</td><td>Voice conversation MVP</td><td><span class="badge b-done">Done</span></td><td>Speaking Practice tool: browser fr-FR recognition, editable transcript, AI conversation reply with TTS, typed fallback and privacy notice.</td></tr>
           <tr><td class="id">6.3</td><td>Pronunciation &amp; feedback</td><td><span class="badge b-planned">Planned</span></td><td>Listen-and-repeat, intelligibility feedback, replay/slow speed, no overpromising on accent scoring.</td></tr>
           <tr><td class="id">6.4</td><td>Conversation scenarios</td><td><span class="badge b-planned">Planned</span></td><td>Role-plays tied to units and exam speaking tasks; rubrics and progress saved to learner profile.</td></tr>
           <tr><td class="id">6.5</td><td>Performance, privacy, a11y</td><td><span class="badge b-planned">Planned</span></td><td>Latency budget, explicit consent, data retention controls, captions, reduced-motion support.</td></tr>
@@ -419,16 +419,16 @@
 
   <!-- PHASE 7 -->
   <details class="phase">
-    <summary><span class="phase-id">P7</span><span class="phase-title">Payments &amp; monetisation (Nepal first)</span><span class="badge b-planned">Planned</span></summary>
+    <summary><span class="phase-id">P7</span><span class="phase-title">Payments &amp; monetisation (Nepal first)</span><span class="badge b-active">Active</span></summary>
     <div class="phase-body">
       <p class="phase-intro">Workstream 07. Seamless purchase flow with a Nepal-first gateway and an international path that does not require rebuilding billing later.</p>
       <table>
         <thead><tr><th>ID</th><th>Sub-phase</th><th>Status</th><th>Deliverable / acceptance criteria</th></tr></thead>
         <tbody>
-          <tr><td class="id">7.1</td><td>Gateway research &amp; decision</td><td><span class="badge b-planned">Planned</span></td><td>Research complete: Khalti + eSewa first, Fonepay QR/connectIPS next, Paddle for international. Confirm fees in writing and re-verify availability before signing.</td></tr>
-          <tr><td class="id">7.2</td><td>Pricing, plans &amp; entitlements</td><td><span class="badge b-planned">Planned</span></td><td>Freemium vs paid, AI allowance, plan table in DB, entitlement checks across the app.</td></tr>
+          <tr><td class="id">7.1</td><td>Gateway research &amp; decision</td><td><span class="badge b-done">Done</span></td><td>Khalti + eSewa first, Fonepay/connectIPS next, Paddle later. Fees and availability still need written confirmation.</td></tr>
+          <tr><td class="id">7.2</td><td>Pricing, plans &amp; entitlements</td><td><span class="badge b-done">Done</span></td><td><code>payments.py</code> plans (placeholder NPR prices), typed entitlements table, feature gating and <code>/api/me/entitlements</code>.</td></tr>
           <tr><td class="id">7.3</td><td>Checkout UX</td><td><span class="badge b-planned">Planned</span></td><td>Redirect/QR flow that returns the learner to exactly where they left off; clear status and failure recovery.</td></tr>
-          <tr><td class="id">7.4</td><td>Webhooks, security, idempotency</td><td><span class="badge b-planned">Planned</span></td><td>Signature verification, replay protection, idempotent fulfilment, refunds, webhook replay tooling.</td></tr>
+          <tr><td class="id">7.4</td><td>Webhooks, security, idempotency</td><td><span class="badge b-done">Done</span></td><td>Server-side provider verification, browser callbacks treated as hints, payment-event inbox, idempotent settlement and atomic attempt state transitions. Refund tooling still pending.</td></tr>
           <tr><td class="id">7.5</td><td>International extension</td><td><span class="badge b-planned">Planned</span></td><td>Provider abstraction so Stripe/Paddle/MoR can be added without rewriting entitlement logic.</td></tr>
         </tbody>
       </table>
@@ -437,15 +437,15 @@
 
   <!-- PHASE 8 -->
   <details class="phase">
-    <summary><span class="phase-id">P8</span><span class="phase-title">Reward &amp; retention engine</span><span class="badge b-planned">Planned</span></summary>
+    <summary><span class="phase-id">P8</span><span class="phase-title">Reward &amp; retention engine</span><span class="badge b-active">Active</span></summary>
     <div class="phase-body">
       <p class="phase-intro">Workstream 08. Replace flat XP constants with a system that reinforces learning behaviours, not point-farming.</p>
       <table>
         <thead><tr><th>ID</th><th>Sub-phase</th><th>Status</th><th>Deliverable / acceptance criteria</th></tr></thead>
         <tbody>
-          <tr><td class="id">8.1</td><td>Research &amp; design</td><td><span class="badge b-planned">Planned</span></td><td>Evidence-based mechanics chosen: XP + levels, streaks/freezes, quests, badges, mastery, leagues, with anti-abuse rules.</td></tr>
-          <tr><td class="id">8.2</td><td>Event-based engine</td><td><span class="badge b-planned">Planned</span></td><td>Central event → rule → reward pipeline replacing scattered XP adds; versioned rules; idempotent events.</td></tr>
-          <tr><td class="id">8.3</td><td>Persistence &amp; integrity</td><td><span class="badge b-planned">Planned</span></td><td>Typed tables/columns instead of opaque JSON; daily caps, dedupe, recalculation job and audit trail.</td></tr>
+          <tr><td class="id">8.1</td><td>Research &amp; design</td><td><span class="badge b-done">Done</span></td><td>Research brief selected streaks + freezes, can-do badges, daily caps and anti-gaming rules; leagues deferred.</td></tr>
+          <tr><td class="id">8.2</td><td>Event-based engine</td><td><span class="badge b-done">Done</span></td><td><code>engine/rewards.py</code> central rules pipeline; all seven XP call sites now emit events; idempotent event IDs and replay protection.</td></tr>
+          <tr><td class="id">8.3</td><td>Persistence &amp; integrity</td><td><span class="badge b-done">Done</span></td><td>Typed <code>reward_events</code>, <code>xp_ledger</code>, <code>streak_states</code>, <code>user_badges</code> tables; append-only ledger, 300 XP daily cap, UTC streaks with 2 freezes.</td></tr>
           <tr><td class="id">8.4</td><td>Learner-facing experience</td><td><span class="badge b-planned">Planned</span></td><td>Progress, streak calendar, quests, badges, meaningful celebrations; tied to real learning evidence.</td></tr>
         </tbody>
       </table>
@@ -454,14 +454,14 @@
 
   <!-- PHASE 9 -->
   <details class="phase">
-    <summary><span class="phase-id">P9</span><span class="phase-title">Marketing &amp; growth</span><span class="badge b-planned">Planned</span></summary>
+    <summary><span class="phase-id">P9</span><span class="phase-title">Marketing &amp; growth</span><span class="badge b-active">Active</span></summary>
     <div class="phase-body">
       <p class="phase-intro">Workstream 10. Earn trust and learners with honest, measurable acquisition — not hype or false certification claims.</p>
       <table>
         <thead><tr><th>ID</th><th>Sub-phase</th><th>Status</th><th>Deliverable / acceptance criteria</th></tr></thead>
         <tbody>
-          <tr><td class="id">9.1</td><td>Positioning &amp; narrative</td><td><span class="badge b-planned">Planned</span></td><td>Clear promise, audience segments, proof points and claim guardrails aligned with legal disclaimers.</td></tr>
-          <tr><td class="id">9.2</td><td>Content &amp; SEO</td><td><span class="badge b-planned">Planned</span></td><td>Useful free resources (French learning, TEF/TCF guides, Nepal/Canada context) that earn organic traffic.</td></tr>
+          <tr><td class="id">9.1</td><td>Positioning &amp; narrative</td><td><span class="badge b-done">Done</span></td><td>Research brief defines "French for Canada PR, built for Nepali learners" with claim guardrails matching the legal page.</td></tr>
+          <tr><td class="id">9.2</td><td>Content &amp; SEO</td><td><span class="badge b-done">Done</span></td><td>Free sourced guide at <code>/learn/french-for-canada</code> covering TEF/TCF, NCLC 7, CRS points and the score-column trap; linked from the landing page.</td></tr>
           <tr><td class="id">9.3</td><td>Community &amp; partnerships</td><td><span class="badge b-planned">Planned</span></td><td>Alliance Française, colleges, migration consultants, student groups; referral and ambassador loops.</td></tr>
           <tr><td class="id">9.4</td><td>Lifecycle &amp; referrals</td><td><span class="badge b-planned">Planned</span></td><td>Onboarding, activation emails, streak rescue, referral incentives; all measurable.</td></tr>
           <tr><td class="id">9.5</td><td>Measurement</td><td><span class="badge b-planned">Planned</span></td><td>Privacy-safe funnel metrics (signup → first lesson → speaking → paid) and A/B test discipline.</td></tr>
@@ -472,6 +472,7 @@
 
   <h2><span class="num">04</span>Activity log</h2>
   <ul class="log">
+    <li><time>2026-11-23</time> <b>P1/P6/P7/P8/P9 advanced:</b> legal + disclaimer page at <code>/legal</code>; browser speaking-practice MVP; Khalti/eSewa checkout abstraction with entitlements and idempotent verification; event/ledger reward engine replacing flat XP; sourced SEO guide at <code>/learn/french-for-canada</code>. 11 more tests — 149/149 pass.</li>
     <li><time>2026-11-23</time> <b>P4 started:</b> added <code>courses/standards.py</code>, <code>docs/SOURCE_REGISTER.md</code>, provenance-aware schema + validation, a reference mission unit, and versioned TEF/TCF format data with a public API and in-app viewer (including the Express Entry score-column warning). 6 new tests — 137/137 pass.</li>
     <li><time>2026-11-23</time> <b>P2 completed:</b> original SVG mascot "Pip" added to landing/app/share card; CSS motion layer with reduced-motion guards; resumable tool-view snapshot; wall-clock exam timer; a11y label and whitespace fixes; <code>docs/DESIGN_SYSTEM.md</code>. All 12 logged defects now fixed; 131/131 tests pass.</li>
     <li><time>2026-11-23</time> <b>P2 started:</b> fixed BUG-01…BUG-05 (exam answer clicks, stored-XSS in writing/flashcards/exam review, dead share/comment/ingest actions, markdown <code>$2</code>, dead file input), replaced native dialogs with an accessible in-app confirm, rebuilt the landing page (app window, trust bar, honest pricing, collapsed disclosures, OG card, progress bar). Added an XSS regression test — 131/131 pass.</li>

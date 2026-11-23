@@ -317,6 +317,20 @@ function setupDelegatedHandlers() {
             case 'show-exam-formats':
                 if (typeof window.showExamFormats === 'function') window.showExamFormats();
                 break;
+            case 'start-speaking-practice':
+                if (typeof window.startSpeakingPractice === 'function') window.startSpeakingPractice();
+                break;
+            case 'speaking-prompt': {
+                const field = document.getElementById('speakingText');
+                if (field) { field.value = btn.dataset.text || ''; field.focus(); }
+                break;
+            }
+            case 'speaking-listen':
+                if (typeof window.startSpeakingListen === 'function') window.startSpeakingListen(btn);
+                break;
+            case 'speaking-send':
+                if (typeof window.sendSpeakingAnswer === 'function') window.sendSpeakingAnswer();
+                break;
             case 'start-mock-test':
                 if (typeof window.startMockTest === 'function') window.startMockTest(btn.dataset.type);
                 break;
@@ -382,6 +396,7 @@ let currentConvId = null;
 let currentLevel = 'A1';
 let isGenerating = false;
 let recognition = null;
+let speakingRecognition = null;
 let isRecording = false;
 
 let LEVEL_NAMES = { 'A1': 'Débutant' };
@@ -3319,6 +3334,81 @@ function renderExamResults(result) {
     
     getToolContent().innerHTML = html;
 }
+
+const SPEAKING_PROMPTS = [
+    "Bonjour ! Comment t'appelles-tu ?",
+    "D'où viens-tu ?",
+    "Qu'est-ce que tu aimes faire le week-end ?",
+    "Commande un café au lait dans un café.",
+    "Explique pourquoi tu apprends le français."
+];
+
+window.startSpeakingPractice = function() {
+    const supported = Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
+    showToolView('🎙️ Speaking practice', `
+        <div class="speaking-card">
+            <div class="exam-practice-notice">Browser speech recognition may send your audio to your browser vendor. You can always type instead. Nothing is recorded or stored by Parlez.</div>
+            <p>Choose a prompt, tap <strong>Speak</strong>, and say your answer in French. Read or edit the transcript before sending it to your tutor.</p>
+            <div class="speaking-prompts">${SPEAKING_PROMPTS.map((p, i) => `<button class="speaking-prompt" data-action="speaking-prompt" data-text="${escapeHtml(p)}">${String(i + 1).padStart(2, '0')} · ${escapeHtml(p)}</button>`).join('')}</div>
+            <button class="btn-primary" data-action="speaking-listen" ${supported ? '' : 'disabled title="Speech recognition is not supported in this browser"'}>🎙️ Speak your answer</button>
+            <label class="speaking-label" for="speakingText">Your answer (edit before sending)</label>
+            <textarea id="speakingText" class="speaking-textarea" rows="4" aria-label="Your spoken answer as text" placeholder="Your words appear here…"></textarea>
+            <button class="btn-primary" data-action="speaking-send">Send to tutor →</button>
+            <div id="speakingReply" class="speaking-reply" aria-live="polite"></div>
+        </div>`);
+};
+
+window.startSpeakingListen = function(button) {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { showToast('Speech recognition is not supported in this browser. Type your answer instead.'); return; }
+    if (speakingRecognition) { speakingRecognition.stop(); return; }
+    const field = document.getElementById('speakingText');
+    try {
+        speakingRecognition = new SR();
+        speakingRecognition.lang = 'fr-FR';
+        speakingRecognition.continuous = false;
+        speakingRecognition.interimResults = true;
+        speakingRecognition.onstart = () => { button.textContent = '🎙️ Listening… tap to stop'; };
+        speakingRecognition.onresult = (event) => {
+            if (field) field.value = Array.from(event.results).map(r => r[0].transcript).join('');
+        };
+        const finish = () => {
+            button.textContent = '🎙️ Speak your answer';
+            speakingRecognition = null;
+        };
+        speakingRecognition.onend = finish;
+        speakingRecognition.onerror = (event) => {
+            finish();
+            if (event.error !== 'aborted') showToast(voiceErrorMessage(event.error), { timeout: 7000 });
+        };
+        speakingRecognition.start();
+    } catch (e) {
+        speakingRecognition = null;
+        showToast('Could not start the microphone. Type your answer instead.');
+    }
+};
+
+window.sendSpeakingAnswer = async function() {
+    const field = document.getElementById('speakingText');
+    const reply = document.getElementById('speakingReply');
+    const text = (field && field.value || '').trim();
+    if (!text) { showToast('Say or type an answer first.'); return; }
+    if (reply) reply.textContent = 'Your tutor is listening…';
+    try {
+        if (!currentConvId) await createConversation();
+        const r = await apiFetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: text, conv_id: currentConvId, level: currentLevel, mode: 'conversation' })
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Chat failed');
+        if (reply) reply.innerHTML = parseMarkdown(data.response);
+        speakText(data.response);
+    } catch (e) {
+        if (reply) reply.textContent = 'Could not reach your tutor. Please try again.';
+    }
+};
 
 window.showExamFormats = async function() {
     showToolView('📚 Exam formats &amp; levels', spinnerHTML('Loading exam formats...', false));

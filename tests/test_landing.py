@@ -33,6 +33,25 @@ def test_landing_page_describes_course_library_and_preserves_disclosures(client)
     assert "Next stage · planned" not in response.text
 
 
+def test_legal_page(client):
+    r = client.get("/legal")
+    assert r.status_code == 200
+    assert "Terms of Service" in r.text
+    assert "Privacy Policy" in r.text
+    assert "Refund" in r.text
+    assert "not legal advice" in r.text
+    assert "not affiliated" in r.text
+    assert 'href="/legal"' in client.get("/").text
+
+
+def test_french_for_canada_guide(client):
+    r = client.get("/learn/french-for-canada")
+    assert r.status_code == 200
+    assert "NCLC 7" in r.text
+    assert "Équivalence ancien score" in r.text
+    assert "Educational content only" in r.text
+
+
 def test_login_page(client):
     r = client.get("/login")
     assert r.status_code == 200

@@ -157,6 +157,7 @@ from engine.practice import generate_vocab_quiz, generate_conj_quiz, generate_fi
 from engine.adaptive import analyze_weak_areas, get_difficulty_adjustments, build_adaptive_prompt_addition
 from engine.content_ingestion import process_french_content
 from engine.writing import build_writing_correction_prompt, parse_correction_response, format_correction_for_display
+from engine.rewards import award as award_reward, utc_day as reward_day, BADGES as REWARD_BADGES, DAILY_XP_CAP
 from mock_tests import mock_tests, get_test
 from mock_tests.data import (
     get_practice_set_questions,
@@ -168,6 +169,7 @@ from mock_tests.data import (
 )
 from mock_tests.preparation import get_exam_preparation, get_exam_study_plan
 from mock_tests.formats import EXAM_FORMATS, public_format
+import payments
 
 def build_limiter(redis_url: str | None = None) -> Limiter:
     """Create a rate limiter. Use Redis storage when a URL is provided."""
@@ -1458,6 +1460,8 @@ async def stream_chat(messages, max_tokens=CHAT_MAX_TOKENS):
 # blocking open() per request. The no-cache header still forces clients to
 # revalidate, but the server-side cost is now a single file read at boot.
 _LANDING_HTML = open("static/landing.html").read()
+_LEGAL_HTML = open("static/legal.html").read()
+_GUIDE_HTML = open("static/guide.html").read()
 _INDEX_HTML = open("static/index.html").read()
 _ADMIN_HTML = open("static/admin.html").read()
 
@@ -2006,6 +2010,17 @@ async def root():
     return Response(content=_LANDING_HTML, media_type="text/html", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
 
+@app.get("/legal", response_class=HTMLResponse)
+async def legal_page():
+    """Versioned, lawyer-review-required legal and disclaimer templates."""
+    return Response(content=_LEGAL_HTML, media_type="text/html", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+
+
+@app.get("/learn/french-for-canada", response_class=HTMLResponse)
+async def french_for_canada_guide():
+    return Response(content=_GUIDE_HTML, media_type="text/html", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+
+
 @app.get("/login", response_class=HTMLResponse)
 async def login_page():
     return Response(content=_INDEX_HTML, media_type="text/html", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
@@ -2158,6 +2173,95 @@ async def get_me(user=Depends(require_auth)):
         "username": user['username'],
         "name": user['name'],
         "level": user['level']
+    }
+
+
+# --- Plans, payments and entitlements ---
+
+@app.get("/api/plans")
+async def get_plans():
+    return {
+        "plans": [
+            {"id": key, **value} for key, value in payments.PLANS.items()
+        ],
+        "notice": "Prices are placeholders until confirmed and disclosed before launch.",
+    }
+
+
+@app.post("/api/payments/checkout")
+async def create_checkout(data: dict, user=Depends(require_auth)):
+    plan_id = str(data.get("plan_id") or "")
+    provider = str(data.get("provider") or "khalti").strip().lower()
+    if plan_id not in payments.PLANS or payments.PLANS[plan_id]["price_npr"] <= 0:
+        raise HTTPException(status_code=400, detail="Unknown or free plan.")
+    if provider not in {"khalti", "esewa"}:
+        raise HTTPException(status_code=400, detail="Unsupported payment provider.")
+    attempt_id = payments.new_attempt_id()
+    storage.create_payment_attempt(
+        attempt_id, user["id"], plan_id, provider, payments.PLANS[plan_id]["price_npr"]
+    )
+    try:
+        checkout = await payments.initiate(provider, attempt_id, plan_id)
+    except payments.PaymentNotConfigured:
+        raise HTTPException(status_code=503, detail="Payments are not configured on this deployment yet.")
+    except (payments.PaymentVerificationFailed, httpx.HTTPError, ValueError) as exc:
+        logger.error("Payment initiation failed: %s", exc)
+        raise HTTPException(status_code=502, detail="Could not start checkout. Please try again.")
+    storage.set_attempt_provider_ref(attempt_id, checkout.get("provider_ref") or attempt_id)
+    return {"attempt_id": attempt_id, **checkout}
+
+
+@app.get("/api/payments/attempt/{attempt_id}")
+async def get_payment_attempt(attempt_id: str, user=Depends(require_auth)):
+    attempt = storage.get_payment_attempt(attempt_id)
+    if not attempt or attempt["user_id"] != user["id"]:
+        raise HTTPException(status_code=404, detail="Payment attempt not found")
+    return {
+        "id": attempt["id"], "status": attempt["status"], "planId": attempt["plan_id"],
+        "provider": attempt["provider"], "amountNpr": attempt["amount_npr"],
+    }
+
+
+@app.post("/api/payments/return/{provider}")
+async def payment_return(provider: str, data: dict):
+    """Provider callback. The browser result is a hint; verify server-side."""
+    if provider not in {"khalti", "esewa"}:
+        raise HTTPException(status_code=400, detail="Unsupported provider")
+    attempt_ref = str(data.get("purchase_order_id") or data.get("pidx") or "")
+    attempt = None
+    if attempt_ref:
+        candidate = storage.get_payment_attempt(attempt_ref)
+        if candidate and candidate["provider"] == provider:
+            attempt = candidate
+    if attempt is None:
+        esewa_data = data.get("data")
+        if esewa_data:
+            try:
+                decoded = json.loads(base64.b64decode(esewa_data).decode())
+                attempt = storage.get_payment_attempt(str(decoded.get("transaction_uuid") or ""))
+            except (ValueError, UnicodeDecodeError):
+                attempt = None
+    if not attempt or attempt["status"] != "pending":
+        return {"ok": False, "reason": "unknown_or_settled_attempt"}
+    try:
+        verification = await payments.verify(provider, attempt, data)
+    except payments.PaymentVerificationFailed as exc:
+        log_event("payment.verification.failed", logging.WARNING, provider=provider, reason=str(exc)[:80])
+        return {"ok": False, "reason": "verification_failed"}
+    result = payments.grant_from_attempt(storage, attempt, verification)
+    log_event("payment.settled", logging.INFO, provider=provider, attempt_id=attempt["id"], settled=result["settled"])
+    return {"ok": result["settled"], "plan": result.get("plan")}
+
+
+@app.get("/api/me/entitlements")
+async def get_my_entitlements(user=Depends(require_auth)):
+    entitlement = storage.get_entitlement(user["id"])
+    return {
+        **entitlement,
+        "features": {
+            feature: payments.has_entitlement(entitlement, feature)
+            for feature in ("lessons", "chat", "flashcards", "exam_style", "extended_speaking")
+        },
     }
 
 
@@ -2372,26 +2476,15 @@ def _finalize_chat(user, msg, message, resp, mode, level):
         if not user_convs[msg.conv_id].get("title_set"):
             user_convs[msg.conv_id]["title"] = message[:50]
 
-    progress = user.setdefault('progress', {"xp": 0, "streak": 0, "best_streak": 0, "last_active": None})
-    progress['xp'] = progress.get('xp', 0) + XP.CHAT_MESSAGE
-    today = datetime.date.today().isoformat()
-    last = progress.get('last_active')
-    if last == today:
-        pass
-    elif last == str(datetime.date.today() - datetime.timedelta(days=1)):
-        progress['streak'] = progress.get('streak', 0) + 1
-        progress['best_streak'] = max(progress.get('best_streak', 0), progress['streak'])
-    else:
-        progress['streak'] = 1
-    progress['last_active'] = today
-
+    reward = award_reward(storage, user, "chat_message", metadata={"mode": mode, "level": level})
     storage.save_user(user)
     return {
         "response": resp,
         "mode": mode,
         "level": level,
-        "xp_earned": XP.CHAT_MESSAGE,
-        "total_xp": progress.get('xp', 0),
+        "xp_earned": reward["granted"],
+        "total_xp": reward["total_xp"],
+        "streak": reward["streak"],
     }
 
 
@@ -2455,8 +2548,8 @@ async def check_exercise(req: ExerciseCheck, user=Depends(require_auth)):
     
     progress = user.setdefault('progress', {"xp": 0})
     if is_correct:
-        progress['xp'] = progress.get('xp', 0) + XP.EXERCISE_CORRECT
-    
+        award_reward(storage, user, "exercise_correct", metadata={"exercise_id": req.exercise_id})
+
     # Track exercise history
     history_entry = {
         'exercise_id': req.exercise_id,
@@ -2541,7 +2634,7 @@ async def complete_lesson(data: dict, user=Depends(require_auth)):
     progress = user.setdefault('progress', {})
     if lesson_id and lesson_id not in progress.get('lessons_completed', []):
         progress.setdefault('lessons_completed', []).append(lesson_id)
-        progress['xp'] = progress.get('xp', 0) + XP.LESSON_COMPLETE
+        award_reward(storage, user, "lesson_complete", metadata={"lesson_id": lesson_id})
     storage.save_user(user)
     return progress
 
@@ -2556,6 +2649,17 @@ async def get_streaks(user=Depends(require_auth)):
         "best": progress.get("best_streak", 0),
         "last_active": progress.get("last_active"),
     }
+
+
+@app.get("/api/rewards/summary")
+async def get_reward_summary(user=Depends(require_auth)):
+    """Authoritative reward state from the ledger, with badge definitions."""
+    summary = storage.reward_summary(user["id"], reward_day())
+    summary["badgeDefinitions"] = [
+        {"id": key, "description": value} for key, value in REWARD_BADGES.items()
+    ]
+    summary["dailyCap"] = DAILY_XP_CAP
+    return summary
 
 
 # --- Flashcards ---
@@ -2607,10 +2711,9 @@ async def review_flashcard_endpoint(card_id: str, req: FlashcardReview, user=Dep
         raise HTTPException(404, "Card not found")
     card = review_flashcard(user_flashcards[card_id], req.quality)
     user_flashcards[card_id] = card
-    progress = user.setdefault('progress', {"xp": 0})
-    progress['xp'] = progress.get('xp', 0) + XP.FLASHCARD_REVIEW
+    reward = award_reward(storage, user, "flashcard_review", metadata={"card_id": card_id})
     storage.save_user(user)
-    return {"card": card, "xp_earned": 5, "total_xp": progress.get('xp', 0)}
+    return {"card": card, "xp_earned": reward["granted"], "total_xp": reward["total_xp"]}
 
 @app.delete("/api/flashcards/{card_id}")
 async def delete_flashcard(card_id: str, user=Depends(require_auth)):
@@ -2849,10 +2952,9 @@ async def submit_test(test_type: str, data: dict, user=Depends(require_auth)):
     # keeps the JSON blob size bounded for the whole save.
     if len(user['test_results']) > 500:
         user['test_results'] = user['test_results'][-500:]
-    progress = user.setdefault('progress', {"xp": 0})
-    progress['xp'] = progress.get('xp', 0) + (correct * XP.EXAM_QUESTION_CORRECT)
+    award_reward(storage, user, "exam_question_correct", multiplier=correct, metadata={"test_type": test_type})
     storage.save_user(user)
-    
+
     return result
 
 @app.get("/api/test-results")
@@ -3033,10 +3135,9 @@ async def submit_exam(request: Request, test_type: str, section_id: str, set_num
     # keeps the JSON blob size bounded for the whole save.
     if len(user['test_results']) > 500:
         user['test_results'] = user['test_results'][-500:]
-    progress = user.setdefault('progress', {"xp": 0})
-    progress['xp'] = progress.get('xp', 0) + (correct * XP.EXAM_QUESTION_CORRECT)
+    award_reward(storage, user, "exam_question_correct", multiplier=correct, metadata={"test_type": test_type})
     storage.save_user(user)
-    
+
     return result
 
 @app.get("/api/exam/history/{test_type}")
@@ -3115,17 +3216,15 @@ async def correct_writing(req: WritingCorrectionRequest, user=Depends(require_au
     # Format for display
     formatted = format_correction_for_display(correction)
     
-    # Track XP for writing practice
-    progress = user.setdefault('progress', {"xp": 0})
-    progress['xp'] = progress.get('xp', 0) + XP.WRITING_CORRECTION
+    reward = award_reward(storage, user, "writing_correction", metadata={"level": level})
     storage.save_user(user)
-    
+
     return {
         "response": resp,
         "correction": correction,
         "formatted": formatted,
-        "xp_earned": 15,
-        "total_xp": progress.get('xp', 0),
+        "xp_earned": reward["granted"],
+        "total_xp": reward["total_xp"],
     }
 
 

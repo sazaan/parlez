@@ -11,6 +11,7 @@ import os
 import json
 import math
 import time
+import datetime
 import bcrypt
 from typing import Optional
 from sqlalchemy import create_engine, Column, String, Text, JSON, Integer, Float, text, inspect, Index, func
@@ -98,6 +99,80 @@ class LlmUsage(Base):
     day = Column(String, primary_key=True)
     count = Column(Integer, nullable=False, default=0)
     updated_at = Column(Float, nullable=False)
+
+
+class RewardEvent(Base):
+    """Idempotency record for one learning action."""
+    __tablename__ = "reward_events"
+    event_id = Column(String, primary_key=True)
+    user_id = Column(String, nullable=False, index=True)
+    event_type = Column(String, nullable=False)
+    payload = Column(JSON, nullable=False, default=dict)
+    created_at = Column(Float, nullable=False)
+
+
+class XpLedger(Base):
+    """Append-only XP entries; the sum is the authoritative total."""
+    __tablename__ = "xp_ledger"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String, nullable=False, index=True)
+    delta = Column(Integer, nullable=False)
+    reason = Column(String, nullable=False)
+    event_id = Column(String, nullable=False, index=True)
+    day = Column(String, nullable=False, index=True)
+    created_at = Column(Float, nullable=False)
+
+
+class StreakState(Base):
+    __tablename__ = "streak_states"
+    user_id = Column(String, primary_key=True)
+    current = Column(Integer, nullable=False, default=0)
+    best = Column(Integer, nullable=False, default=0)
+    last_day = Column(String, nullable=True)
+    freezes = Column(Integer, nullable=False, default=2)
+    frozen_dates = Column(JSON, nullable=False, default=list)
+
+
+class UserBadge(Base):
+    __tablename__ = "user_badges"
+    user_id = Column(String, nullable=False, primary_key=True)
+    badge_id = Column(String, primary_key=True)
+    earned_at = Column(Float, nullable=False)
+
+
+class PaymentAttempt(Base):
+    __tablename__ = "payment_attempts"
+    id = Column(String, primary_key=True)
+    user_id = Column(String, nullable=False, index=True)
+    plan_id = Column(String, nullable=False)
+    provider = Column(String, nullable=False)
+    amount_npr = Column(Integer, nullable=False)
+    status = Column(String, nullable=False, default="initiated")
+    provider_ref = Column(String, nullable=True)
+    checkout_url = Column(Text, nullable=True)
+    created_at = Column(Float, nullable=False)
+    updated_at = Column(Float, nullable=False)
+
+
+class Entitlement(Base):
+    __tablename__ = "entitlements"
+    user_id = Column(String, primary_key=True)
+    plan = Column(String, nullable=False)
+    status = Column(String, nullable=False, default="active")
+    valid_until = Column(Float, nullable=True)
+    provider = Column(String, nullable=True)
+    provider_ref = Column(String, nullable=True)
+    updated_at = Column(Float, nullable=False)
+
+
+class PaymentEvent(Base):
+    """Idempotency inbox for provider callbacks / webhooks."""
+    __tablename__ = "payment_events"
+    id = Column(String, primary_key=True)
+    provider = Column(String, nullable=False)
+    event_type = Column(String, nullable=False)
+    payload = Column(JSON, nullable=False, default=dict)
+    created_at = Column(Float, nullable=False)
 
 
 class Storage:
@@ -292,6 +367,185 @@ class Storage:
                 row.count += 1
                 row.updated_at = time.time()
                 return row.count
+
+    # ------------------------------------------------------------------
+    # Rewards: idempotent events, append-only XP ledger, streaks, badges
+    # ------------------------------------------------------------------
+
+    def award_event(self, user_id, event_type, points, event_id, day, daily_cap, metadata=None):
+        """Atomically record a learning event and grant capped XP.
+
+        Returns None when the event was already recorded (idempotent replay),
+        otherwise a summary used to keep the legacy progress blob in sync.
+        """
+        now = time.time()
+        with self.Session() as session:
+            with session.begin():
+                if session.query(RewardEvent).filter_by(event_id=event_id).first():
+                    return None
+                session.add(RewardEvent(
+                    event_id=event_id, user_id=user_id, event_type=event_type,
+                    payload=metadata or {}, created_at=now,
+                ))
+
+                used = session.query(func.coalesce(func.sum(XpLedger.delta), 0)).filter(
+                    XpLedger.user_id == user_id, XpLedger.day == day
+                ).scalar() or 0
+                granted = max(0, min(int(points), int(daily_cap) - int(used)))
+                session.add(XpLedger(
+                    user_id=user_id, delta=granted, reason=event_type,
+                    event_id=event_id, day=day, created_at=now,
+                ))
+
+                streak = session.query(StreakState).filter_by(user_id=user_id).first()
+                if streak is None:
+                    streak = StreakState(user_id=user_id, current=1, best=1, last_day=day,
+                                         freezes=2, frozen_dates=[])
+                    session.add(streak)
+                elif streak.last_day != day:
+                    yesterday = (datetime.date.fromisoformat(day) - datetime.timedelta(days=1)).isoformat()
+                    if streak.last_day == yesterday:
+                        streak.current += 1
+                    elif streak.freezes > 0:
+                        streak.freezes -= 1
+                        dates = list(streak.frozen_dates or [])
+                        dates.append(streak.last_day or day)
+                        streak.frozen_dates = dates
+                    else:
+                        streak.current = 1
+                    streak.best = max(streak.best, streak.current)
+                    streak.last_day = day
+
+                total = session.query(func.coalesce(func.sum(XpLedger.delta), 0)).filter(
+                    XpLedger.user_id == user_id
+                ).scalar() or 0
+                today_xp = int(used) + granted
+                return {
+                    "granted": granted,
+                    "total_xp": int(total),
+                    "today_xp": today_xp,
+                    "daily_cap": int(daily_cap),
+                    "streak": streak.current,
+                    "best_streak": streak.best,
+                    "freezes": streak.freezes,
+                }
+
+    def award_badge(self, user_id, badge_id):
+        with self.Session() as session:
+            with session.begin():
+                exists = session.query(UserBadge).filter_by(user_id=user_id, badge_id=badge_id).first()
+                if exists:
+                    return False
+                session.add(UserBadge(user_id=user_id, badge_id=badge_id, earned_at=time.time()))
+                return True
+
+    def reward_summary(self, user_id, day, limit=20):
+        with self.Session() as session:
+            streak = session.query(StreakState).filter_by(user_id=user_id).first()
+            total = session.query(func.coalesce(func.sum(XpLedger.delta), 0)).filter(
+                XpLedger.user_id == user_id
+            ).scalar() or 0
+            today = session.query(func.coalesce(func.sum(XpLedger.delta), 0)).filter(
+                XpLedger.user_id == user_id, XpLedger.day == day
+            ).scalar() or 0
+            badges = [row.badge_id for row in session.query(UserBadge.badge_id).filter_by(user_id=user_id)]
+            events = (
+                session.query(XpLedger)
+                .filter_by(user_id=user_id)
+                .order_by(XpLedger.created_at.desc())
+                .limit(limit)
+                .all()
+            )
+        return {
+            "total_xp": int(total),
+            "today_xp": int(today),
+            "streak": streak.current if streak else 0,
+            "best_streak": streak.best if streak else 0,
+            "freezes": streak.freezes if streak else 2,
+            "badges": sorted(badges),
+            "ledger": [
+                {"reason": e.reason, "delta": e.delta, "day": e.day, "created_at": e.created_at}
+                for e in events
+            ],
+        }
+
+    # ------------------------------------------------------------------
+    # Payments and entitlements
+    # ------------------------------------------------------------------
+
+    def create_payment_attempt(self, attempt_id, user_id, plan_id, provider, amount_npr, checkout_url=None):
+        now = time.time()
+        with self.Session() as session:
+            with session.begin():
+                session.add(PaymentAttempt(
+                    id=attempt_id, user_id=user_id, plan_id=plan_id, provider=provider,
+                    amount_npr=amount_npr, status="initiated", checkout_url=checkout_url,
+                    created_at=now, updated_at=now,
+                ))
+
+    def get_payment_attempt(self, attempt_id):
+        with self.Session() as session:
+            row = session.query(PaymentAttempt).filter_by(id=attempt_id).first()
+            return {
+                "id": row.id, "user_id": row.user_id, "plan_id": row.plan_id,
+                "provider": row.provider, "amount_npr": row.amount_npr,
+                "status": row.status, "provider_ref": row.provider_ref,
+                "checkout_url": row.checkout_url, "created_at": row.created_at,
+            } if row else None
+
+    def set_attempt_provider_ref(self, attempt_id, provider_ref):
+        with self.Session() as session:
+            with session.begin():
+                row = session.query(PaymentAttempt).filter_by(id=attempt_id).first()
+                if row:
+                    row.provider_ref = provider_ref
+                    row.status = "pending"
+                    row.updated_at = time.time()
+
+    def mark_attempt_paid(self, attempt_id):
+        """Atomic transition pending -> paid. Returns False if already settled."""
+        with self.Session() as session:
+            with session.begin():
+                row = session.query(PaymentAttempt).filter_by(id=attempt_id).first()
+                if not row or row.status != "pending":
+                    return False
+                row.status = "paid"
+                row.updated_at = time.time()
+                return True
+
+    def claim_payment_event(self, event_id, provider, event_type, payload):
+        with self.Session() as session:
+            with session.begin():
+                if session.query(PaymentEvent).filter_by(id=event_id).first():
+                    return False
+                session.add(PaymentEvent(
+                    id=event_id, provider=provider, event_type=event_type,
+                    payload=payload, created_at=time.time(),
+                ))
+                return True
+
+    def set_entitlement(self, user_id, plan, status, valid_until, provider, provider_ref):
+        with self.Session() as session:
+            with session.begin():
+                row = session.query(Entitlement).filter_by(user_id=user_id).first()
+                if row is None:
+                    session.add(Entitlement(
+                        user_id=user_id, plan=plan, status=status, valid_until=valid_until,
+                        provider=provider, provider_ref=provider_ref, updated_at=time.time(),
+                    ))
+                else:
+                    row.plan, row.status, row.valid_until = plan, status, valid_until
+                    row.provider, row.provider_ref, row.updated_at = provider, provider_ref, time.time()
+
+    def get_entitlement(self, user_id):
+        with self.Session() as session:
+            row = session.query(Entitlement).filter_by(user_id=user_id).first()
+            if not row:
+                return {"plan": "free", "status": "active", "valid_until": None}
+            return {
+                "plan": row.plan, "status": row.status, "valid_until": row.valid_until,
+                "provider": row.provider, "updated_at": row.updated_at,
+            }
 
     # ------------------------------------------------------------------
     # Runtime settings and administrator audit trail

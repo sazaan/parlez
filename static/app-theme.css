@@ -277,6 +277,14 @@ button { -webkit-tap-highlight-color: transparent; }
     box-shadow: none;
     animation: fadeInUp 0.55s ease-out both;
 }
+.speaking-card { display: grid; gap: 0.8rem; max-width: 720px; }
+.speaking-prompts { display: grid; gap: 0.4rem; }
+.speaking-prompt { text-align: left; padding: 0.7rem 0.85rem; border: 1px solid var(--border); border-radius: 10px; background: var(--card); color: inherit; cursor: pointer; font-size: 0.9rem; }
+.speaking-prompt:hover { border-color: var(--primary); }
+.speaking-label { font-size: 0.82rem; color: var(--muted-foreground); }
+.speaking-textarea { width: 100%; padding: 0.8rem; border: 1px solid var(--border); border-radius: 10px; background: var(--input); color: var(--foreground); font-family: inherit; resize: vertical; }
+.speaking-reply { padding: 0.85rem; border-radius: 10px; background: rgba(124,45,63,0.06); font-size: 0.92rem; min-height: 2.5rem; }
+
 .exam-formats { display: grid; gap: 1.2rem; }
 .format-card { padding: 1.25rem; border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
 .format-card h3 { margin: 0 0 0.3rem; }
