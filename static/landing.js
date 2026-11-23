@@ -77,6 +77,21 @@
         window.addEventListener('scroll', syncNavbar, { passive: true });
     }
 
+    // ---------------- Reading progress ----------------
+
+    const progressBar = document.createElement('div');
+    progressBar.className = 'scroll-progress';
+    progressBar.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(progressBar);
+    const syncProgress = () => {
+        const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+        const percent = scrollable > 0 ? Math.min(100, (window.scrollY / scrollable) * 100) : 0;
+        progressBar.style.width = percent.toFixed(1) + '%';
+    };
+    syncProgress();
+    window.addEventListener('scroll', syncProgress, { passive: true });
+    window.addEventListener('resize', syncProgress, { passive: true });
+
     // ---------------- Scroll reveal ----------------
 
     const revealTargets = document.querySelectorAll('.reveal');

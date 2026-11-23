@@ -202,6 +202,29 @@ function setupDelegatedHandlers() {
                 if (id && typeof window.checkExercise === 'function') window.checkExercise(id, input);
                 break;
             }
+            case 'select-exam-answer':
+                if (typeof window.selectExamAnswer === 'function') {
+                    window.selectExamAnswer(btn.dataset.qid, parseInt(btn.dataset.idx || '0', 10), btn);
+                }
+                break;
+            case 'submit-content-ingest':
+                if (typeof window.submitContentIngest === 'function') window.submitContentIngest();
+                break;
+            case 'delete-comment':
+                if (typeof window.deleteComment === 'function') window.deleteComment(btn.dataset.id);
+                break;
+            case 'copy-share-link':
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(`${window.location.origin}/share/${btn.dataset.shareId}`).then(() => {
+                        const original = btn.textContent;
+                        btn.textContent = '✓ Copied!';
+                        setTimeout(() => { btn.textContent = original; }, 2000);
+                    });
+                }
+                break;
+            case 'delete-share':
+                if (typeof window.deleteShare === 'function') window.deleteShare(btn.dataset.id);
+                break;
             case 'check-reorder':
                 if (typeof window.checkReorder === 'function') window.checkReorder(btn.dataset.id);
                 break;
@@ -794,7 +817,7 @@ function parseMarkdown(text) {
     html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
     html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
     html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-    html = html.replace(/^## (.+)$/gm, '<h2>$2</h2>');
+    html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
     html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
     html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
@@ -1267,10 +1290,10 @@ btnBackToChat?.addEventListener('click', handleToolViewBack);
 // ============================================================
 // Welcome message (single source of truth)
 // ============================================================
-const WELCOME_HTML = `
+function welcomeHTML() { return `
 <div class="welcome-message">
     <div class="welcome-icon" aria-hidden="true"><span>P</span></div>
-    <p class="welcome-eyebrow">Your A1 French companion</p>
+    <p class="welcome-eyebrow">Your ${escapeHtml(currentLevel || 'A1')} French companion</p>
     <h2>Bonjour. Let’s make French feel natural.</h2>
     <p>Practise a little at a time with friendly explanations, useful lessons and conversations that meet you where you are.</p>
     <div class="quick-actions">
@@ -1279,12 +1302,12 @@ const WELCOME_HTML = `
         <button class="quick-action" data-action="send-quick-message" data-text="Practice conversation at a café"><span class="quick-index">03</span> Café conversation</button>
         <button class="quick-action" data-action="send-quick-message" data-text="Give me a French quiz"><span class="quick-index">04</span> Try a quick quiz</button>
     </div>
-</div>`;
+</div>`; }
 
 function resetChatToWelcome() {
     currentConvId = null;
     chatTitle.textContent = 'Parlez — French AI Tutor';
-    messagesContainer.innerHTML = WELCOME_HTML;
+    messagesContainer.innerHTML = welcomeHTML();
 }
 
 // ============================================================
@@ -1444,7 +1467,7 @@ async function loadConversation(convId) {
 }
 
 async function deleteConversation(convId) {
-    if (!confirm('Delete this conversation?')) return;
+    if (!await confirmDialog('Delete this conversation?')) return;
     await apiFetch(`/api/conversations/${convId}`, { method: 'DELETE' });
     if (currentConvId === convId) {
         showChatView();
@@ -1754,6 +1777,43 @@ function showToast(message, opts) {
     else setTimeout(() => el.remove(), 4000);
 }
 
+// Accessible in-app replacement for native confirm()/alert() dialogs.
+function confirmDialog(message) {
+    return new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.className = 'confirm-overlay';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        const box = document.createElement('div');
+        box.className = 'confirm-box';
+        const text = document.createElement('p');
+        text.textContent = message;
+        const actions = document.createElement('div');
+        actions.className = 'confirm-actions';
+        const cancel = document.createElement('button');
+        cancel.className = 'btn-secondary';
+        cancel.textContent = 'Cancel';
+        const ok = document.createElement('button');
+        ok.className = 'btn-danger';
+        ok.textContent = 'Delete';
+        const close = (result) => {
+            overlay.remove();
+            document.removeEventListener('keydown', onKey);
+            resolve(result);
+        };
+        const onKey = (e) => { if (e.key === 'Escape') close(false); };
+        cancel.addEventListener('click', () => close(false));
+        ok.addEventListener('click', () => close(true));
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(false); });
+        document.addEventListener('keydown', onKey);
+        actions.append(cancel, ok);
+        box.append(text, actions);
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+        ok.focus();
+    });
+}
+
 function renderLessonView(lesson, level) {
     const titleFr = lesson.titleFr || lesson.title || 'Leçon';
     const titleEn = lesson.titleFr && lesson.title ? lesson.title : '';
@@ -1989,7 +2049,7 @@ async function loadScenarios() {
         scenarios.forEach(s => {
             const item = document.createElement('div');
             item.className = 'scenario-item';
-            item.innerHTML = `<span class="scenario-item-icon">${s.icon}</span><div class="course-item-info"><div class="course-item-title">${s.labelFr}</div><div class="course-item-desc">${s.description}</div></div>`;
+            item.innerHTML = `<span class="scenario-item-icon">${escapeHtml(s.icon)}</span><div class="course-item-info"><div class="course-item-title">${escapeHtml(s.labelFr)}</div><div class="course-item-desc">${escapeHtml(s.description)}</div></div>`;
             item.addEventListener('click', () => {
                 // Scenario is a chat exercise — switch to chat view first so the message isn't hidden behind tool view
                 showChatView();
@@ -2167,7 +2227,7 @@ document.getElementById('userName').addEventListener('change', async (e) => {
 });
 
 clearHistoryBtn.addEventListener('click', async () => {
-    if (confirm('Clear all conversations?')) {
+    if (await confirmDialog('Clear all conversations?')) {
         await apiFetch('/api/history', { method: 'DELETE' });
         showChatView();
         resetChatToWelcome();
@@ -2309,13 +2369,13 @@ function renderFlashcard(card) {
         <div class="flashcard-card" data-action="toggle-flipped" id="currentFlashcard">
             <div class="flashcard-inner">
                 <div class="flashcard-front">
-                    <div class="flashcard-word">${card.front}</div>
-                    ${card.meta?.ipa ? `<div class="flashcard-ipa">${card.meta.ipa}</div>` : ''}
+                    <div class="flashcard-word">${escapeHtml(card.front)}</div>
+                    ${card.meta?.ipa ? `<div class="flashcard-ipa">${escapeHtml(card.meta.ipa)}</div>` : ''}
                     <div class="flashcard-tap">Tap to reveal</div>
                 </div>
                 <div class="flashcard-back">
-                    <div class="flashcard-translation">${card.back}</div>
-                    ${card.meta?.example ? `<div class="flashcard-example">${card.meta.example}</div>` : ''}
+                    <div class="flashcard-translation">${escapeHtml(card.back)}</div>
+                    ${card.meta?.example ? `<div class="flashcard-example">${escapeHtml(card.meta.example)}</div>` : ''}
                 </div>
             </div>
         </div>
@@ -2368,9 +2428,9 @@ window.showWordOfDay = async function() {
         let html = '<div class="tool-header"><h2>📅 Word of the Day</h2></div>';
         html += '<div style="text-align:center;padding:2rem">';
         html += `<div style="font-size:1.5rem;font-weight:700;color:var(--primary);font-family:'Playfair Display',serif">${d.word.fr}</div>`;
-        if (d.word.ipa) html += `<div style="font-size:0.9rem;color:var(--muted-foreground);font-style:italic">${d.word.ipa}</div>`;
+        if (d.word.ipa) html += `<div style="font-size:0.9rem;color:var(--muted-foreground);font-style:italic">${escapeHtml(d.word.ipa)}</div>`;
         html += `<div style="font-size:1.1rem;margin:0.5rem 0">${d.word.en}</div>`;
-        if (d.word.example) html += `<div style="font-size:0.85rem;color:var(--muted-foreground);font-style:italic">"${d.word.example}"</div>`;
+        if (d.word.example) html += `<div style="font-size:0.85rem;color:var(--muted-foreground);font-style:italic">"${escapeHtml(d.word.example)}"</div>`;
         html += `<button class="btn-speak" data-action="speak" data-text="${escapeHtml(d.word.fr)}">🔊 Listen</button>`;
         html += '</div>';
         
@@ -3191,9 +3251,9 @@ function renderExamResults(result) {
     result.details.forEach((d, i) => {
         html += `<div class="test-review-item ${d.correct ? 'correct' : 'incorrect'}">`;
         html += `<div class="test-review-num">${i+1} ${d.correct ? '✅' : '❌'}</div>`;
-        html += `<div style="flex:1"><div style="font-size:0.85rem">${d.prompt || 'Question ' + (i+1)}</div>`;
+        html += `<div style="flex:1"><div style="font-size:0.85rem">${escapeHtml(d.prompt || 'Question ' + (i+1))}</div>`;
         if (!d.correct && d.explanation) {
-            html += `<div style="font-size:0.8rem;color:var(--correct);margin-top:0.25rem">${d.explanation}</div>`;
+            html += `<div style="font-size:0.8rem;color:var(--correct);margin-top:0.25rem">${escapeHtml(d.explanation)}</div>`;
         }
         html += '</div></div>';
     });
@@ -3261,7 +3321,7 @@ const btnComments = document.getElementById('btnComments');
 
 btnComments?.addEventListener('click', async () => {
     if (!currentConvId) {
-        alert('Start a conversation first!');
+        showToast('Start a conversation first.');
         return;
     }
     await loadComments();
@@ -3320,7 +3380,7 @@ async function loadComments() {
 }
 
 window.deleteComment = async function(commentId) {
-    if (!currentConvId || !confirm('Delete this comment?')) return;
+    if (!currentConvId || !await confirmDialog('Delete this comment?')) return;
     try {
         await apiFetch(`/api/comments/${currentConvId}/${commentId}`, { method: 'DELETE' });
         await loadComments();
@@ -3341,7 +3401,7 @@ const sharedList = document.getElementById('sharedList');
 
 btnShare?.addEventListener('click', async () => {
     if (!currentConvId) {
-        alert('Start a conversation first!');
+        showToast('Start a conversation first.');
         return;
     }
     shareLinkContainer.style.display = 'none';
@@ -3404,7 +3464,7 @@ async function loadSharedList() {
 }
 
 window.deleteShare = async function(shareId) {
-    if (!confirm('Delete this shared link?')) return;
+    if (!await confirmDialog('Delete this shared link?')) return;
     try {
         await apiFetch(`/api/share/${shareId}`, { method: 'DELETE' });
         await loadSharedList();
@@ -3428,7 +3488,7 @@ let currentExportFormat = 'markdown';
 
 btnExport?.addEventListener('click', async () => {
     if (!currentConvId) {
-        alert('Start a conversation first!');
+        showToast('Start a conversation first.');
         return;
     }
     exportPreview.style.display = 'none';

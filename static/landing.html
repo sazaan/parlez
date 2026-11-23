@@ -13,6 +13,8 @@
     <meta property="og:title" content="Parlez — Learn French with a personal AI tutor">
     <meta property="og:description" content="Explore original French practice pathways labeled A1–B2, adaptive tutoring, vocabulary review and TEF/TCF-style question practice.">
     <meta property="og:url" content="/">
+    <meta property="og:image" content="/static/og-card.svg">
+    <meta name="twitter:image" content="/static/og-card.svg">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Parlez — Learn French with a personal AI tutor">
     <meta name="twitter:description" content="A1–B2 French practice pathways, adaptive tutoring and TEF/TCF-style question sets. Course labels are not certification.">
@@ -71,9 +73,9 @@
                 </h1>
 
                 <p class="hero-lede reveal">
-                    Choose a course path labeled A1 through B2. Open a focused unit, practise
-                    one lesson at a time, and keep your selected level in sync with Settings
-                    and the sidebar — alongside AI tutoring, vocabulary review and writing feedback.
+                    Follow a clear A1–B2 path, ask your tutor anything about French, and practise
+                    real conversations, writing and TEF/TCF-style tasks — with spaced review that
+                    brings back what you learned when it matters.
                 </p>
 
                 <div class="hero-actions reveal">
@@ -89,7 +91,12 @@
             </div>
 
             <div class="hero-visual" aria-hidden="true">
-                <div class="mosaic">
+                <div class="app-window">
+                    <div class="app-window-bar">
+                        <span class="win-dot"></span><span class="win-dot"></span><span class="win-dot"></span>
+                        <span class="win-title">parlez.app · your study space</span>
+                    </div>
+                    <div class="mosaic">
 
                     <article class="tile tile-lesson">
                         <header class="tile-top">
@@ -148,10 +155,19 @@
                         <p class="write-note">Accord du participe passé with <em>être</em>.</p>
                     </article>
 
+                    </div>
                 </div>
             </div>
         </div>
     </header>
+
+    <section class="trust-bar" aria-label="What to expect">
+        <div class="container trust-grid">
+            <div class="trust-item"><span class="trust-mark" aria-hidden="true">01</span><div><strong>Original A1–B2 pathways</strong><span>Written for real study, not a vocabulary game</span></div></div>
+            <div class="trust-item"><span class="trust-mark" aria-hidden="true">02</span><div><strong>Honest about levels</strong><span>Practice labels, never a CEFR or NCLC certificate</span></div></div>
+            <div class="trust-item"><span class="trust-mark" aria-hidden="true">03</span><div><strong>Free to start</strong><span>No card, no promise of an exam score</span></div></div>
+        </div>
+    </section>
 
     <section class="strip" aria-hidden="true">
         <div class="strip-track">
@@ -314,6 +330,42 @@
         </div>
     </section>
 
+    <section class="section pricing" id="pricing">
+        <div class="container">
+            <div class="section-head reveal">
+                <span class="section-label">Pricing</span>
+                <h2 class="section-title">Start free. Pay only if it helps.</h2>
+                <p class="section-lede">No card required today. Paid plans are being built with the community — nothing is charged without your explicit choice.</p>
+            </div>
+            <div class="price-grid">
+                <article class="price-card reveal">
+                    <span class="price-kicker">Available now</span>
+                    <h3>Free</h3>
+                    <p class="price-value">NPR 0<span>/forever</span></p>
+                    <ul>
+                        <li>A1–B2 practice pathways</li>
+                        <li>AI tutor conversations</li>
+                        <li>Flashcards with spaced review</li>
+                        <li>Writing correction &amp; TEF/TCF-style practice</li>
+                    </ul>
+                    <a href="/login?mode=signup" class="btn btn-solid btn-block">Create free account</a>
+                </article>
+                <article class="price-card price-card-featured reveal">
+                    <span class="price-kicker">Planned</span>
+                    <h3>Parlez Plus</h3>
+                    <p class="price-value">Coming later<span> · announced in-app</span></p>
+                    <ul>
+                        <li>More speaking practice and conversation scenarios</li>
+                        <li>Higher AI study allowance</li>
+                        <li>Support for the free platform</li>
+                        <li>Nepal-first payment options</li>
+                    </ul>
+                    <a href="#how" class="btn btn-outline btn-block">See what's included</a>
+                </article>
+            </div>
+        </div>
+    </section>
+
     <section class="cta">
         <div class="container cta-inner reveal">
             <h2 class="cta-title">Your French journey starts with bonjour.</h2>
@@ -342,17 +394,18 @@
             </nav>
         </div>
         <div class="container">
-            <p class="footer-fine">
-                Parlez is an independent learning tool and is not affiliated with or endorsed by
-                IRCC, the Council of Europe, France Éducation international, or the owners of the
-                TEF or TCF exams. TEF/TCF-style question practice is not a complete exam simulator;
-                practice results are not official scores and do not establish exam readiness.
-                Course and feature availability and prices may change; check current in-app details.
-                Course labels are practice pathways, not CEFR or NCLC certification and not validated estimates of proficiency.
-                A2–B2 are published without a reviewer attestation; no reviewer name or qualification
-                is recorded. Parlez does not determine immigration eligibility; check current official
-                IRCC guidance and test-provider information.
+            <p class="footer-fine footer-fine-short">
+                Independent learning tool · practice labels are not certification · practice results are not official scores.
             </p>
+            <details class="footer-details">
+                <summary>Course levels, exam practice &amp; legal details</summary>
+                <div class="footer-details-body">
+                    <p>Parlez is not affiliated with or endorsed by IRCC, the Council of Europe, France Éducation international, or the owners of the TEF or TCF exams.</p>
+                    <p>TEF/TCF-style practice is not a complete exam simulator; practice results are not official scores and do not establish exam readiness.</p>
+                    <p>Course labels are practice pathways, not CEFR or NCLC certification and not validated estimates of proficiency. A2–B2 are published without a reviewer attestation; no reviewer name or qualification is recorded.</p>
+                    <p>Parlez does not determine immigration eligibility; check current official IRCC guidance and test-provider information. Course and feature availability and prices may change.</p>
+                </div>
+            </details>
         </div>
     </footer>
 

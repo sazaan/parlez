@@ -10,7 +10,7 @@ def test_landing_page(client):
     assert "Speak French" in r.text
     # Removed elements
     assert "Trusted by" not in r.text
-    assert "#pricing" not in r.text
+    assert 'id="pricing"' in r.text  # honest "Free now / Plus planned" pricing
     assert "10,000+" not in r.text
     # Added About section
     assert 'id="about"' in r.text

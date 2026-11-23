@@ -4,6 +4,12 @@ with inline annotations for grammar, style, and vocabulary.
 """
 import json
 import re
+import html as html_lib
+
+
+def _esc(value):
+    """Escape dynamic text before it is embedded in the HTML feedback card."""
+    return html_lib.escape(str(value if value is not None else ""), quote=True)
 
 
 def build_writing_correction_prompt(text, level='A1'):
@@ -88,17 +94,17 @@ def format_correction_for_display(correction):
     score = correction.get('score', 0)
     score_color = 'var(--correct)' if score >= 70 else 'var(--secondary)' if score >= 50 else 'var(--incorrect)'
     html += f'<div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;padding:0.75rem;background:rgba(0,0,0,0.02);border-radius:8px">'
-    html += f'<div style="font-size:1.5rem;font-weight:700;color:{score_color}">{score}%</div>'
+    html += f'<div style="font-size:1.5rem;font-weight:700;color:{score_color}">{_esc(score)}%</div>'
     html += f'<div><div style="font-weight:600">Writing Score</div>'
-    html += f'<div style="font-size:0.85rem;color:var(--muted-foreground)">Level: {correction.get("level_assessment", "?")}</div></div>'
+    html += f'<div style="font-size:0.85rem;color:var(--muted-foreground)">Level: {_esc(correction.get("level_assessment", "?"))}</div></div>'
     html += '</div>'
     
     # Original vs Corrected
     html += '<div style="margin-bottom:1rem">'
     html += '<div style="font-weight:600;margin-bottom:0.5rem">📝 Your Text</div>'
-    html += f'<div style="padding:0.75rem;background:rgba(220,38,38,0.05);border-radius:6px;font-style:italic">{correction.get("original", "")}</div>'
+    html += f'<div style="padding:0.75rem;background:rgba(220,38,38,0.05);border-radius:6px;font-style:italic">{_esc(correction.get("original", ""))}</div>'
     html += '<div style="font-weight:600;margin:0.5rem 0 0.25rem">✅ Corrected</div>'
-    html += f'<div style="padding:0.75rem;background:rgba(22,163,74,0.05);border-radius:6px">{correction.get("corrected", "")}</div>'
+    html += f'<div style="padding:0.75rem;background:rgba(22,163,74,0.05);border-radius:6px">{_esc(correction.get("corrected", ""))}</div>'
     html += '</div>'
     
     # Corrections
@@ -109,8 +115,8 @@ def format_correction_for_display(correction):
         for c in corrections:
             icon = {'grammar': '🔴', 'vocabulary': '🔵', 'style': '🟢'}.get(c.get('type', ''), '⚪')
             html += f'<div style="padding:0.5rem;margin-bottom:0.375rem;background:var(--card);border:1px solid var(--border);border-radius:6px;font-size:0.85rem">'
-            html += f'{icon} <strong>{c.get("original", "")}</strong> → <strong style="color:var(--correct)">{c.get("corrected", "")}</strong>'
-            html += f'<div style="color:var(--muted-foreground);margin-top:0.25rem">{c.get("explanation", "")}</div>'
+            html += f'{icon} <strong>{_esc(c.get("original", ""))}</strong> → <strong style="color:var(--correct)">{_esc(c.get("corrected", ""))}</strong>'
+            html += f'<div style="color:var(--muted-foreground);margin-top:0.25rem">{_esc(c.get("explanation", ""))}</div>'
             html += '</div>'
         html += '</div>'
     
@@ -122,20 +128,20 @@ def format_correction_for_display(correction):
         html += '<div style="margin-bottom:0.75rem">'
         html += '<div style="font-weight:600;margin-bottom:0.25rem">💪 Strengths</div>'
         for s in strengths:
-            html += f'<div style="font-size:0.85rem;padding:0.25rem 0">✓ {s}</div>'
+            html += f'<div style="font-size:0.85rem;padding:0.25rem 0">✓ {_esc(s)}</div>'
         html += '</div>'
     
     if improvements:
         html += '<div style="margin-bottom:0.75rem">'
         html += '<div style="font-weight:600;margin-bottom:0.25rem">📈 Areas to Improve</div>'
         for i in improvements:
-            html += f'<div style="font-size:0.85rem;padding:0.25rem 0">→ {i}</div>'
+            html += f'<div style="font-size:0.85rem;padding:0.25rem 0">→ {_esc(i)}</div>'
         html += '</div>'
     
     # Summary
     summary = correction.get('summary', '')
     if summary:
-        html += f'<div style="padding:0.75rem;background:rgba(45,106,79,0.08);border-radius:6px;font-size:0.85rem">{summary}</div>'
+        html += f'<div style="padding:0.75rem;background:rgba(45,106,79,0.08);border-radius:6px;font-size:0.85rem">{_esc(summary)}</div>'
     
     html += '</div>'
     return html

@@ -869,3 +869,22 @@ button { -webkit-tap-highlight-color: transparent; }
     .course-hub, .course-level-option, .sidebar-nav-arrow, .course-unit-card,
     .course-unit-chevron, .course-action { animation: none; transition: none; transform: none; }
 }
+
+/* In-app confirmation dialog (replaces native confirm/alert). */
+.confirm-overlay {
+    position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center;
+    justify-content: center; padding: 1.5rem; background: rgba(20, 15, 12, .55);
+    backdrop-filter: blur(4px);
+}
+.confirm-box {
+    width: min(100%, 420px); padding: 1.5rem; border-radius: 18px;
+    background: var(--card, #fff); color: var(--foreground, #1d1815);
+    border: 1px solid var(--border, rgba(0,0,0,.1));
+    box-shadow: 0 24px 70px -30px rgba(0,0,0,.55);
+}
+.confirm-box p { margin: 0 0 1.25rem; font-size: 1rem; line-height: 1.5; }
+.confirm-actions { display: flex; justify-content: flex-end; gap: .6rem; }
+.confirm-actions button { min-height: 38px; padding: 0 1rem; border-radius: 10px; cursor: pointer; }
+.confirm-actions .btn-secondary { background: transparent; border: 1px solid var(--border, rgba(0,0,0,.15)); color: inherit; }
+.confirm-actions .btn-danger { background: #9b2c2c; border: 1px solid #9b2c2c; color: #fff; }
+@media (prefers-reduced-motion: reduce) { .confirm-overlay { backdrop-filter: none; } }

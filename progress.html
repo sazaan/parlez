@@ -94,8 +94,8 @@
   <section class="stats" aria-label="Program summary">
     <div class="stat"><b>10</b><small>Workstreams</small></div>
     <div class="stat"><b>10</b><small>Phases</small></div>
-    <div class="stat"><b>8 / 50</b><small>Sub-phases done</small></div>
-    <div class="stat"><b>5 / 12</b><small>Defects fixed</small></div>
+    <div class="stat"><b>10 / 50</b><small>Sub-phases done</small></div>
+    <div class="stat"><b>10 / 12</b><small>Defects fixed</small></div>
   </section>
 
   <h2><span class="num">00</span>How to read this document</h2>
@@ -272,13 +272,13 @@
   <table>
     <thead><tr><th>ID</th><th>Severity</th><th>Defect</th><th>Location</th><th>Fix in</th></tr></thead>
     <tbody>
-      <tr><td class="id">BUG-01</td><td><span class="badge b-blocked">Critical</span></td><td><strong>Exam answers cannot be selected</strong> — <code>data-action="select-exam-answer"</code> has no case in the delegated switch; <code>window.selectExamAnswer</code> is orphaned. The core TEF/TCF practice feature is broken.</td><td><code>app.js:2952,3049</code></td><td>P4 / P2</td></tr>
-      <tr><td class="id">BUG-02</td><td><span class="badge b-blocked">Critical</span></td><td><strong>Stored-XSS risk</strong> — unescaped API/user data injected as HTML for flashcards, writing feedback, exam review prompts/explanations and scenario labels.</td><td><code>app.js:2217-2223,2436,3099-3101,1898</code></td><td>P2</td></tr>
-      <tr><td class="id">BUG-03</td><td><span class="badge b-blocked">High</span></td><td>Dead delegated actions: <code>submit-content-ingest</code>, <code>delete-comment</code>, <code>copy-share-link</code>, <code>delete-share</code> (orphaned <code>window.*</code> handlers).</td><td><code>app.js:2292,3216,3301-3311</code></td><td>P2 / P3</td></tr>
-      <tr><td class="id">BUG-04</td><td><span class="badge b-active">Medium</span></td><td>Markdown <code>##</code> headings render a literal <code>$2</code> (regex has one capture group but replacement uses <code>$2</code>).</td><td><code>app.js:792</code></td><td>P2</td></tr>
-      <tr><td class="id">BUG-05</td><td><span class="badge b-active">Medium</span></td><td>Hidden <code>#fileInput</code> has no UI and no code — document upload/ingestion unreachable; styled <code>.btn-attach</code> does not exist.</td><td><code>index.html:191</code></td><td>P2</td></tr>
-      <tr><td class="id">BUG-06</td><td><span class="badge b-active">Medium</span></td><td>Navigation state lost on every tool switch (full <code>innerHTML</code> replacement), no back/deep-link; native <code>confirm()/alert()</code> clashes with custom modals; sidebar sections all collapsed; icon-only actions unlabelled on mobile.</td><td><code>app.js:1158-1204</code>, <code>index.html:78-170</code></td><td>P2</td></tr>
-      <tr><td class="id">BUG-07</td><td><span class="badge b-planned">Low</span></td><td>Polish: auth labels lack <code>for</code>; stale "More levels coming soon" copy; multi-line user messages collapse; reveal FOUC; exam timer uses tick count not wall clock; no-op <code>scrollTo</code> under <code>overflow:hidden</code>; dead <code>.mosaic</code> perspective.</td><td>various</td><td>P2</td></tr>
+      <tr><td class="id">BUG-01</td><td><span class="badge b-blocked">Critical</span></td><td><strong>Exam answers cannot be selected</strong> — <code>data-action="select-exam-answer"</code> has no case in the delegated switch; <code>window.selectExamAnswer</code> is orphaned. The core TEF/TCF practice feature is broken.</td><td><code>app.js:2952,3049</code></td><td>P2 · Fixed</td></tr>
+      <tr><td class="id">BUG-02</td><td><span class="badge b-blocked">Critical</span></td><td><strong>Stored-XSS risk</strong> — unescaped API/user data injected as HTML for flashcards, writing feedback, exam review prompts/explanations and scenario labels.</td><td><code>app.js:2217-2223,2436,3099-3101,1898</code></td><td>P2 · Fixed</td></tr>
+      <tr><td class="id">BUG-03</td><td><span class="badge b-blocked">High</span></td><td>Dead delegated actions: <code>submit-content-ingest</code>, <code>delete-comment</code>, <code>copy-share-link</code>, <code>delete-share</code> (orphaned <code>window.*</code> handlers).</td><td><code>app.js:2292,3216,3301-3311</code></td><td>P2 · Fixed</td></tr>
+      <tr><td class="id">BUG-04</td><td><span class="badge b-active">Medium</span></td><td>Markdown <code>##</code> headings render a literal <code>$2</code> (regex has one capture group but replacement uses <code>$2</code>).</td><td><code>app.js:792</code></td><td>P2 · Fixed</td></tr>
+      <tr><td class="id">BUG-05</td><td><span class="badge b-active">Medium</span></td><td>Hidden <code>#fileInput</code> has no UI and no code — document upload/ingestion unreachable; styled <code>.btn-attach</code> does not exist.</td><td><code>index.html:191</code></td><td>P2 · Fixed (dead input removed; no upload backend)</td></tr>
+      <tr><td class="id">BUG-06</td><td><span class="badge b-active">Medium</span></td><td>Navigation state lost on every tool switch (full <code>innerHTML</code> replacement), no back/deep-link; native <code>confirm()/alert()</code> clashes with custom modals; sidebar sections all collapsed; icon-only actions unlabelled on mobile.</td><td><code>app.js:1158-1204</code>, <code>index.html:78-170</code></td><td>P2 · Partial (native dialogs fixed; view-state retention remains)</td></tr>
+      <tr><td class="id">BUG-07</td><td><span class="badge b-planned">Low</span></td><td>Polish: auth labels lack <code>for</code>; stale "More levels coming soon" copy; multi-line user messages collapse; reveal FOUC; exam timer uses tick count not wall clock; no-op <code>scrollTo</code> under <code>overflow:hidden</code>; dead <code>.mosaic</code> perspective.</td><td>various</td><td>P2 · Partial</td></tr>
       <tr><td class="id">BUG-08</td><td><span class="badge b-blocked">Critical</span></td><td><strong>Chatbot can return empty/truncated answers reported as success</strong> — reasoning model shares <code>max_tokens</code> with output; app hardcodes 2048, never disables thinking, never checks <code>finish_reason</code>, and counts 200-with-empty-content as success.</td><td><code>main.py:1102-1156,2157-2184</code></td><td>P5 · Fixed</td></tr>
       <tr><td class="id">BUG-09</td><td><span class="badge b-blocked">Critical</span></td><td><strong>Lesson vocabulary/grammar never reaches the model</strong> — <code>lesson_ctx</code> is built but the system prompt only uses title/description/objectives while demanding the model show the lesson data.</td><td><code>main.py:2119-2126</code>, <code>engine/__init__.py:134-151</code></td><td>P5 · Fixed</td></tr>
       <tr><td class="id">BUG-10</td><td><span class="badge b-blocked">High</span></td><td>New learners treated as 0% accurate → "30% French / 70% English" and 4 simplified exercises on their very first chat.</td><td><code>engine/adaptive.py:21-26,119-143</code></td><td>P5 · Fixed</td></tr>
@@ -327,15 +327,15 @@
 
   <!-- PHASE 2 -->
   <details class="phase">
-    <summary><span class="phase-id">P2</span><span class="phase-title">Brand, landing page &amp; first impression</span><span class="badge b-planned">Planned</span></summary>
+    <summary><span class="phase-id">P2</span><span class="phase-title">Brand, landing page &amp; first impression</span><span class="badge b-active">Active</span></summary>
     <div class="phase-body">
       <p class="phase-intro">Workstreams 01 + 09 (visual half). Make the product look and feel like the best French study platform, with a signature character people remember.</p>
       <table>
         <thead><tr><th>ID</th><th>Sub-phase</th><th>Status</th><th>Deliverable / acceptance criteria</th></tr></thead>
         <tbody>
           <tr><td class="id">2.1</td><td>Visual identity &amp; design tokens</td><td><span class="badge b-planned">Planned</span></td><td>Type, palette, spacing, motion and illustration direction documented; reusable CSS tokens.</td></tr>
-          <tr><td class="id">2.2</td><td>Landing page rebuild</td><td><span class="badge b-planned">Planned</span></td><td>Modern hero, proof, features, curriculum/exam paths, pricing placeholder, FAQ, strong CTAs.</td></tr>
-          <tr><td class="id">2.3</td><td>Responsive &amp; accessible</td><td><span class="badge b-planned">Planned</span></td><td>Mobile-first, keyboard/screen-reader friendly, reduced-motion support, fast load.</td></tr>
+          <tr><td class="id">2.2</td><td>Landing page rebuild</td><td><span class="badge b-done">Done</span></td><td>Outcome-led hero, realistic app window, honest trust bar, Free/Plus-pricing clarity, collapsed legal disclosure, OG card, reading-progress bar.</td></tr>
+          <tr><td class="id">2.3</td><td>Responsive &amp; accessible</td><td><span class="badge b-done">Done</span></td><td>New sections responsive down to 640 px; skip link, focus-visible, reduced-motion and no-JS baselines preserved; in-app confirm dialog replaces native dialogs.</td></tr>
           <tr><td class="id">2.4</td><td>Mascot design</td><td><span class="badge b-planned">Planned</span></td><td>Original character with expression set; usable in app, landing and marketing; brand guidelines.</td></tr>
           <tr><td class="id">2.5</td><td>Motion &amp; delight layer</td><td><span class="badge b-planned">Planned</span></td><td>Lottie/SVG micro-interactions, reactions, celebratory moments; performance budget + reduced-motion fallback.</td></tr>
         </tbody>
@@ -472,6 +472,7 @@
 
   <h2><span class="num">04</span>Activity log</h2>
   <ul class="log">
+    <li><time>2026-11-23</time> <b>P2 started:</b> fixed BUG-01…BUG-05 (exam answer clicks, stored-XSS in writing/flashcards/exam review, dead share/comment/ingest actions, markdown <code>$2</code>, dead file input), replaced native dialogs with an accessible in-app confirm, rebuilt the landing page (app window, trust bar, honest pricing, collapsed disclosures, OG card, progress bar). Added an XSS regression test — 131/131 pass.</li>
     <li><time>2026-11-23</time> Added token-aware conversation trimming to keep chat prompts bounded; 130/130 tests pass. Output moderation deferred pending an external-service decision.</li>
     <li><time>2026-11-23</time> <b>P5 continued:</b> mode-conditional exercise schema and consistent language-ratio instructions; SSE <code>/api/chat/stream</code> with progressive rendering and JSON fallback; multi-provider failover + circuit breaker; budget-429 and invalid-response events. Added 4 more tests — 129/129 pass, <code>app.js</code> syntax OK.</li>
     <li><time>2026-11-23</time> <b>P5 chatbot P0 fixes shipped:</b> BUG-08…BUG-12 fixed — JSON/stream negotiation, 4096-token budget and empty/<code>length</code> detection with retry, 90 s global deadline, real lesson data in the prompt, new-learner handling, durable UTC LLM budget, mode forwarding + browser timeout. Added 10 regression tests; 125/125 pass. Scoped ruff reports 3 pre-existing errors in untouched code.</li>
