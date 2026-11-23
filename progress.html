@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Parlez — Program Progress &amp; Roadmap</title>
+<style>
+  :root{
+    --paper:#FBF8F3; --paper-deep:#F4EEE4; --card:#FFFDFA;
+    --ink:#1D1815; --ink-soft:#4A423C; --ink-muted:#6F645B;
+    --wine:#7C2D3F; --wine-deep:#5E2130; --wine-ink:#3E1620;
+    --gold:#C0934A; --gold-soft:#E9CD97; --sage:#6E8574;
+    --blue:#4A6E8A; --red:#A44444;
+    --line:rgba(29,24,21,.10); --line-soft:rgba(29,24,21,.06);
+    --radius:18px; --radius-lg:26px; --radius-full:999px;
+    --shadow:0 1px 2px rgba(29,24,21,.04), 0 12px 32px -18px rgba(29,24,21,.30);
+    --font-display:'Fraunces','Playfair Display',Georgia,'Times New Roman',serif;
+    --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-sans);line-height:1.55;-webkit-font-smoothing:antialiased}
+  a{color:var(--wine);text-underline-offset:3px}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+  header.hero{background:linear-gradient(140deg,var(--wine-ink),var(--wine-deep) 55%,var(--wine));color:#FDF7EE;padding:64px 0 54px;position:relative;overflow:hidden}
+  header.hero:after{content:"";position:absolute;inset:auto -10% -60% 40%;height:420px;background:radial-gradient(ellipse at center,rgba(233,205,151,.22),transparent 65%);pointer-events:none}
+  .eyebrow{letter-spacing:.18em;text-transform:uppercase;font-size:12px;font-weight:700;color:var(--gold-soft);margin:0 0 14px}
+  h1{font-family:var(--font-display);font-weight:600;font-size:clamp(34px,6vw,60px);line-height:1.05;margin:0 0 16px;letter-spacing:-.02em}
+  .hero p.lede{font-size:17px;max-width:720px;color:rgba(253,247,238,.82);margin:0 0 24px}
+  .meta{display:flex;flex-wrap:wrap;gap:10px}
+  .meta span{font-size:12px;padding:6px 12px;border-radius:var(--radius-full);background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16)}
+  main{padding:40px 0 80px}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px;margin-bottom:40px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
+  .stat b{display:block;font-family:var(--font-display);font-size:34px;line-height:1;color:var(--wine)}
+  .stat small{color:var(--ink-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+  h2{font-family:var(--font-display);font-size:28px;margin:52px 0 18px;letter-spacing:-.01em}
+  h2 .num{color:var(--gold);font-size:18px;vertical-align:super;margin-right:8px}
+  .legend{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 24px;list-style:none;padding:0}
+  .legend li{font-size:12px;color:var(--ink-soft)}
+  .badge{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:4px 9px;border-radius:var(--radius-full);white-space:nowrap}
+  .b-done{background:#E4EEE6;color:#315A3B}
+  .b-active{background:#F6E9CE;color:#8A5B12}
+  .b-research{background:#E3EDF4;color:#315A78}
+  .b-planned{background:#EDEAE4;color:#6F645B}
+  .b-blocked{background:#F6E0E0;color:#8E3434}
+  details.phase{background:var(--card);border:1px solid var(--line);border-radius:var(--radius-lg);margin-bottom:14px;overflow:hidden;box-shadow:var(--shadow)}
+  details.phase>summary{cursor:pointer;list-style:none;padding:18px 22px;display:flex;flex-wrap:wrap;align-items:center;gap:12px;background:linear-gradient(90deg,rgba(124,45,63,.05),transparent)}
+  details.phase>summary::-webkit-details-marker{display:none}
+  details.phase>summary:hover{background:rgba(124,45,63,.06)}
+  .phase-id{font-family:var(--font-display);font-size:20px;color:var(--wine);min-width:50px}
+  .phase-title{font-weight:700;font-size:16px;flex:1;min-width:180px}
+  .phase-body{padding:6px 22px 22px;border-top:1px solid var(--line-soft)}
+  .phase-intro{color:var(--ink-soft);margin:14px 0 18px;font-size:14px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:11px 10px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+  th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-muted);font-weight:700}
+  tr:last-child td{border-bottom:0}
+  td.id{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--wine);white-space:nowrap;font-size:12px}
+  td strong{color:var(--ink)}
+  .muted{color:var(--ink-muted)}
+  .small{font-size:12px}
+  .callout{background:var(--paper-deep);border-left:3px solid var(--gold);padding:14px 16px;border-radius:0 12px 12px 0;margin:16px 0;font-size:13px;color:var(--ink-soft)}
+  .callout.warn{border-left-color:var(--red)}
+  .research-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+  details.note{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:0 16px}
+  details.note summary{cursor:pointer;font-weight:700;padding:14px 0;font-size:14px}
+  details.note .note-body{padding:0 0 16px;font-size:13px;color:var(--ink-soft)}
+  details.note ul{padding-left:18px;margin:8px 0}
+  .log{list-style:none;padding:0;margin:0}
+  .log li{position:relative;padding:0 0 18px 22px;border-left:2px solid var(--line);margin-left:6px}
+  .log li:before{content:"";position:absolute;left:-6px;top:4px;width:10px;height:10px;border-radius:50%;background:var(--gold);border:2px solid var(--paper)}
+  .log time{display:block;font-size:11px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.06em;font-weight:700}
+  footer{border-top:1px solid var(--line);padding:24px 0 44px;color:var(--ink-muted);font-size:12px}
+  @media(max-width:640px){.wrap{padding:0 16px}header.hero{padding:44px 0}table{font-size:12px}th,td{padding:9px 6px}}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Living program tracker</p>
+    <h1>Parlez — Build the best place<br />to study French.</h1>
+    <p class="lede">Research, phase plan and acceptance criteria for the ten workstreams requested by the owner. This file is updated as each sub-phase completes: research notes get filled in, statuses move from <b>Research</b> → <b>Active</b> → <b>Done</b>, and decisions/changes are recorded in the activity log.</p>
+    <div class="meta">
+      <span>Repo: sazan/parlez</span>
+      <span>Branch: main</span>
+      <span>Last updated: 2026-11-23</span>
+      <span>Prepared by: OpenCode</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="stats" aria-label="Program summary">
+    <div class="stat"><b>10</b><small>Workstreams</small></div>
+    <div class="stat"><b>10</b><small>Phases</small></div>
+    <div class="stat"><b>2 / 50</b><small>Sub-phases done</small></div>
+    <div class="stat"><b>0</b><small>Research threads open</small></div>
+  </section>
+
+  <h2><span class="num">00</span>How to read this document</h2>
+  <ul class="legend">
+    <li><span class="badge b-done">Done</span> shipped &amp; verified</li>
+    <li><span class="badge b-active">Active</span> being implemented</li>
+    <li><span class="badge b-research">Research</span> investigating options</li>
+    <li><span class="badge b-planned">Planned</span> queued, not started</li>
+    <li><span class="badge b-blocked">Blocked</span> needs a decision/dependency</li>
+  </ul>
+  <div class="callout"><b>Golden rules from the existing repo audit (must not regress):</b> never run pytest against the real DB; SQLite means a single server worker; secrets stay in untracked <code>.env</code>; never commit <code>data/</code>, <code>books/</code> or <code>.env</code>; CSP forbids inline scripts/handlers in app HTML; auth is HttpOnly-cookie only; keep <code>mock_tests/</code> in <code>.dockerignore</code>.</div>
+
+  <h2><span class="num">01</span>Research brief</h2>
+  <p class="muted small">Findings are being gathered from both the codebase and external sources. Expand a card for the current state of knowledge. Source links will be added as research lands.</p>
+  <div class="research-grid">
+
+    <details class="note" open>
+      <summary>Repo reality check (code audit)</summary>
+      <div class="note-body">
+        <ul>
+          <li><b>Stack:</b> FastAPI + Uvicorn, SQLAlchemy/SQLite (single writer), Redis/slowapi rate limits, static JS frontend (~10.9k lines), 100 tests, no active CI workflow.</li>
+          <li><b>Courses:</b> 94 commits; A1–B2 live. A2–B2 v2026.2 published <em>without reviewer attestation</em> — legitimate to present as practice, not certification. ~8k lines of dead/legacy course files remain.</li>
+          <li><b>Rewards today:</b> a single <code>XP</code> constant class (5/10/50/5/5/15) added into a JSON <code>progress</code> blob on the user row. No levels, badges, quests, leaderboards, anti-abuse or streak engine. This directly confirms workstream 08.</li>
+          <li><b>Exam data:</b> original TEF/TCF formats, drills and practice prompts live in <code>mock_tests/</code> (~1.4k lines), separated from general courses.</li>
+          <li><b>Legal:</b> no Terms, Privacy, Refund or Disclaimer documents exist anywhere in the repo.</li>
+          <li><b>Brand/motion:</b> no mascot, no image/animation assets; landing page uses CSS glassmorphism and a phone mockup.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="note">
+      <summary>1 · Landing page &amp; first impression</summary>
+      <div class="note-body">
+        <ul>
+          <li><b>Today:</b> hero with abstract CSS-tile mosaic ("illustrative preview", "sample only"), marquee, 3-step "How it works", 7-card bento "Why Parlez", About with attestation callout, CTA band, dense legal footer. Served at <code>/</code> from a single HTML read; <code>/login</code> is a separate app shell.</li>
+          <li><b>Good:</b> cohesive Fraunces/Inter + wine/gold/sage token system, fluid type, genuinely strong a11y baseline (skip link, <code>:focus-visible</code>, <code>aria-expanded</code>, focus moved on anchor nav, reduced-motion, progressive-enhancement reveal), fast serving, thoughtful responsive breakpoints.</li>
+          <li><b>Weak:</b> zero social proof (no testimonials/learner counts/logos); abstract mockups read as apologetic — replace with one annotated real screenshot; internal-flavoured copy ("keep your selected level in sync with Settings…"); compliance text dominates the page — collapse into a <code>&lt;details&gt;</code> or <code>/levels</code> page; no pricing section despite "Free to start"; one CTA repeated six times; missing <code>og:image</code> and absolute canonical URLs; motion is one-note (marquee + fade-up).</li>
+          <li><b>App shell friction:</b> all sidebar sections start collapsed; icon-only header actions unlabelled ≤640px; every tool is a full <code>innerHTML</code> replacement so navigation state/quiz progress is lost with no back/deep-link; native <code>confirm()/alert()</code> clashes with custom modals; emoji-heavy app vs refined landing SVGs; voice input is Web Speech-only and flagged <code>fr-FR</code>; welcome copy hardcoded to A1; two drifting token systems.</li>
+        </ul>
+        <p class="small muted">Sources: <code>static/landing.html</code>, <code>static/landing.css</code>, <code>static/landing.js</code>, <code>static/index.html</code>, <code>static/app.js</code>, <code>static/styles.css</code>, <code>main.py:223,445-458,1259,1803-1810</code>.</p>
+      </div>
+    </details>
+
+    <details class="note">
+      <summary>2 · Admin panel</summary>
+      <div class="note-body">
+        <ul>
+          <li><b>How it works:</b> separate admin credential from env (<code>ADMIN_USERNAME</code>, bcrypt hash, ≥32-char session secret); login at <code>/api/admin/login</code> with constant-time checks, optional TOTP, a server-side <code>admin_sessions</code> row and a 15-min JWT in a scoped HttpOnly cookie; every write needs a CSRF token bound into that JWT plus a same-origin check. MFA secrets are Fernet-encrypted; changes revoke all sessions; config changes are audit-logged. Seven tabs: AI provider, course publishing, users, security/MFA, observability, change log, health.</li>
+          <li><b>Strengths:</b> fails closed when config incomplete; keys never leave the server; provider endpoints fixed (SSRF-safe); publication gates the learner APIs; privacy-limited user directory and logs; good test coverage.</li>
+          <li><b>Gaps:</b> single shared admin account (no roles/individual attribution or in-panel password rotation); MFA off by default with no documented recovery path and plaintext secret returned to the browser during setup; weak durable audit (failed logins only in stdout, no IP/session, silent 1000-row truncation, no filter/export); no active-session management UI; user admin is read-only; origin check depends on proxy headers; several read endpoints unthrottled; an SLO claims core API p95 ≤2 s while chat legitimately takes tens of seconds.</li>
+        </ul>
+        <p class="small muted">Sources: <code>main.py:76-109,896-1030,1259-1800</code>, <code>static/admin.*</code>, <code>db.py:63-87,263-358</code>, <code>observability.py:314-403</code>, <code>tests/test_admin.py</code>.</p>
+      </div>
+    </details>
+
+    <details class="note">
+      <summary>3 · French curriculum, materials &amp; TEF/TCF</summary>
+      <div class="note-body">
+        <ul>
+          <li><b>Framework:</b> CEFR (Companion Volume 2020) is the right backbone — can-do descriptors across reception, production, interaction and mediation. The Council of Europe explicitly does <em>not</em> validate others' CEFR claims, so say "aligned to / based on CEFR descriptors", never "CEFR-certified".</li>
+          <li><b>Learning science:</b> spaced practice (medium-to-large effect; revisit at 1/3/7/30 days), retrieval practice, interleaving (beats blocked grammar practice on delayed tests), comprehensible input paired with output + feedback, and task-based learning (meta-analysis d≈0.93; stricter reanalysis g≈0.61). Only ~6% of 50 reviewed apps explained <em>why</em> an answer was wrong — explanatory feedback is a differentiator.</li>
+          <li><b>Proposed spine:</b> A1→B2 with sub-levels (A1.1–B2.3), ~60–80 guided hours/level; 8–10 mission-led units per level. Each unit: retrieval warm-up → authentic graded input (TV5MONDE/RFI) → noticing/focus on form → interleaved guided practice with explanations → real-world TBLT task → CAF feedback (complexity/accuracy/fluency) → SRS export + can-do self-check → cumulative return.</li>
+          <li><b>Exam tracks (branch at B1.2):</b> <b>TCF Canada</b> — 2h47; 39 listening (35 min, audio once) + 39 reading (60 min) progressive MCQ, 3 writing tasks (60 min), 12 min speaking; IRCC NCLC 7 ≈ listening 458–502 / reading 453–498 / speaking 10–11 / writing 10–11. <b>TEF Canada</b> — ~2h55; 40 reading (60 min), 40 listening (40 min, forward-only), writing A ≥80 words/25 min + B ≥200 words/35 min, speaking 5 + 10 min; NCLC 7 on /699 ≈ 434 / 434 / 456 / 428. <b>Critical:</b> Express Entry uses the "Équivalence ancien score" column, not /699 — using the wrong column may cause refusal.</li>
+          <li><b>Legitimate sources:</b> link out to official samples (FEI for TCF, CCI/Le français des affaires for TEF), TV5MONDE (TCF simulator + 680 practice questions, FEI-validated but not an official certificate), RFI, Lawless French, Kwiziq, Le Point du FLE, Anki export. Books: Inspire 1/2 (AF Kathmandu), Édito, Cosmopolite, Grammaire progressive du français, Bescherelle, Assimil, ABC TEF / TCF 250 activités, Hachette TEF workbook (2023+) — use as task-design models, never copy past papers or official PDFs.</li>
+          <li><b>Legitimacy workflow:</b> provenance fields (source links, author, reviewer, credentials, version, exam-format version, verified-on date), qualified FLE reviewer + second reviewer for exam items, independent benchmarking of task levels, small pilot cohort, public changelog, claims register. Re-verify exam facts against IRCC/FEI/CCI every 90 days.</li>
+        </ul>
+        <p class="small muted">Sources: <a href="https://www.coe.int/en/web/common-european-framework-reference-languages/introduction-and-context">CoE CEFR</a> · <a href="https://onlinelibrary.wiley.com/doi/10.1111/lang.12479">spacing meta-analysis</a> · <a href="https://journals.sagepub.com/doi/full/10.1177/1362168817744389">TBLT meta-analysis</a> · <a href="https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry/documents/language-requirements/language-testing.html">IRCC language testing</a> · <a href="https://www.france-education-international.fr/test/tcf-canada">FEI TCF Canada</a> · <a href="https://www.lefrancaisdesaffaires.fr/en/candidate/test-evaluation-francais/tef-canada/presentation/">CCI TEF Canada</a> · <a href="https://apprendre.tv5monde.com/fr/tcf">TV5MONDE TCF</a> · <a href="https://www.alliancefrancaise.org.np/official-diplomas">AF Kathmandu</a></p>
+      </div>
+    </details>
+
+    <details class="note">
+      <summary>4 · Chatbot audit — probable root causes found</summary>
+      <div class="note-body">
+        <ul>
+          <li><b>P0 · reasoning budget:</b> the default <code>nemotron-3.5-lightning-30b-a3b</code> is a reasoning model whose thinking shares <code>max_tokens</code> with visible output. The app hardcodes <code>max_tokens: 2048</code>, sets both <code>temperature</code> and <code>top_p</code>, never disables thinking or sets <code>reasoning_budget</code>, and never inspects <code>finish_reason</code> or <code>Accept</code>/<code>stream</code>. Result: empty/truncated answers reported as 200 successes — the failure is invisible in metrics.</li>
+          <li><b>P0 · lesson content thrown away:</b> <code>/api/chat</code> carefully builds <code>lesson_ctx</code> (vocabulary, grammar, dialogue, exercises, cultural note), but <code>build_system_prompt</code> only uses title/description/objectives while instructing the model to "show the vocabulary and grammar content from the lesson data". The model never sees it — the most direct cause of bad lesson-mode answers.</li>
+          <li><b>P1 · new users misclassified:</b> empty exercise history yields <code>overall_accuracy: 0</code>, so every first-time learner is told "30% French / 70% English" and given 4 simpler exercises, contradicting the intended 40% base ratio.</li>
+          <li><b>P1 · budget not durable/atomic:</b> usage is incremented in the in-memory user blob and only saved on success; concurrent chats lose updates, failures are free, the 429 message says UTC while the code uses local date, and whole-blob rewrites can lose messages/XP.</li>
+          <li><b>P1 · context &amp; latency:</b> ~4.9k chars of always-on format spec plus a demand for 4 exercises pushes output past 2048 tokens; 3 retries × 60 s with 2/4 s backoff gives ~3 min with no overall deadline or fallback; the browser <code>fetch</code> has no timeout, so it looks hung.</li>
+          <li><b>P2 · safety/observability:</b> UI never sends <code>mode</code>/<code>lesson_id</code>/<code>scenario_id</code>, so keyword heuristics misroute; only the last 15 raw messages are sent; guardrails are prompt-only; <code>finish_reason</code>, prompt size and budget rejections are not instrumented; tests cover only the happy path.</li>
+        </ul>
+        <p class="small muted">Sources: <code>main.py:1033-1052,1055-1231,2091-2204</code>, <code>engine/__init__.py:29-151,205-256</code>, <code>engine/adaptive.py:21-26,119-143,181-183</code>, <code>static/app.js:1244,1282-1299</code>.</p>
+      </div>
+    </details>
+
+    <details class="note">
+      <summary>5 · Real-time conversation &amp; interactivity</summary>
+      <div class="note-body">
+        <ul>
+          <li><b>What winners do:</b> Duolingo Max uses human-written, linguist-reviewed <em>Video Call</em> and <em>Roleplay</em> scenarios with transcripts and feedback; HelloTalk/Tandem add live voice rooms for the "freeze with real people" gap. Generic chatbots lack pedagogical scaffolding — graded vocab, corrections, curriculum alignment.</li>
+          <li><b>Latency is the product:</b> users notice ~800 ms round-trip; a typical budget is STT 350 ms + LLM first token 375 ms + TTS first byte 100 ms ≈ 1.1 s mouth-to-ear. Show an interim transcript, a "thinking" beat, support barge-in, keep beginner turns to 10–20 s, always offer "type instead".</li>
+          <li><b>ASR path:</b> start with browser Web Speech API (free, ~15 lines) — but audio goes to Google/Apple, Firefox is effectively unsupported, sessions need an <code>onend</code> restart loop. Later: faster-whisper / whisper.cpp / Whisper-Streaming self-hosted, or Deepgram/AssemblyAI streaming (~150 ms, semantic end-of-turn).</li>
+          <li><b>TTS path:</b> browser <code>speechSynthesis</code> first; then ElevenLabs (~75 ms streaming), Cartesia, OpenAI or Google TTS. Cache repeated lines.</li>
+          <li><b>Pronunciation:</b> Azure Speech Pronunciation Assessment (word/phoneme accuracy, fluency, prosody) or Speechace (CEFR-style scores). Cheap MVP: ASR transcript vs target sentence with a word-level diff.</li>
+          <li><b>Privacy/consent:</b> voice is biometric-adjacent; explicit consent, retention/deletion policy, no raw-audio storage by default, captions and keyboard controls always.</li>
+        </ul>
+        <p class="small muted">Sources: <a href="https://deepgram.com/blog/voice-agent-architecture-stt-llm-tts-pipeline-design">Deepgram voice-agent architecture</a> · <a href="https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition">MDN SpeechRecognition</a> · <a href="https://www.assemblyai.com/blog/speech-recognition-javascript-web-speech-api">AssemblyAI Web Speech guide</a> · <a href="https://blog.duolingo.com/duolingo-max">Duolingo Max</a> · <a href="https://learn.microsoft.com/en-us/azure/ai-services/speech-service/how-to-pronunciation-assessment">Azure pronunciation assessment</a> · <a href="https://www.speechace.com/api-plans/">Speechace</a></p>
+      </div>
+    </details>
+
+    <details class="note">
+      <summary>6 · Terms, disclaimers &amp; legal</summary>
+      <div class="note-body">
+        <ul>
+          <li><b>Core documents:</b> Terms of Service (clickwrap, subscriptions/auto-renewal, cancellation, licence, acceptable use, IP, liability cap, indemnity, governing law), Privacy Policy (data categories, purposes, vendors incl. AI/payment providers, retention, rights, cookies), Refund/Cancellation Policy, Cookie consent, Acceptable Use, and a standalone Disclaimer page — all linked from footer, signup and checkout.</li>
+          <li><b>Disclaimers that matter to Parlez:</b> educational tool only; not immigration/legal advice; <b>no guarantee</b> of exam scores, CEFR/NCLC equivalency, visa/PR outcome, or admission; <b>not affiliated with</b> IRCC, France Éducation international, DELF/DALF or exam bodies; AI-generated content may be inaccurate; practice scores are indicative only; testimonials are not typical results.</li>
+          <li><b>Nepal compliance:</b> the <b>E-Commerce Act, 2081 (2025)</b> applies to e-commerce in Nepal and to foreign sellers serving Nepal — requires registered business, disclosure of name/address/PAN-VAT/grievance officer, listing with the Department of Commerce, price and refund/return terms, privacy of personal information and record-keeping. Privacy Act, 2075 also applies. If serving EU/UK users, GDPR duties (lawful basis, DSARs, cookies consent, 72h breach) apply.</li>
+          <li><b>Liability/indemnity:</b> cap liability at fees paid in a preceding period and exclude indirect damages, but preserve non-waivable consumer rights. EU has a 14-day withdrawal right; digital-content waiver needs prior express consent and confirmation — and a July 2026 CJEU ruling suggests adaptive/personalised digital services may not be waivable.</li>
+          <li><b>Minors:</b> set a minimum age (13/16/18); COPPA (US under-13) and GDPR Art. 8 (13–16 by member state) require parental consent when relying on consent.</li>
+        </ul>
+        <p class="small muted">Sources: <a href="https://giwmscdnone.gov.np/media/files/E-Commerce%20Act%2C%202081_yr7k9o5.pdf">Nepal E-Commerce Act 2081</a> · <a href="https://www.dlapiperdataprotection.com/index.html?c=NP&t=law">DLA Piper Nepal privacy law</a> · <a href="https://eur-lex.europa.eu/EN/legal-content/summary/consumer-information-right-of-withdrawal-and-other-consumer-rights.html">EU withdrawal rights</a> · <a href="https://docs.estly.ee/disclaimer.html">example educational/AI disclaimer</a> · <a href="https://www.ftc.gov/business-guidance/resources/complying-coppa-frequently-asked-questions">FTC COPPA FAQ</a></p>
+        <p class="small"><b>Not legal advice</b> — a qualified Nepal (and target-market) lawyer must review before launch.</p>
+      </div>
+    </details>
+
+    <details class="note">
+      <summary>7 · Payments (Nepal first)</summary>
+      <div class="note-body">
+        <ul>
+          <li><b>Nepal rails are wallet/QR, not Stripe-like:</b> settlement in NPR only; generally <em>no webhooks, no subscription engine, no automatic refunds</em>. Verification is a server-to-server status lookup after a browser redirect — <b>never trust the browser return</b>.</li>
+          <li><b>Start with Khalti + eSewa</b> (dominant wallets, self-serve/public sandboxes). Khalti ePayment: initiate → <code>pidx</code> → redirect → lookup; only <code>Completed</code> counts; amount in paisa. eSewa ePay v2: HMAC-SHA256 signed form, status API, base64 <code>data</code> on return. Fonepay adds bank-app Dynamic QR with <code>DV</code> signature + <code>txnVerification</code>; connectIPS/NEPALPAY QR need bank/NCHL onboarding and RSA <code>.pfx</code> tokens.</li>
+          <li><b>Fees are not published</b> by the major wallets — get them in writing. connectIPS has a published schedule (NPR 2/4/8 by slab); Fonepay QR payments are free for merchants.</li>
+          <li><b>International later:</b> Stripe is unavailable to Nepal-registered businesses (needs a supported-country entity). <b>Paddle is the pragmatic first international rail</b> — Merchant of Record handles VAT/sales tax, subscriptions, dunning and billing support (5% + 50¢ all-in). Avoid Lemon Squeezy (shutting down 31 Mar 2027) and PayPal/Razorpay as primary rails.</li>
+          <li><b>Architecture:</b> one gateway abstraction (<code>initiate / verify / refund / status</code> + capability flags) with per-provider adapters; server-side price resolution from DB; one attempt ID per checkout; DB unique constraint on <code>(provider, provider_txn_id)</code>; idempotent webhook/event inbox; reconciliation job for pending/QR attempts; <code>entitlements</code> table as the single source of truth; hosted redirect keeps PCI scope at SAQ A. Verify returned amount against the stored attempt.</li>
+          <li><b>UX:</b> checkout page → FastAPI creates attempt → redirect to provider → return page polls attempt status → unlock exactly where the learner left off, with clear failure/retry states. No gateway secret in JS.</li>
+        </ul>
+        <p class="small muted">Sources: <a href="https://docs.khalti.com/khalti-epayment/">Khalti docs</a> · <a href="http://developer.esewa.com.np/">eSewa developer docs</a> · <a href="https://fonepay.com/content/fees-and-charges">Fonepay fees</a> · <a href="https://doc.connectips.com/docs/connectIPS-Gateway/merchant-interface">connectIPS merchant interface</a> · <a href="https://stripe.com/global">Stripe availability</a> · <a href="https://www.paddle.com/pricing">Paddle pricing</a> · <a href="https://docs.stripe.com/webhooks">Stripe webhooks</a></p>
+      </div>
+    </details>
+
+    <details class="note">
+      <summary>8 · Reward / retention engine</summary>
+      <div class="note-body">
+        <ul>
+          <li><b>Evidence:</b> gamification raises motivation/autonomy/relatedness but has little effect on actual competence (<a href="https://link.springer.com/article/10.1007/s11423-023-10337-7">Springer 2023</a>). Duolingo: a 7-day streak correlates with <b>3.6× higher course completion</b>; a satisfying streak animation added <b>+1.7% D7 retention</b>; allowing <b>two</b> streak freezes (vs one) <em>increased</em> active learners +0.38% — "slack" beats rigid rules.</li>
+          <li><b>Warnings:</b> overjustification and point-farming are documented (<a href="https://arxiv.org/html/2203.16175">ACM L@S 2022, "When Gamification Spoils Your Learning"</a>); badges/leaderboards/competitions are the elements most often linked to demotivation and anxiety (<a href="https://arxiv.org/pdf/2305.08346.pdf">negative-effects mapping</a>). Client-side rules are trivially patched — <b>keep all scoring server-side</b>.</li>
+          <li><b>Recommended engine (in FastAPI, not a heavyweight platform):</b> append-only <code>xp_ledger</code> + <code>events</code> with idempotency keys, <code>reward_rules</code> (versioned, with cooldowns), <code>streaks</code> (freezes, timezone-aware day), <code>mastery</code> per skill (0–5), <code>badges</code>/<code>quests</code>, optional opt-in weekly <code>leagues</code> grouped by level/timezone with cooperative variants.</li>
+          <li><b>Reward learning, not activity:</b> XP weighted by difficulty and first-attempt success, reduced for hints/retries; daily caps; anomaly detection (impossible latency, repeated payloads). Badges map to can-do statements ("ordered coffee in French", "NCLC 7 vocabulary starter") and a visible A1→B2/TEF roadmap.</li>
+          <li><b>Engines to borrow from:</b> Gami.Fied (self-hosted XP/levels/streaks/badges/leaderboards), django-gamification, ngageoint/gamification-server — useful as architecture references, likely overkill to adopt wholesale.</li>
+        </ul>
+        <p class="small muted">Sources: <a href="https://blog.duolingo.com/how-duolingo-streak-builds-habit">Duolingo streak research</a> · <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC10448467">PMC systematic review</a> · <a href="https://doi.org/10.3389/fpsyg.2022.1030790">Frontiers EFL review</a> · <a href="https://github.com/gami-fied/gami.fied">Gami.Fied</a></p>
+      </div>
+    </details>
+
+    <details class="note">
+      <summary>9 · Mascot, motion &amp; delight</summary>
+      <div class="note-body">
+        <ul>
+          <li><b>Why:</b> Duo is a brand moat built on consistency and high frequency; mascots give feedback a face, softening the sting of mistakes, and anthropomorphic characters improve attitudes and affect. Duolingo spent 18 months designing a supporting cast. A mascot works as UX <em>and</em> as marketing — reuse it in onboarding, correct/wrong feedback, empty states, streak nudges, emails and social.</li>
+          <li><b>Tech:</b> CSS/Web Animations for micro-interactions; sprite sheets for cheap frame animation; <b>Lottie</b> for rich vector celebrations; <b>Rive</b> for stateful interactive mascots (smaller binary, GPU 60 fps, state machines for idle/listening/celebrate/encourage/streak-risk); <b>GSAP</b> for sequenced DOM storytelling.</li>
+          <li><b>Low-cost plan:</b> one distinctive original character (e.g. a "parlez" parrot / travel companion), 2–3 colours, recognisable silhouette, mini brand guide; build 5 emotion states first as SVG + CSS transforms, then port to a Rive state machine driven by reward events; add XP counters, progress fills and a streak-flame flicker, with one big Lottie celebration for milestones.</li>
+          <li><b>Hygiene:</b> honour <code>prefers-reduced-motion</code> and offer an in-app "reduce animation" toggle; use GPU-friendly <code>transform</code>/<code>opacity</code>; pause offscreen animations; avoid parallax/flashes (WCAG 2.3.1/2.3.3).</li>
+        </ul>
+        <p class="small muted">Sources: <a href="https://blog.duolingo.com/building-character">Duolingo on building characters</a> · <a href="https://uxdesign.cc/why-mascots-like-duo-are-powerful-pieces-of-ux-e378f4da327f">Mascots as UX</a> · <a href="https://rive.app/blog/rive-as-a-lottie-alternative">Rive vs Lottie</a> · <a href="https://web.dev/articles/prefers-reduced-motion">web.dev reduced motion</a></p>
+      </div>
+    </details>
+
+    <details class="note">
+      <summary>10 · Marketing &amp; growth</summary>
+      <div class="note-body">
+        <ul>
+          <li><b>Positioning:</b> "The French you need for Canada PR — built for Nepali speakers." IRCC removed CRS points for arranged employment in March 2025, making language a more controllable lever; French-category draws typically need NCLC 7 in all four skills. Message order: CRS points → A1→B2 mapped to TEF/TCF → speak with AI + partners → made for Nepali learners (Nepali explanations, low data usage).</li>
+          <li><b>Content/SEO:</b> high-intent queries ("TEF Canada prep from Nepal", "NCLC 7 vocabulary", "French for Canada PR", "French classes Kathmandu online"); free CEFR/TEF level checker and immigration glossary; bilingual pages; FAQ/HowTo schema; mascot-led short-form video.</li>
+          <li><b>Partnerships:</b> Alliance Française de Katmandou (the recognised exam centre in Nepal) for co-branded prep funnels/referrals; migration consultants and study-abroad agents; colleges/French departments; Canadian Nepali community associations for beta testers.</li>
+          <li><b>Lifecycle:</b> referral ("2 friends → 1 month Plus"), freemium core lessons, <b>push annual plans</b> (71% of Duolingo subscribers are annual, ~2× LTV), weekly moderated "French café" voice rooms, micro-influencers with affiliate codes. All claims must match the legal disclaimers.</li>
+          <li><b>Measurement:</b> Duolingo runs ~500 A/B tests/quarter and lifted D1 retention from 12% to &gt;40%. Track activation (first lesson, first speaking drill), D1/D7/D30, streak ≥7 rate, mastery progression, conversations/week, free→paid, annual mix, referral K-factor — with privacy-safe instrumentation and "mission trumps metrics" guardrails.</li>
+        </ul>
+        <p class="small muted">Sources: <a href="https://blog.duolingo.com/improving-duolingo-one-experiment-at-a-time">Duolingo experimentation</a> · <a href="https://www.purchasely.com/blog/edtech-and-language-learning-insights-from-babbel-and-duolingo">IPO filing insights</a> · <a href="https://alliancefrancaise.org.np/french-class-for-schools">AF Kathmandu partnerships</a> · <a href="https://lennysnewsletter.com/p/how-duolingo-reignited-user-growth">Duolingo referrals</a></p>
+      </div>
+    </details>
+  </div>
+
+  <h2><span class="num">02</span>Known defects backlog (from code audit)</h2>
+  <table>
+    <thead><tr><th>ID</th><th>Severity</th><th>Defect</th><th>Location</th><th>Fix in</th></tr></thead>
+    <tbody>
+      <tr><td class="id">BUG-01</td><td><span class="badge b-blocked">Critical</span></td><td><strong>Exam answers cannot be selected</strong> — <code>data-action="select-exam-answer"</code> has no case in the delegated switch; <code>window.selectExamAnswer</code> is orphaned. The core TEF/TCF practice feature is broken.</td><td><code>app.js:2952,3049</code></td><td>P4 / P2</td></tr>
+      <tr><td class="id">BUG-02</td><td><span class="badge b-blocked">Critical</span></td><td><strong>Stored-XSS risk</strong> — unescaped API/user data injected as HTML for flashcards, writing feedback, exam review prompts/explanations and scenario labels.</td><td><code>app.js:2217-2223,2436,3099-3101,1898</code></td><td>P2</td></tr>
+      <tr><td class="id">BUG-03</td><td><span class="badge b-blocked">High</span></td><td>Dead delegated actions: <code>submit-content-ingest</code>, <code>delete-comment</code>, <code>copy-share-link</code>, <code>delete-share</code> (orphaned <code>window.*</code> handlers).</td><td><code>app.js:2292,3216,3301-3311</code></td><td>P2 / P3</td></tr>
+      <tr><td class="id">BUG-04</td><td><span class="badge b-active">Medium</span></td><td>Markdown <code>##</code> headings render a literal <code>$2</code> (regex has one capture group but replacement uses <code>$2</code>).</td><td><code>app.js:792</code></td><td>P2</td></tr>
+      <tr><td class="id">BUG-05</td><td><span class="badge b-active">Medium</span></td><td>Hidden <code>#fileInput</code> has no UI and no code — document upload/ingestion unreachable; styled <code>.btn-attach</code> does not exist.</td><td><code>index.html:191</code></td><td>P2</td></tr>
+      <tr><td class="id">BUG-06</td><td><span class="badge b-active">Medium</span></td><td>Navigation state lost on every tool switch (full <code>innerHTML</code> replacement), no back/deep-link; native <code>confirm()/alert()</code> clashes with custom modals; sidebar sections all collapsed; icon-only actions unlabelled on mobile.</td><td><code>app.js:1158-1204</code>, <code>index.html:78-170</code></td><td>P2</td></tr>
+      <tr><td class="id">BUG-07</td><td><span class="badge b-planned">Low</span></td><td>Polish: auth labels lack <code>for</code>; stale "More levels coming soon" copy; multi-line user messages collapse; reveal FOUC; exam timer uses tick count not wall clock; no-op <code>scrollTo</code> under <code>overflow:hidden</code>; dead <code>.mosaic</code> perspective.</td><td>various</td><td>P2</td></tr>
+      <tr><td class="id">BUG-08</td><td><span class="badge b-blocked">Critical</span></td><td><strong>Chatbot can return empty/truncated answers reported as success</strong> — reasoning model shares <code>max_tokens</code> with output; app hardcodes 2048, never disables thinking, never checks <code>finish_reason</code>, and counts 200-with-empty-content as success.</td><td><code>main.py:1102-1156,2157-2184</code></td><td>P5</td></tr>
+      <tr><td class="id">BUG-09</td><td><span class="badge b-blocked">Critical</span></td><td><strong>Lesson vocabulary/grammar never reaches the model</strong> — <code>lesson_ctx</code> is built but the system prompt only uses title/description/objectives while demanding the model show the lesson data.</td><td><code>main.py:2119-2126</code>, <code>engine/__init__.py:134-151</code></td><td>P5</td></tr>
+      <tr><td class="id">BUG-10</td><td><span class="badge b-blocked">High</span></td><td>New learners treated as 0% accurate → "30% French / 70% English" and 4 simplified exercises on their very first chat.</td><td><code>engine/adaptive.py:21-26,119-143</code></td><td>P5</td></tr>
+      <tr><td class="id">BUG-11</td><td><span class="badge b-blocked">High</span></td><td>Daily LLM budget is non-atomic and only saved on success: concurrency overruns, failed calls free, whole-blob rewrites lose messages/XP, 429 message says UTC but code uses local date.</td><td><code>main.py:1033-1052,2092-2196</code></td><td>P5</td></tr>
+      <tr><td class="id">BUG-12</td><td><span class="badge b-active">Medium</span></td><td>Up to ~3 min per chat (3×60 s retries, no overall deadline, no fallback); browser <code>fetch</code> has no timeout; UI never sends <code>mode</code>/<code>lesson_id</code>/<code>scenario_id</code>.</td><td><code>main.py:1125-1210</code>, <code>static/app.js:1282-1299</code></td><td>P5</td></tr>
+    </tbody>
+  </table>
+
+  <h2><span class="num">03</span>Phases &amp; sub-phases</h2>
+
+  <!-- PHASE 0 -->
+  <details class="phase" open>
+    <summary><span class="phase-id">P0</span><span class="phase-title">Research, evidence &amp; roadmap</span><span class="badge b-active">Active</span></summary>
+    <div class="phase-body">
+      <p class="phase-intro">Establish an evidence base before changing product or content. This phase produces this tracker and the research notes above.</p>
+      <table>
+        <thead><tr><th>ID</th><th>Sub-phase</th><th>Status</th><th>Deliverable / acceptance criteria</th></tr></thead>
+        <tbody>
+          <tr><td class="id">0.1</td><td><strong>Repo &amp; architecture audit</strong></td><td><span class="badge b-done">Done</span></td><td>Current stack, course model, auth, chatbot path, reward logic and gaps documented in the research brief.</td></tr>
+          <tr><td class="id">0.2</td><td><strong>External research: 10 workstreams</strong></td><td><span class="badge b-done">Done</span></td><td>Sourced findings for curriculum/exams, competitors, payments, legal, gamification, UX and marketing in the research brief; 12 concrete defects logged.</td></tr>
+          <tr><td class="id">0.3</td><td><strong>Create &amp; maintain progress.html</strong></td><td><span class="badge b-done">Done</span></td><td>This file: phases, sub-phases, statuses, acceptance criteria, defect backlog and activity log; updated as work lands.</td></tr>
+          <tr><td class="id">0.4</td><td><strong>Prioritisation &amp; sequencing decision</strong></td><td><span class="badge b-planned">Planned</span></td><td>Owner signs off on phase order and scope for the next build cycle.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <!-- PHASE 1 -->
+  <details class="phase">
+    <summary><span class="phase-id">P1</span><span class="phase-title">Trust, legal &amp; safety foundation</span><span class="badge b-planned">Planned</span></summary>
+    <div class="phase-body">
+      <p class="phase-intro">Workstream 06. Put honest, reviewable legal pages in place before charging money or making claims — the cheapest risk reduction available.</p>
+      <table>
+        <thead><tr><th>ID</th><th>Sub-phase</th><th>Status</th><th>Deliverable / acceptance criteria</th></tr></thead>
+        <tbody>
+          <tr><td class="id">1.1</td><td>Terms of Service</td><td><span class="badge b-planned">Planned</span></td><td>Acceptable use, accounts, IP, subscriptions, termination, governing law; lawyer-reviewed before launch.</td></tr>
+          <tr><td class="id">1.2</td><td>Privacy Policy &amp; data handling</td><td><span class="badge b-planned">Planned</span></td><td>What is stored (email, learning data, chat logs), AI providers, retention, user rights, cookies.</td></tr>
+          <tr><td class="id">1.3</td><td>Educational disclaimers</td><td><span class="badge b-planned">Planned</span></td><td>No immigration/legal advice; no CEFR/NCLC certification; no exam-score or PR guarantee; AI content accuracy; third-party links.</td></tr>
+          <tr><td class="id">1.4</td><td>Refund, cancellation &amp; billing policy</td><td><span class="badge b-planned">Planned</span></td><td>Consistent with payment provider policies; visible at checkout and in account settings.</td></tr>
+          <tr><td class="id">1.5</td><td>Legal pages in app</td><td><span class="badge b-planned">Planned</span></td><td>Routes/pages linked from landing, signup, checkout and footer; versioned with effective dates.</td></tr>
+        </tbody>
+      </table>
+      <div class="callout warn">Research output only — not legal advice. A qualified lawyer must review before public launch.</div>
+    </div>
+  </details>
+
+  <!-- PHASE 2 -->
+  <details class="phase">
+    <summary><span class="phase-id">P2</span><span class="phase-title">Brand, landing page &amp; first impression</span><span class="badge b-planned">Planned</span></summary>
+    <div class="phase-body">
+      <p class="phase-intro">Workstreams 01 + 09 (visual half). Make the product look and feel like the best French study platform, with a signature character people remember.</p>
+      <table>
+        <thead><tr><th>ID</th><th>Sub-phase</th><th>Status</th><th>Deliverable / acceptance criteria</th></tr></thead>
+        <tbody>
+          <tr><td class="id">2.1</td><td>Visual identity &amp; design tokens</td><td><span class="badge b-planned">Planned</span></td><td>Type, palette, spacing, motion and illustration direction documented; reusable CSS tokens.</td></tr>
+          <tr><td class="id">2.2</td><td>Landing page rebuild</td><td><span class="badge b-planned">Planned</span></td><td>Modern hero, proof, features, curriculum/exam paths, pricing placeholder, FAQ, strong CTAs.</td></tr>
+          <tr><td class="id">2.3</td><td>Responsive &amp; accessible</td><td><span class="badge b-planned">Planned</span></td><td>Mobile-first, keyboard/screen-reader friendly, reduced-motion support, fast load.</td></tr>
+          <tr><td class="id">2.4</td><td>Mascot design</td><td><span class="badge b-planned">Planned</span></td><td>Original character with expression set; usable in app, landing and marketing; brand guidelines.</td></tr>
+          <tr><td class="id">2.5</td><td>Motion &amp; delight layer</td><td><span class="badge b-planned">Planned</span></td><td>Lottie/SVG micro-interactions, reactions, celebratory moments; performance budget + reduced-motion fallback.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <!-- PHASE 3 -->
+  <details class="phase">
+    <summary><span class="phase-id">P3</span><span class="phase-title">Admin panel review &amp; upgrade</span><span class="badge b-planned">Planned</span></summary>
+    <div class="phase-body">
+      <p class="phase-intro">Workstream 02. Understand how the console works today, then fix what blocks content and user operations.</p>
+      <table>
+        <thead><tr><th>ID</th><th>Sub-phase</th><th>Status</th><th>Deliverable / acceptance criteria</th></tr></thead>
+        <tbody>
+          <tr><td class="id">3.1</td><td>Document current admin capabilities &amp; auth/MFA flow</td><td><span class="badge b-planned">Planned</span></td><td>Written map of routes, permissions, session/CSRF behaviour and audit log.</td></tr>
+          <tr><td class="id">3.2</td><td>Fix defects &amp; rough edges</td><td><span class="badge b-planned">Planned</span></td><td>Prioritised list from audit closed with regression tests.</td></tr>
+          <tr><td class="id">3.3</td><td>Content &amp; reviewer workflow</td><td><span class="badge b-planned">Planned</span></td><td>First-class review/attestation, versioning and publish controls for curriculum and exam content.</td></tr>
+          <tr><td class="id">3.4</td><td>Operations UX</td><td><span class="badge b-planned">Planned</span></td><td>Users, health, observability and revenue views in one coherent dashboard.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <!-- PHASE 4 -->
+  <details class="phase">
+    <summary><span class="phase-id">P4</span><span class="phase-title">Curriculum &amp; real courses</span><span class="badge b-planned">Planned</span></summary>
+    <div class="phase-body">
+      <p class="phase-intro">Workstream 03 — the heart of the product. Replace "topic + grammar list" lessons with a task-led, evidence-informed syllabus and honest exam prep.</p>
+      <table>
+        <thead><tr><th>ID</th><th>Sub-phase</th><th>Status</th><th>Deliverable / acceptance criteria</th></tr></thead>
+        <tbody>
+          <tr><td class="id">4.1</td><td>Curriculum framework &amp; standards</td><td><span class="badge b-planned">Planned</span></td><td>CEFR Companion Volume can-do outcomes, four activities + mediation, phonology strand, SRS revisits at 1/3/7/30 days, interleaving, TBLT capstones with CAF rubrics.</td></tr>
+          <tr><td class="id">4.2</td><td>Source register &amp; rights</td><td><span class="badge b-planned">Planned</span></td><td>Register authoritative references (CoE, IRCC, FEI, CCI), link out to TV5MONDE/RFI/official samples; no past papers or copyrighted PDFs rehosted; attribution and licence fields per asset.</td></tr>
+          <tr><td class="id">4.3</td><td>Authoring pipeline &amp; schema</td><td><span class="badge b-planned">Planned</span></td><td>Versioned content models with provenance, review state, asset licenses and automated integrity checks.</td></tr>
+          <tr><td class="id">4.4</td><td>A1–B2 mission-led rewrite</td><td><span class="badge b-planned">Planned</span></td><td>Sub-levels A1.1–B2.3; 8–10 units/level; repeatable lesson: retrieval → graded input → noticing → interleaved practice with explanations → TBLT task → feedback → SRS + can-do self-check.</td></tr>
+          <tr><td class="id">4.5</td><td>TEF Canada / TCF Canada tracks</td><td><span class="badge b-planned">Planned</span></td><td>Version-accurate formats (TCF 2h47 / 39+39 MCQ; TEF ~2h55 / 40+40 MCQ), both TEF score scales with Express Entry "Équivalence ancien score" warning, NCLC 7 targets, original prompts, "verified on" dates, no official-mock claims.</td></tr>
+          <tr><td class="id">4.6</td><td>Assessment &amp; placement</td><td><span class="badge b-planned">Planned</span></td><td>Level check, per-skill mastery estimates, honest reporting that practice accuracy ≠ official score.</td></tr>
+          <tr><td class="id">4.7</td><td>Reviewer attestation &amp; publishing</td><td><span class="badge b-planned">Planned</span></td><td>Qualified FLE reviewer + second reviewer for exam items, independent level benchmarking, pilot evidence file, provenance/version fields, 90-day exam-fact re-verification, public claims register; status labels draft/practice/reviewed.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <!-- PHASE 5 -->
+  <details class="phase">
+    <summary><span class="phase-id">P5</span><span class="phase-title">Chatbot audit &amp; rebuild</span><span class="badge b-planned">Planned</span></summary>
+    <div class="phase-body">
+      <p class="phase-intro">Workstream 04. Diagnose why the tutor feels broken, then make it a reliable, curriculum-aware French tutor.</p>
+      <table>
+        <thead><tr><th>ID</th><th>Sub-phase</th><th>Status</th><th>Deliverable / acceptance criteria</th></tr></thead>
+        <tbody>
+          <tr><td class="id">5.1</td><td>Trace &amp; reproduce failures</td><td><span class="badge b-planned">Planned</span></td><td>Full path mapped; BUG-08…BUG-12 reproduced and fixed first (stream/JSON + reasoning budget, <code>finish_reason</code> validation, empty-content rejection).</td></tr>
+          <tr><td class="id">5.2</td><td>Prompt &amp; persona redesign</td><td><span class="badge b-planned">Planned</span></td><td>Slim the ~4.9k-char always-on spec to the active mode; consistent language ratio; level-adaptive French-first tutor with correction protocol and guardrails.</td></tr>
+          <tr><td class="id">5.3</td><td>Grounding in courses &amp; memory</td><td><span class="badge b-planned">Planned</span></td><td>Actually inject bounded lesson vocabulary/grammar/dialogue/cultural notes into the system prompt (BUG-09); new learners treated as unknown ability, not 0% (BUG-10); forward mode/lesson/scenario from UI.</td></tr>
+          <tr><td class="id">5.4</td><td>Reliability &amp; streaming</td><td><span class="badge b-planned">Planned</span></td><td>Total request deadline + shorter per-attempt timeouts, <code>Retry-After</code>, SSE streaming, provider fallback/circuit breaker, distinct user-visible errors; no fake replies on failure.</td></tr>
+          <tr><td class="id">5.5</td><td>Safety, limits &amp; observability</td><td><span class="badge b-planned">Planned</span></td><td>Durable atomic UTC-keyed LLM budget (BUG-11), per-user throttling, token-aware context trimming, input/output moderation, instrument <code>finish_reason</code>/prompt size/budget 429s.</td></tr>
+          <tr><td class="id">5.6</td><td>Regression suite</td><td><span class="badge b-planned">Planned</span></td><td>Tests asserting lesson words reach the provider, empty/<code>length</code> responses are failures, plus French focus, XSS, mode detection and mocked-provider paths.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <!-- PHASE 6 -->
+  <details class="phase">
+    <summary><span class="phase-id">P6</span><span class="phase-title">Real-time conversation &amp; speech</span><span class="badge b-planned">Planned</span></summary>
+    <div class="phase-body">
+      <p class="phase-intro">Workstream 05. Close the gap with apps like Falou: speaking practice that feels like a real conversation.</p>
+      <table>
+        <thead><tr><th>ID</th><th>Sub-phase</th><th>Status</th><th>Deliverable / acceptance criteria</th></tr></thead>
+        <tbody>
+          <tr><td class="id">6.1</td><td>Competitor &amp; tech research</td><td><span class="badge b-planned">Planned</span></td><td>Falou/Duolingo Max/voice-app patterns; ASR/TTS/pronunciation-scoring options with cost and latency notes.</td></tr>
+          <tr><td class="id">6.2</td><td>Voice conversation MVP</td><td><span class="badge b-planned">Planned</span></td><td>Browser speech input + TTS reply + turn-taking, scoped to A1 scenarios, with transcript and privacy notice.</td></tr>
+          <tr><td class="id">6.3</td><td>Pronunciation &amp; feedback</td><td><span class="badge b-planned">Planned</span></td><td>Listen-and-repeat, intelligibility feedback, replay/slow speed, no overpromising on accent scoring.</td></tr>
+          <tr><td class="id">6.4</td><td>Conversation scenarios</td><td><span class="badge b-planned">Planned</span></td><td>Role-plays tied to units and exam speaking tasks; rubrics and progress saved to learner profile.</td></tr>
+          <tr><td class="id">6.5</td><td>Performance, privacy, a11y</td><td><span class="badge b-planned">Planned</span></td><td>Latency budget, explicit consent, data retention controls, captions, reduced-motion support.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <!-- PHASE 7 -->
+  <details class="phase">
+    <summary><span class="phase-id">P7</span><span class="phase-title">Payments &amp; monetisation (Nepal first)</span><span class="badge b-planned">Planned</span></summary>
+    <div class="phase-body">
+      <p class="phase-intro">Workstream 07. Seamless purchase flow with a Nepal-first gateway and an international path that does not require rebuilding billing later.</p>
+      <table>
+        <thead><tr><th>ID</th><th>Sub-phase</th><th>Status</th><th>Deliverable / acceptance criteria</th></tr></thead>
+        <tbody>
+          <tr><td class="id">7.1</td><td>Gateway research &amp; decision</td><td><span class="badge b-planned">Planned</span></td><td>Research complete: Khalti + eSewa first, Fonepay QR/connectIPS next, Paddle for international. Confirm fees in writing and re-verify availability before signing.</td></tr>
+          <tr><td class="id">7.2</td><td>Pricing, plans &amp; entitlements</td><td><span class="badge b-planned">Planned</span></td><td>Freemium vs paid, AI allowance, plan table in DB, entitlement checks across the app.</td></tr>
+          <tr><td class="id">7.3</td><td>Checkout UX</td><td><span class="badge b-planned">Planned</span></td><td>Redirect/QR flow that returns the learner to exactly where they left off; clear status and failure recovery.</td></tr>
+          <tr><td class="id">7.4</td><td>Webhooks, security, idempotency</td><td><span class="badge b-planned">Planned</span></td><td>Signature verification, replay protection, idempotent fulfilment, refunds, webhook replay tooling.</td></tr>
+          <tr><td class="id">7.5</td><td>International extension</td><td><span class="badge b-planned">Planned</span></td><td>Provider abstraction so Stripe/Paddle/MoR can be added without rewriting entitlement logic.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <!-- PHASE 8 -->
+  <details class="phase">
+    <summary><span class="phase-id">P8</span><span class="phase-title">Reward &amp; retention engine</span><span class="badge b-planned">Planned</span></summary>
+    <div class="phase-body">
+      <p class="phase-intro">Workstream 08. Replace flat XP constants with a system that reinforces learning behaviours, not point-farming.</p>
+      <table>
+        <thead><tr><th>ID</th><th>Sub-phase</th><th>Status</th><th>Deliverable / acceptance criteria</th></tr></thead>
+        <tbody>
+          <tr><td class="id">8.1</td><td>Research &amp; design</td><td><span class="badge b-planned">Planned</span></td><td>Evidence-based mechanics chosen: XP + levels, streaks/freezes, quests, badges, mastery, leagues, with anti-abuse rules.</td></tr>
+          <tr><td class="id">8.2</td><td>Event-based engine</td><td><span class="badge b-planned">Planned</span></td><td>Central event → rule → reward pipeline replacing scattered XP adds; versioned rules; idempotent events.</td></tr>
+          <tr><td class="id">8.3</td><td>Persistence &amp; integrity</td><td><span class="badge b-planned">Planned</span></td><td>Typed tables/columns instead of opaque JSON; daily caps, dedupe, recalculation job and audit trail.</td></tr>
+          <tr><td class="id">8.4</td><td>Learner-facing experience</td><td><span class="badge b-planned">Planned</span></td><td>Progress, streak calendar, quests, badges, meaningful celebrations; tied to real learning evidence.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <!-- PHASE 9 -->
+  <details class="phase">
+    <summary><span class="phase-id">P9</span><span class="phase-title">Marketing &amp; growth</span><span class="badge b-planned">Planned</span></summary>
+    <div class="phase-body">
+      <p class="phase-intro">Workstream 10. Earn trust and learners with honest, measurable acquisition — not hype or false certification claims.</p>
+      <table>
+        <thead><tr><th>ID</th><th>Sub-phase</th><th>Status</th><th>Deliverable / acceptance criteria</th></tr></thead>
+        <tbody>
+          <tr><td class="id">9.1</td><td>Positioning &amp; narrative</td><td><span class="badge b-planned">Planned</span></td><td>Clear promise, audience segments, proof points and claim guardrails aligned with legal disclaimers.</td></tr>
+          <tr><td class="id">9.2</td><td>Content &amp; SEO</td><td><span class="badge b-planned">Planned</span></td><td>Useful free resources (French learning, TEF/TCF guides, Nepal/Canada context) that earn organic traffic.</td></tr>
+          <tr><td class="id">9.3</td><td>Community &amp; partnerships</td><td><span class="badge b-planned">Planned</span></td><td>Alliance Française, colleges, migration consultants, student groups; referral and ambassador loops.</td></tr>
+          <tr><td class="id">9.4</td><td>Lifecycle &amp; referrals</td><td><span class="badge b-planned">Planned</span></td><td>Onboarding, activation emails, streak rescue, referral incentives; all measurable.</td></tr>
+          <tr><td class="id">9.5</td><td>Measurement</td><td><span class="badge b-planned">Planned</span></td><td>Privacy-safe funnel metrics (signup → first lesson → speaking → paid) and A/B test discipline.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <h2><span class="num">04</span>Activity log</h2>
+  <ul class="log">
+    <li><time>2026-11-23</time> All five research threads completed: curriculum/TEF/TCF, payments/legal, gamification/UX/marketing, landing/UX audit, admin/chatbot audit. Findings and source links added to every research card.</li>
+    <li><time>2026-11-23</time> Logged 12 concrete defects (BUG-01…BUG-12) — including unclickable exam answers, stored-XSS, and the two chatbot P0 root causes — with target phases.</li>
+    <li><time>2026-11-23</time> Created <code>progress.html</code> with 10 phases / 50 sub-phases; captured in-repo audit findings and golden rules. External research threads launched.</li>
+    <li><time>2026-11-23</time> Repository prepared: only <code>main</code> branch exists, it is the default, GitHub Actions CI removed, contributor/history requests reviewed (no changes made).</li>
+  </ul>
+
+  <div class="callout"><b>Legitimacy commitment:</b> every curriculum item will cite sources or be original Parlez content; exam prep will be clearly labelled unofficial; no claim of CEFR/NCLC certification, guaranteed scores, or immigration outcomes; legal text will be lawyer-reviewed; payment and personal data will follow provider and data-protection rules.</div>
+
+</main>
+<footer><div class="wrap">Parlez program tracker · living document · update statuses and the activity log in the same commit as the work they describe.</div></footer>
+</body>
+</html>
