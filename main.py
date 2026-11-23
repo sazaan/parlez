@@ -1030,26 +1030,69 @@ def require_admin(request: Request):
     return {"username": ADMIN_USERNAME, "csrf": payload["csrf"], "session_id": payload["jti"]}
 
 
-DAILY_LLM_BUDGET = 100  # Task 3.9: per-user LLM request cap
+DAILY_LLM_BUDGET = 100  # per-user LLM request cap, keyed by UTC date
+CHAT_MAX_TOKENS = 4096  # reasoning models spend part of this budget on thinking
+
+
+def _utc_day() -> str:
+    return datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+
 
 def check_daily_llm_budget(user):
-    """Enforce per-user daily LLM request cap. Mutates `user['llm_daily']`
-    in-place; caller is responsible for save_user() if persistence is needed.
+    """Atomically reserve one LLM request for the user's current UTC day.
 
+    The authoritative counter lives in the typed `llm_usage` table so it is
+    durable, concurrency-safe and consumed even when the provider call fails.
+    The legacy `llm_daily` blob is kept in sync for older clients only.
     Raises 429 when the cap is exceeded.
     """
-    today = datetime.date.today().isoformat()
-    llm_daily = user.setdefault('llm_daily', {'date': today, 'count': 0})
-    if llm_daily.get('date') != today:
-        llm_daily['date'] = today
-        llm_daily['count'] = 0
-    if llm_daily['count'] >= DAILY_LLM_BUDGET:
+    day = _utc_day()
+    used = storage.consume_llm_budget(user["id"], day, DAILY_LLM_BUDGET)
+    if used < 0:
         raise HTTPException(
             status_code=429,
             detail=f"Daily AI tutor limit reached ({DAILY_LLM_BUDGET} requests/day). Resets at midnight UTC.",
         )
-    llm_daily['count'] += 1
-    return llm_daily['count']
+    llm_daily = user.setdefault('llm_daily', {'date': day, 'count': 0})
+    llm_daily['date'] = day
+    llm_daily['count'] = used
+    return used
+
+
+class ProviderResponseInvalid(Exception):
+    """The provider returned HTTP 200 but no usable assistant message."""
+
+    def __init__(self, reason: str):
+        super().__init__(reason)
+        self.reason = reason
+
+
+def extract_assistant_text(result) -> str:
+    """Validate a chat-completions result and return its non-empty text.
+
+    Reasoning models may finish with `finish_reason: "length"` while their
+    visible content is empty. Such a response must be treated as a failure,
+    never as a successful tutor reply. A missing finish_reason is accepted for
+    compatibility with providers (and test doubles) that omit it.
+    """
+    if not isinstance(result, dict):
+        raise ProviderResponseInvalid("unexpected response shape")
+    choices = result.get("choices")
+    if not isinstance(choices, list) or not choices:
+        raise ProviderResponseInvalid("no completion choices")
+    choice = choices[0]
+    if not isinstance(choice, dict):
+        raise ProviderResponseInvalid("invalid completion choice")
+    finish_reason = choice.get("finish_reason")
+    if finish_reason in {"length", "max_tokens", "content_filter"}:
+        raise ProviderResponseInvalid(f"incomplete completion ({finish_reason})")
+    message = choice.get("message")
+    if not isinstance(message, dict):
+        raise ProviderResponseInvalid("invalid completion message")
+    content = message.get("content")
+    if not isinstance(content, str) or not content.strip():
+        raise ProviderResponseInvalid("empty completion")
+    return content.strip()
 
 
 async def call_ai_provider(
@@ -1099,13 +1142,19 @@ async def call_ai_provider(
         record_failure("invalid_model")
         raise HTTPException(status_code=503, detail="The selected AI model is not configured correctly.")
 
+    # Chat uses a larger budget because reasoning models spend part of it on
+    # hidden thinking before emitting the visible answer. All call sites ask
+    # for JSON (never an implicit SSE stream) so a 200 is a complete result.
+    effective_max_tokens = max(max_tokens, CHAT_MAX_TOKENS) if operation == "chat" else max_tokens
     payload = {
         "model": model,
         "messages": messages,
-        "max_tokens": max_tokens,
+        "max_tokens": effective_max_tokens,
         "temperature": 0.6,
         "top_p": 0.95,
+        "stream": False,
     }
+    deadline = started + 90.0  # hard overall cap, independent of per-attempt timeouts
     attempts = 0
     last_http_status = None
     last_error_type = "ProviderUnavailable"
@@ -1122,8 +1171,11 @@ async def call_ai_provider(
             record_exception=False,
             set_status_on_exception=False,
         ) as provider_span:
-            async with httpx.AsyncClient(timeout=60.0) as client:
+            async with httpx.AsyncClient(timeout=30.0) as client:
                 for attempt in range(3):
+                    if time.monotonic() >= deadline:
+                        last_error_type = "ProviderTimeout"
+                        break
                     attempts = attempt + 1
                     try:
                         with get_tracer().start_as_current_span(
@@ -1142,6 +1194,7 @@ async def call_ai_provider(
                                 headers={
                                     "Authorization": f"Bearer {api_key}",
                                     "Content-Type": "application/json",
+                                    "Accept": "application/json",
                                 },
                                 json=payload,
                             )
@@ -1154,39 +1207,51 @@ async def call_ai_provider(
                                     attempt_span.set_attribute("parlez.error_type", type(exc).__name__)
                                     attempt_span.set_status(Status(StatusCode.ERROR))
                                     raise HTTPException(status_code=502, detail="AI provider returned an invalid response.") from exc
-                                usage = result.get("usage") if isinstance(result, dict) else None
-                                input_tokens = _safe_token_count(usage, "prompt_tokens", "input_tokens")
-                                output_tokens = _safe_token_count(usage, "completion_tokens", "output_tokens")
-                                duration = max(0.0, time.perf_counter() - started)
-                                observe_ai_call(
-                                    provider=provider,
-                                    operation=normalized_operation,
-                                    outcome="success",
-                                    duration_seconds=duration,
-                                    input_tokens=input_tokens,
-                                    output_tokens=output_tokens,
-                                )
-                                provider_span.set_attribute("parlez.outcome", "success")
-                                provider_span.set_attribute("parlez.attempt", attempts)
-                                provider_span.set_status(Status(StatusCode.OK))
-                                log_event(
-                                    "ai.provider.call.completed",
-                                    logging.INFO,
-                                    provider=provider,
-                                    model=model,
-                                    operation=normalized_operation,
-                                    outcome="success",
-                                    attempts=attempts,
-                                    input_tokens=input_tokens or 0,
-                                    output_tokens=output_tokens or 0,
-                                    duration_ms=round(duration * 1000, 2),
-                                )
-                                recorded = True
-                                return result
+                                try:
+                                    extract_assistant_text(result)
+                                except ProviderResponseInvalid as exc:
+                                    # A 200 with empty/truncated content is a failure, not a
+                                    # success. Retry, then surface a 503 if all attempts fail.
+                                    last_error_type = "ProviderResponseInvalid"
+                                    attempt_span.set_attribute("parlez.error_type", last_error_type)
+                                    attempt_span.set_attribute("parlez.invalid_reason", exc.reason[:80])
+                                    attempt_span.set_status(Status(StatusCode.ERROR))
+                                else:
+                                    usage = result.get("usage") if isinstance(result, dict) else None
+                                    input_tokens = _safe_token_count(usage, "prompt_tokens", "input_tokens")
+                                    output_tokens = _safe_token_count(usage, "completion_tokens", "output_tokens")
+                                    duration = max(0.0, time.perf_counter() - started)
+                                    observe_ai_call(
+                                        provider=provider,
+                                        operation=normalized_operation,
+                                        outcome="success",
+                                        duration_seconds=duration,
+                                        input_tokens=input_tokens,
+                                        output_tokens=output_tokens,
+                                    )
+                                    provider_span.set_attribute("parlez.outcome", "success")
+                                    provider_span.set_attribute("parlez.attempt", attempts)
+                                    provider_span.set_status(Status(StatusCode.OK))
+                                    log_event(
+                                        "ai.provider.call.completed",
+                                        logging.INFO,
+                                        provider=provider,
+                                        model=model,
+                                        operation=normalized_operation,
+                                        outcome="success",
+                                        attempts=attempts,
+                                        input_tokens=input_tokens or 0,
+                                        output_tokens=output_tokens or 0,
+                                        duration_ms=round(duration * 1000, 2),
+                                    )
+                                    recorded = True
+                                    return result
                             if response.status_code == 429 or response.status_code >= 500:
                                 last_error_type = "ProviderHTTPError"
                                 attempt_span.set_status(Status(StatusCode.ERROR))
-                            else:
+                            elif response.status_code != 200:
+                                # A 200 with unusable content was already handled above
+                                # and deliberately falls through to the retry.
                                 last_error_type = "ProviderRejectedRequest"
                                 attempt_span.set_status(Status(StatusCode.ERROR))
                                 raise HTTPException(status_code=502, detail=f"AI request failed ({response.status_code}).")
@@ -1241,7 +1306,7 @@ def _safe_token_count(usage, *keys) -> int | None:
     return None
 
 
-async def call_nvidia(messages, max_tokens=2048, operation="chat"):
+async def call_nvidia(messages, max_tokens=CHAT_MAX_TOKENS, operation="chat"):
     """Legacy call-site name; dispatches through the admin-selected provider."""
     config = get_active_ai_config()
     return await call_ai_provider(
@@ -2153,16 +2218,22 @@ async def chat(request: Request, msg: ChatMessage, user=Depends(require_auth)):
         messages.append({"role": m["role"], "content": m["content"]})
     messages.append({"role": "user", "content": message})
     
-    # Call AI
+    # Call AI. A 200 with an empty/truncated message is a failure: never persist
+    # a fake assistant reply or award XP for it.
     try:
-        r = await call_nvidia(messages)
-        resp = r["choices"][0]["message"]["content"]
+        r = await call_nvidia(messages, max_tokens=CHAT_MAX_TOKENS)
+        resp = extract_assistant_text(r)
+    except ProviderResponseInvalid as exc:
+        logger.error("Chat provider returned unusable content: %s", exc.reason)
+        raise HTTPException(
+            status_code=502,
+            detail="The tutor produced an empty response. Please try again.",
+        )
     except HTTPException:
         raise
     except Exception:
         # Don't leak exception text to the client (fixes S11). Mirror the
-        # /api/writing/correct pattern: log internally, return a generic 503,
-        # and do NOT persist a fake assistant reply or award XP.
+        # /api/writing/correct pattern: log internally, return a generic 503.
         logger.exception("Chat LLM call failed")
         raise HTTPException(
             status_code=503,
@@ -2845,7 +2916,13 @@ async def correct_writing(req: WritingCorrectionRequest, user=Depends(require_au
     
     try:
         r = await call_nvidia(messages, operation="writing_correction")
-        resp = r["choices"][0]["message"]["content"]
+        resp = extract_assistant_text(r)
+    except ProviderResponseInvalid as exc:
+        logger.error("Writing correction provider returned unusable content: %s", exc.reason)
+        raise HTTPException(
+            status_code=502,
+            detail="The writing coach produced an empty response. Please try again.",
+        )
     except HTTPException:
         raise
     except Exception:

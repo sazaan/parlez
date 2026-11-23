@@ -94,8 +94,8 @@
   <section class="stats" aria-label="Program summary">
     <div class="stat"><b>10</b><small>Workstreams</small></div>
     <div class="stat"><b>10</b><small>Phases</small></div>
-    <div class="stat"><b>2 / 50</b><small>Sub-phases done</small></div>
-    <div class="stat"><b>0</b><small>Research threads open</small></div>
+    <div class="stat"><b>6 / 50</b><small>Sub-phases done</small></div>
+    <div class="stat"><b>5 / 12</b><small>Defects fixed</small></div>
   </section>
 
   <h2><span class="num">00</span>How to read this document</h2>
@@ -279,11 +279,11 @@
       <tr><td class="id">BUG-05</td><td><span class="badge b-active">Medium</span></td><td>Hidden <code>#fileInput</code> has no UI and no code — document upload/ingestion unreachable; styled <code>.btn-attach</code> does not exist.</td><td><code>index.html:191</code></td><td>P2</td></tr>
       <tr><td class="id">BUG-06</td><td><span class="badge b-active">Medium</span></td><td>Navigation state lost on every tool switch (full <code>innerHTML</code> replacement), no back/deep-link; native <code>confirm()/alert()</code> clashes with custom modals; sidebar sections all collapsed; icon-only actions unlabelled on mobile.</td><td><code>app.js:1158-1204</code>, <code>index.html:78-170</code></td><td>P2</td></tr>
       <tr><td class="id">BUG-07</td><td><span class="badge b-planned">Low</span></td><td>Polish: auth labels lack <code>for</code>; stale "More levels coming soon" copy; multi-line user messages collapse; reveal FOUC; exam timer uses tick count not wall clock; no-op <code>scrollTo</code> under <code>overflow:hidden</code>; dead <code>.mosaic</code> perspective.</td><td>various</td><td>P2</td></tr>
-      <tr><td class="id">BUG-08</td><td><span class="badge b-blocked">Critical</span></td><td><strong>Chatbot can return empty/truncated answers reported as success</strong> — reasoning model shares <code>max_tokens</code> with output; app hardcodes 2048, never disables thinking, never checks <code>finish_reason</code>, and counts 200-with-empty-content as success.</td><td><code>main.py:1102-1156,2157-2184</code></td><td>P5</td></tr>
-      <tr><td class="id">BUG-09</td><td><span class="badge b-blocked">Critical</span></td><td><strong>Lesson vocabulary/grammar never reaches the model</strong> — <code>lesson_ctx</code> is built but the system prompt only uses title/description/objectives while demanding the model show the lesson data.</td><td><code>main.py:2119-2126</code>, <code>engine/__init__.py:134-151</code></td><td>P5</td></tr>
-      <tr><td class="id">BUG-10</td><td><span class="badge b-blocked">High</span></td><td>New learners treated as 0% accurate → "30% French / 70% English" and 4 simplified exercises on their very first chat.</td><td><code>engine/adaptive.py:21-26,119-143</code></td><td>P5</td></tr>
-      <tr><td class="id">BUG-11</td><td><span class="badge b-blocked">High</span></td><td>Daily LLM budget is non-atomic and only saved on success: concurrency overruns, failed calls free, whole-blob rewrites lose messages/XP, 429 message says UTC but code uses local date.</td><td><code>main.py:1033-1052,2092-2196</code></td><td>P5</td></tr>
-      <tr><td class="id">BUG-12</td><td><span class="badge b-active">Medium</span></td><td>Up to ~3 min per chat (3×60 s retries, no overall deadline, no fallback); browser <code>fetch</code> has no timeout; UI never sends <code>mode</code>/<code>lesson_id</code>/<code>scenario_id</code>.</td><td><code>main.py:1125-1210</code>, <code>static/app.js:1282-1299</code></td><td>P5</td></tr>
+      <tr><td class="id">BUG-08</td><td><span class="badge b-blocked">Critical</span></td><td><strong>Chatbot can return empty/truncated answers reported as success</strong> — reasoning model shares <code>max_tokens</code> with output; app hardcodes 2048, never disables thinking, never checks <code>finish_reason</code>, and counts 200-with-empty-content as success.</td><td><code>main.py:1102-1156,2157-2184</code></td><td>P5 · Fixed</td></tr>
+      <tr><td class="id">BUG-09</td><td><span class="badge b-blocked">Critical</span></td><td><strong>Lesson vocabulary/grammar never reaches the model</strong> — <code>lesson_ctx</code> is built but the system prompt only uses title/description/objectives while demanding the model show the lesson data.</td><td><code>main.py:2119-2126</code>, <code>engine/__init__.py:134-151</code></td><td>P5 · Fixed</td></tr>
+      <tr><td class="id">BUG-10</td><td><span class="badge b-blocked">High</span></td><td>New learners treated as 0% accurate → "30% French / 70% English" and 4 simplified exercises on their very first chat.</td><td><code>engine/adaptive.py:21-26,119-143</code></td><td>P5 · Fixed</td></tr>
+      <tr><td class="id">BUG-11</td><td><span class="badge b-blocked">High</span></td><td>Daily LLM budget is non-atomic and only saved on success: concurrency overruns, failed calls free, whole-blob rewrites lose messages/XP, 429 message says UTC but code uses local date.</td><td><code>main.py:1033-1052,2092-2196</code></td><td>P5 · Fixed</td></tr>
+      <tr><td class="id">BUG-12</td><td><span class="badge b-active">Medium</span></td><td>Up to ~3 min per chat (3×60 s retries, no overall deadline, no fallback); browser <code>fetch</code> has no timeout; UI never sends <code>mode</code>/<code>lesson_id</code>/<code>scenario_id</code>.</td><td><code>main.py:1125-1210</code>, <code>static/app.js:1282-1299</code></td><td>P5 · Fixed</td></tr>
     </tbody>
   </table>
 
@@ -382,18 +382,18 @@
 
   <!-- PHASE 5 -->
   <details class="phase">
-    <summary><span class="phase-id">P5</span><span class="phase-title">Chatbot audit &amp; rebuild</span><span class="badge b-planned">Planned</span></summary>
+    <summary><span class="phase-id">P5</span><span class="phase-title">Chatbot audit &amp; rebuild</span><span class="badge b-active">Active</span></summary>
     <div class="phase-body">
       <p class="phase-intro">Workstream 04. Diagnose why the tutor feels broken, then make it a reliable, curriculum-aware French tutor.</p>
       <table>
         <thead><tr><th>ID</th><th>Sub-phase</th><th>Status</th><th>Deliverable / acceptance criteria</th></tr></thead>
         <tbody>
-          <tr><td class="id">5.1</td><td>Trace &amp; reproduce failures</td><td><span class="badge b-planned">Planned</span></td><td>Full path mapped; BUG-08…BUG-12 reproduced and fixed first (stream/JSON + reasoning budget, <code>finish_reason</code> validation, empty-content rejection).</td></tr>
-          <tr><td class="id">5.2</td><td>Prompt &amp; persona redesign</td><td><span class="badge b-planned">Planned</span></td><td>Slim the ~4.9k-char always-on spec to the active mode; consistent language ratio; level-adaptive French-first tutor with correction protocol and guardrails.</td></tr>
-          <tr><td class="id">5.3</td><td>Grounding in courses &amp; memory</td><td><span class="badge b-planned">Planned</span></td><td>Actually inject bounded lesson vocabulary/grammar/dialogue/cultural notes into the system prompt (BUG-09); new learners treated as unknown ability, not 0% (BUG-10); forward mode/lesson/scenario from UI.</td></tr>
-          <tr><td class="id">5.4</td><td>Reliability &amp; streaming</td><td><span class="badge b-planned">Planned</span></td><td>Total request deadline + shorter per-attempt timeouts, <code>Retry-After</code>, SSE streaming, provider fallback/circuit breaker, distinct user-visible errors; no fake replies on failure.</td></tr>
-          <tr><td class="id">5.5</td><td>Safety, limits &amp; observability</td><td><span class="badge b-planned">Planned</span></td><td>Durable atomic UTC-keyed LLM budget (BUG-11), per-user throttling, token-aware context trimming, input/output moderation, instrument <code>finish_reason</code>/prompt size/budget 429s.</td></tr>
-          <tr><td class="id">5.6</td><td>Regression suite</td><td><span class="badge b-planned">Planned</span></td><td>Tests asserting lesson words reach the provider, empty/<code>length</code> responses are failures, plus French focus, XSS, mode detection and mocked-provider paths.</td></tr>
+          <tr><td class="id">5.1</td><td>Trace &amp; reproduce failures</td><td><span class="badge b-done">Done</span></td><td>BUG-08…BUG-12 fixed: JSON/stream negotiation, 4096-token chat budget, <code>finish_reason</code> + empty-content rejection with retry, total 90 s deadline, mode forwarding and browser timeout.</td></tr>
+          <tr><td class="id">5.2</td><td>Prompt &amp; persona redesign</td><td><span class="badge b-active">Active</span></td><td>Language ratio no longer collapses for new learners. Still to do: slim the ~4.9k-char always-on exercise-format spec to the active mode and reconcile the base-ratio instructions.</td></tr>
+          <tr><td class="id">5.3</td><td>Grounding in courses &amp; memory</td><td><span class="badge b-done">Done</span></td><td>Bounded, serialized lesson vocabulary/grammar/dialogue/cultural note now injected into the system prompt (BUG-09); new learners treated as unknown ability (BUG-10); UI forwards mode/lesson/scenario.</td></tr>
+          <tr><td class="id">5.4</td><td>Reliability &amp; streaming</td><td><span class="badge b-active">Active</span></td><td>Done: 30 s per-attempt timeout, 90 s overall deadline, distinct empty-response error. Still to do: SSE streaming, <code>Retry-After</code>, provider fallback/circuit breaker.</td></tr>
+          <tr><td class="id">5.5</td><td>Safety, limits &amp; observability</td><td><span class="badge b-active">Active</span></td><td>Done: durable atomic UTC-keyed budget in typed <code>llm_usage</code> table (BUG-11). Still to do: token-aware trimming, output moderation, panel instrumentation for <code>finish_reason</code>/budget 429s.</td></tr>
+          <tr><td class="id">5.6</td><td>Regression suite</td><td><span class="badge b-done">Done</span></td><td>10 new tests in <code>tests/test_chat_p0.py</code>; full suite 125 passed.</td></tr>
         </tbody>
       </table>
     </div>
@@ -472,6 +472,7 @@
 
   <h2><span class="num">04</span>Activity log</h2>
   <ul class="log">
+    <li><time>2026-11-23</time> <b>P5 chatbot P0 fixes shipped:</b> BUG-08…BUG-12 fixed — JSON/stream negotiation, 4096-token budget and empty/<code>length</code> detection with retry, 90 s global deadline, real lesson data in the prompt, new-learner handling, durable UTC LLM budget, mode forwarding + browser timeout. Added 10 regression tests; 125/125 pass. Scoped ruff reports 3 pre-existing errors in untouched code.</li>
     <li><time>2026-11-23</time> All five research threads completed: curriculum/TEF/TCF, payments/legal, gamification/UX/marketing, landing/UX audit, admin/chatbot audit. Findings and source links added to every research card.</li>
     <li><time>2026-11-23</time> Logged 12 concrete defects (BUG-01…BUG-12) — including unclickable exam answers, stored-XSS, and the two chatbot P0 root causes — with target phases.</li>
     <li><time>2026-11-23</time> Created <code>progress.html</code> with 10 phases / 50 sub-phases; captured in-repo audit findings and golden rules. External research threads launched.</li>

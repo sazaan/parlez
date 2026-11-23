@@ -8,6 +8,11 @@
 // so the browser sends it automatically.
 let currentUser = null;
 
+// One-shot context for the next chat message, set when the learner opens a
+// lesson or a speaking scenario. Without this the backend never receives
+// mode/lesson_id/scenario_id and falls back to brittle keyword detection.
+let chatContext = {};
+
 async function checkAuth() {
     try {
         const r = await fetch('/api/auth/me', { credentials: 'same-origin' });
@@ -1279,21 +1284,36 @@ async function sendMessage(text) {
         return;
     }
 
+    const context = chatContext;
+    chatContext = {};
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000);
+
     try {
         const r = await apiFetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: text, conv_id: currentConvId, level: currentLevel })
+            body: JSON.stringify({ message: text, conv_id: currentConvId, level: currentLevel, ...context }),
+            signal: controller.signal
         });
         const d = await r.json();
         removeTypingIndicator();
+        if (!r.ok) {
+            addMessage(d.detail || 'The tutor could not answer that. Please try again.', 'assistant');
+            return;
+        }
         addMessage(d.response, 'assistant');
         if (d.total_xp) updateXP(d.total_xp);
         await loadConversations();
     } catch (e) {
         removeTypingIndicator();
-        addMessage('Sorry, I encountered an error. Please try again.', 'assistant');
+        if (e && e.name === 'AbortError') {
+            addMessage('That took longer than expected. Please try again.', 'assistant');
+        } else {
+            addMessage('Sorry, I encountered an error. Please try again.', 'assistant');
+        }
     } finally {
+        clearTimeout(timeoutId);
         isGenerating = false;
         updateSendButton();
     }
@@ -1590,6 +1610,9 @@ window.startLessonView = async function(level, lessonId) {
     try {
         const r = await apiFetch(`/api/courses/${level}/lessons/${lessonId}`);
         const lesson = await r.json();
+        // If the learner asks the tutor about this lesson, ground the answer
+        // in the real lesson content instead of keyword-guessing.
+        chatContext = { mode: 'lesson', lesson_id: lessonId, level: level };
         renderLessonView(lesson, level);
     } catch (e) {
         getToolContent().innerHTML = '<div class="tool-header"><h2>📖 Lesson</h2></div><p style="color:var(--incorrect);text-align:center;padding:2rem">Could not load this lesson. Please try again.</p>';
@@ -1899,6 +1922,7 @@ async function loadScenarios() {
             item.addEventListener('click', () => {
                 // Scenario is a chat exercise — switch to chat view first so the message isn't hidden behind tool view
                 showChatView();
+                chatContext = { mode: 'conversation', scenario_id: s.id };
                 sendMessage(`Let's practice a conversation scenario: ${s.labelFr} - ${s.description}`);
             });
             scenarioList.appendChild(item);

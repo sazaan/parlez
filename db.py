@@ -10,6 +10,7 @@ multiple worker processes stay consistent and can be scaled horizontally.
 import os
 import json
 import math
+import time
 import bcrypt
 from typing import Optional
 from sqlalchemy import create_engine, Column, String, Text, JSON, Integer, Float, text, inspect, Index, func
@@ -84,6 +85,19 @@ class AdminSession(Base):
     id = Column(String, primary_key=True)
     username = Column(String, nullable=False)
     expires_at = Column(Float, nullable=False, index=True)
+
+
+class LlmUsage(Base):
+    """Atomic per-user, per-UTC-day LLM request counter.
+
+    Kept in its own typed table instead of the user JSON blob so concurrent
+    requests cannot lose updates and failed calls still consume budget.
+    """
+    __tablename__ = "llm_usage"
+    user_id = Column(String, primary_key=True)
+    day = Column(String, primary_key=True)
+    count = Column(Integer, nullable=False, default=0)
+    updated_at = Column(Float, nullable=False)
 
 
 class Storage:
@@ -255,6 +269,29 @@ class Storage:
                     row.data = data
                 else:
                     session.add(User(id=user_id, username=username, email=user.get("email"), password_hash=password_hash, data=data))
+
+    # ------------------------------------------------------------------
+    # LLM budget (atomic, UTC-day keyed)
+    # ------------------------------------------------------------------
+
+    def consume_llm_budget(self, user_id: str, day: str, limit: int) -> int:
+        """Atomically reserve one LLM request for (user, UTC day).
+
+        Returns the new count, or -1 when the daily limit is already reached.
+        The whole check-and-increment runs inside one transaction so parallel
+        requests cannot both read the same count and overrun the budget.
+        """
+        with self.Session() as session:
+            with session.begin():
+                row = session.query(LlmUsage).filter_by(user_id=user_id, day=day).first()
+                if row is None:
+                    session.add(LlmUsage(user_id=user_id, day=day, count=1, updated_at=time.time()))
+                    return 1
+                if row.count >= limit:
+                    return -1
+                row.count += 1
+                row.updated_at = time.time()
+                return row.count
 
     # ------------------------------------------------------------------
     # Runtime settings and administrator audit trail

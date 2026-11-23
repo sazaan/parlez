@@ -20,6 +20,68 @@ LEVEL_NAMES = {
     'A1': 'Débutant', 'A2': 'Élémentaire', 'B1': 'Intermédiaire', 'B2': 'Avancé', 'C1': 'Avancé supérieur'
 }
 
+def _clip(text, limit=240):
+    """Clip a string for bounded prompt injection without cutting mid-word."""
+    if text is None:
+        return ''
+    value = str(text).strip().replace('\n', ' ')
+    if len(value) <= limit:
+        return value
+    return value[:limit].rsplit(' ', 1)[0].rstrip(' ,;:.') + '…'
+
+
+def _serialize_lesson_context(ctx):
+    """Compact, bounded rendering of lesson data for the system prompt.
+
+    The previous prompt demanded that the tutor 'show the vocabulary and
+    grammar from the lesson data' while never including that data. This makes
+    the actual curriculum content available to the model.
+    """
+    if not isinstance(ctx, dict):
+        return '(no lesson data available)'
+    lines = []
+
+    vocabulary = ctx.get('vocabulary') or []
+    if vocabulary:
+        lines.append('VOCABULARY (use these exact items):')
+        for item in vocabulary[:12]:
+            if not isinstance(item, dict):
+                continue
+            entry = f"- {_clip(item.get('fr'), 80)} = {_clip(item.get('en'), 80)}"
+            if item.get('ipa'):
+                entry += f" [{_clip(item['ipa'], 40)}]"
+            if item.get('example'):
+                entry += f" — {_clip(item['example'], 120)}"
+            lines.append(entry)
+        if len(vocabulary) > 12:
+            lines.append(f"... and {len(vocabulary) - 12} more items in the course.")
+
+    grammar = ctx.get('grammar') or []
+    if grammar:
+        lines.append('GRAMMAR (teach only these rules):')
+        for rule in grammar[:5]:
+            if not isinstance(rule, dict):
+                continue
+            lines.append(f"- {_clip(rule.get('title'), 100)}: {_clip(rule.get('explanation'), 240)}")
+            for example in (rule.get('examples') or [])[:3]:
+                if isinstance(example, dict):
+                    lines.append(f"    e.g. {_clip(example.get('fr'), 120)} = {_clip(example.get('en'), 120)}")
+
+    dialogue = ctx.get('dialogue') or []
+    if dialogue:
+        lines.append('DIALOGUE (model your examples on this):')
+        for line_ in dialogue[:6]:
+            if isinstance(line_, dict):
+                speaker = _clip(line_.get('name') or line_.get('speaker') or 'A', 20)
+                lines.append(f"- {speaker}: {_clip(line_.get('fr'), 160)} / {_clip(line_.get('en'), 160)}")
+
+    note = ctx.get('culturalNote')
+    if note:
+        lines.append(f"CULTURAL NOTE: {_clip(note, 300)}")
+
+    return '\n'.join(lines) if lines else '(no lesson data available)'
+
+
 def build_system_prompt(level='A1', mode='general', lesson_context=None, scenario=None):
     """Build the system prompt for the AI tutor based on current context."""
     
@@ -132,12 +194,16 @@ DIALOGUE FORMAT:
 """
     
     if mode == 'lesson' and lesson_context:
+        lesson_data = _serialize_lesson_context(lesson_context)
         base += f"""
 LESSON CONTEXT:
 You are currently teaching the lesson: "{lesson_context['title']}" ({lesson_context['titleFr']})
 {lesson_context.get('description', '')}
 
 Objectives: {', '.join(lesson_context.get('objectives', []))}
+
+AUTHORITATIVE LESSON DATA — use these exact items, do not invent different vocabulary or grammar:
+{lesson_data}
 
 TEACH THIS LESSON STEP BY STEP:
 1. First, present the VOCABULARY using ```vocabulary format (show all words with IPA, examples, and translations)

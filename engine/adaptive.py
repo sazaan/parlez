@@ -19,10 +19,12 @@ def analyze_weak_areas(exercise_history, test_results=None, min_samples=3, thres
     - recommendations: specific practice suggestions
     """
     if not exercise_history:
+        # Unknown ability is NOT 0% accuracy. Without this flag a brand-new
+        # learner was told they were failing and given simplified content.
         return {
             'weak_types': [], 'weak_grammar': [], 'weak_vocabulary': [],
             'strong_types': [], 'recent_trend': 'stable', 'recommendations': [],
-            'total_exercises': 0, 'overall_accuracy': 0,
+            'total_exercises': 0, 'overall_accuracy': 0, 'has_data': False,
         }
     
     # --- Exercise type analysis ---
@@ -100,6 +102,7 @@ def analyze_weak_areas(exercise_history, test_results=None, min_samples=3, thres
         'recommendations': recommendations,
         'total_exercises': total,
         'overall_accuracy': overall_acc,
+        'has_data': True,
     }
 
 
@@ -115,30 +118,31 @@ def get_difficulty_adjustments(level, weak_analysis):
     base_ratios = {'A1': 0.4, 'A2': 0.5, 'B1': 0.65, 'B2': 0.8}
     french_ratio = base_ratios.get(level, 0.5)
     
-    # Adjust based on performance
+    # Unknown ability (no exercise history yet) must not be treated as failure.
+    has_data = weak_analysis.get('has_data', True)
     overall_acc = weak_analysis.get('overall_accuracy', 70)
-    if overall_acc < 50:
+    if not has_data or overall_acc is None:
+        overall_acc = 70  # neutral baseline; keep the level's native language ratio
+    elif overall_acc < 50:
         french_ratio = max(0.3, french_ratio - 0.15)  # More English for struggling students
     elif overall_acc > 85:
         french_ratio = min(0.9, french_ratio + 0.1)  # More French for advanced students
-    
+
     # Determine focus areas
     focus_areas = []
     for weak in weak_analysis.get('weak_types', []):
         focus_areas.append(weak['type'])
-    
-    # Adjust practice count based on weak areas
+
+    # Adjust practice count based on weak areas (not on absence of data)
     practice_count = 3
     if len(focus_areas) > 2:
         practice_count = 5
-    elif len(focus_areas) == 0:
-        practice_count = 4  # More exercises for students doing well
-    
+
     # Determine complexity
     complexity = 'normal'
-    if overall_acc < 40:
+    if has_data and overall_acc < 40:
         complexity = 'simpler'
-    elif overall_acc > 80:
+    elif has_data and overall_acc > 80:
         complexity = 'more challenging'
     
     return {
@@ -155,7 +159,11 @@ def build_adaptive_prompt_addition(level, weak_analysis, adjustments):
     proactively target weak areas.
     """
     parts = []
-    
+
+    if not weak_analysis.get('has_data', True):
+        parts.append("NEW LEARNER: No exercise history yet. Do not assume low ability or predict a score. "
+                     "Start friendly, teach at the stated CEFR level, and use a short diagnostic question if needed.")
+
     # Weak areas notification
     if weak_analysis.get('weak_types'):
         weak_names = [w['type'].replace('_', ' ') for w in weak_analysis['weak_types'][:3]]
