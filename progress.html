@@ -94,7 +94,7 @@
   <section class="stats" aria-label="Program summary">
     <div class="stat"><b>10</b><small>Workstreams</small></div>
     <div class="stat"><b>10</b><small>Phases</small></div>
-    <div class="stat"><b>6 / 50</b><small>Sub-phases done</small></div>
+    <div class="stat"><b>8 / 50</b><small>Sub-phases done</small></div>
     <div class="stat"><b>5 / 12</b><small>Defects fixed</small></div>
   </section>
 
@@ -389,11 +389,11 @@
         <thead><tr><th>ID</th><th>Sub-phase</th><th>Status</th><th>Deliverable / acceptance criteria</th></tr></thead>
         <tbody>
           <tr><td class="id">5.1</td><td>Trace &amp; reproduce failures</td><td><span class="badge b-done">Done</span></td><td>BUG-08…BUG-12 fixed: JSON/stream negotiation, 4096-token chat budget, <code>finish_reason</code> + empty-content rejection with retry, total 90 s deadline, mode forwarding and browser timeout.</td></tr>
-          <tr><td class="id">5.2</td><td>Prompt &amp; persona redesign</td><td><span class="badge b-active">Active</span></td><td>Language ratio no longer collapses for new learners. Still to do: slim the ~4.9k-char always-on exercise-format spec to the active mode and reconcile the base-ratio instructions.</td></tr>
+          <tr><td class="id">5.2</td><td>Prompt &amp; persona redesign</td><td><span class="badge b-done">Done</span></td><td>~4.9k-char exercise schema moved to a mode-conditional block (only practice modes); base no longer hardcodes a conflicting language ratio and instead follows the per-learner LANGUAGE RATIO instruction.</td></tr>
           <tr><td class="id">5.3</td><td>Grounding in courses &amp; memory</td><td><span class="badge b-done">Done</span></td><td>Bounded, serialized lesson vocabulary/grammar/dialogue/cultural note now injected into the system prompt (BUG-09); new learners treated as unknown ability (BUG-10); UI forwards mode/lesson/scenario.</td></tr>
-          <tr><td class="id">5.4</td><td>Reliability &amp; streaming</td><td><span class="badge b-active">Active</span></td><td>Done: 30 s per-attempt timeout, 90 s overall deadline, distinct empty-response error. Still to do: SSE streaming, <code>Retry-After</code>, provider fallback/circuit breaker.</td></tr>
-          <tr><td class="id">5.5</td><td>Safety, limits &amp; observability</td><td><span class="badge b-active">Active</span></td><td>Done: durable atomic UTC-keyed budget in typed <code>llm_usage</code> table (BUG-11). Still to do: token-aware trimming, output moderation, panel instrumentation for <code>finish_reason</code>/budget 429s.</td></tr>
-          <tr><td class="id">5.6</td><td>Regression suite</td><td><span class="badge b-done">Done</span></td><td>10 new tests in <code>tests/test_chat_p0.py</code>; full suite 125 passed.</td></tr>
+          <tr><td class="id">5.4</td><td>Reliability &amp; streaming</td><td><span class="badge b-done">Done</span></td><td>30 s per-attempt + 90 s overall deadlines, SSE <code>/api/chat/stream</code> with progressive bubbles and JSON fallback, multi-provider failover with an in-process circuit breaker. <code>Retry-After</code> handling remains a nice-to-have.</td></tr>
+          <tr><td class="id">5.5</td><td>Safety, limits &amp; observability</td><td><span class="badge b-active">Active</span></td><td>Durable atomic UTC budget, budget-429 and invalid-response events instrumented, failover logged. Still to do: token-aware context trimming and input/output moderation.</td></tr>
+          <tr><td class="id">5.6</td><td>Regression suite</td><td><span class="badge b-done">Done</span></td><td>14 tests in <code>tests/test_chat_p0.py</code> (incl. SSE deltas, failover, prompt slimming, budget); full suite 129 passed.</td></tr>
         </tbody>
       </table>
     </div>
@@ -472,6 +472,7 @@
 
   <h2><span class="num">04</span>Activity log</h2>
   <ul class="log">
+    <li><time>2026-11-23</time> <b>P5 continued:</b> mode-conditional exercise schema and consistent language-ratio instructions; SSE <code>/api/chat/stream</code> with progressive rendering and JSON fallback; multi-provider failover + circuit breaker; budget-429 and invalid-response events. Added 4 more tests — 129/129 pass, <code>app.js</code> syntax OK.</li>
     <li><time>2026-11-23</time> <b>P5 chatbot P0 fixes shipped:</b> BUG-08…BUG-12 fixed — JSON/stream negotiation, 4096-token budget and empty/<code>length</code> detection with retry, 90 s global deadline, real lesson data in the prompt, new-learner handling, durable UTC LLM budget, mode forwarding + browser timeout. Added 10 regression tests; 125/125 pass. Scoped ruff reports 3 pre-existing errors in untouched code.</li>
     <li><time>2026-11-23</time> All five research threads completed: curriculum/TEF/TCF, payments/legal, gamification/UX/marketing, landing/UX audit, admin/chatbot audit. Findings and source links added to every research card.</li>
     <li><time>2026-11-23</time> Logged 12 concrete defects (BUG-01…BUG-12) — including unclickable exam answers, stored-XSS, and the two chatbot P0 root causes — with target phases.</li>

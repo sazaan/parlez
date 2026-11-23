@@ -1049,6 +1049,14 @@ def check_daily_llm_budget(user):
     day = _utc_day()
     used = storage.consume_llm_budget(user["id"], day, DAILY_LLM_BUDGET)
     if used < 0:
+        log_event(
+            "ai.budget.rejected",
+            logging.WARNING,
+            outcome="rejected",
+            user_id=user["id"],
+            day=day,
+            limit=DAILY_LLM_BUDGET,
+        )
         raise HTTPException(
             status_code=429,
             detail=f"Daily AI tutor limit reached ({DAILY_LLM_BUDGET} requests/day). Resets at midnight UTC.",
@@ -1212,6 +1220,15 @@ async def call_ai_provider(
                                 except ProviderResponseInvalid as exc:
                                     # A 200 with empty/truncated content is a failure, not a
                                     # success. Retry, then surface a 503 if all attempts fail.
+                                    log_event(
+                                        "ai.provider.invalid_response",
+                                        logging.WARNING,
+                                        provider=provider,
+                                        model=model,
+                                        operation=normalized_operation,
+                                        reason=exc.reason[:80],
+                                        attempt=attempts,
+                                    )
                                     last_error_type = "ProviderResponseInvalid"
                                     attempt_span.set_attribute("parlez.error_type", last_error_type)
                                     attempt_span.set_attribute("parlez.invalid_reason", exc.reason[:80])
@@ -1306,12 +1323,130 @@ def _safe_token_count(usage, *keys) -> int | None:
     return None
 
 
+# Simple in-process circuit breaker. The app runs a single worker (SQLite),
+# so a module-level dict is sufficient; a multi-worker deployment should move
+# this to Redis.
+_provider_circuit = {}
+_CIRCUIT_FAILURE_THRESHOLD = 3
+_CIRCUIT_COOLDOWN_SECONDS = 60
+
+
+def _circuit_is_open(provider: str) -> bool:
+    state = _provider_circuit.get(provider)
+    return bool(state and state.get("open_until", 0) > time.monotonic())
+
+
+def _record_provider_failure(provider: str) -> None:
+    state = _provider_circuit.setdefault(provider, {"failures": 0, "open_until": 0.0})
+    state["failures"] += 1
+    if state["failures"] >= _CIRCUIT_FAILURE_THRESHOLD:
+        state["open_until"] = time.monotonic() + _CIRCUIT_COOLDOWN_SECONDS
+        logger.warning("AI provider %s opened circuit after %s failures", provider, state["failures"])
+
+
+def _record_provider_success(provider: str) -> None:
+    _provider_circuit.pop(provider, None)
+
+
+def _provider_candidates(active_provider: str):
+    """Active provider first, then other configured providers as fallbacks."""
+    ordered = [active_provider] + [p for p in AI_PROVIDER_SPECS if p != active_provider]
+    return [p for p in ordered if _provider_key(p) and not _circuit_is_open(p)]
+
+
 async def call_nvidia(messages, max_tokens=CHAT_MAX_TOKENS, operation="chat"):
-    """Legacy call-site name; dispatches through the admin-selected provider."""
+    """Dispatch through the admin-selected provider, failing over if needed."""
     config = get_active_ai_config()
-    return await call_ai_provider(
-        messages, config["provider"], config["model"], max_tokens, operation=operation
-    )
+    active = config["provider"]
+    last_exc = None
+    for provider in _provider_candidates(active):
+        model = config["model"] if provider == active else AI_PROVIDER_SPECS[provider]["default_model"]
+        try:
+            result = await call_ai_provider(
+                messages, provider, model, max_tokens, operation=operation
+            )
+            _record_provider_success(provider)
+            return result
+        except HTTPException as exc:
+            last_exc = exc
+            _record_provider_failure(provider)
+            log_event(
+                "ai.provider.failover",
+                logging.WARNING,
+                provider=provider,
+                operation=operation,
+                status_code=exc.status_code,
+            )
+    if last_exc is not None:
+        raise last_exc
+    raise HTTPException(status_code=503, detail="No AI provider is currently available.")
+
+
+async def call_ai_provider_stream(messages, provider, model, max_tokens, operation="chat"):
+    """Yield text deltas from an OpenAI-compatible streaming chat completion."""
+    spec = AI_PROVIDER_SPECS.get(provider)
+    api_key = _provider_key(provider)
+    if not spec or not api_key:
+        raise HTTPException(status_code=503, detail="The selected AI provider is not configured.")
+    payload = {
+        "model": model,
+        "messages": messages,
+        "max_tokens": max(max_tokens, CHAT_MAX_TOKENS) if operation == "chat" else max_tokens,
+        "temperature": 0.6,
+        "top_p": 0.95,
+        "stream": True,
+    }
+    emitted = False
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        async with client.stream(
+            "POST",
+            spec["base_url"],
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+                "Accept": "text/event-stream",
+            },
+            json=payload,
+        ) as response:
+            if response.status_code != 200:
+                raise HTTPException(status_code=502, detail=f"AI request failed ({response.status_code}).")
+            async for line in response.aiter_lines():
+                if not line.startswith("data:"):
+                    continue
+                raw = line[5:].strip()
+                if not raw or raw == "[DONE]":
+                    continue
+                try:
+                    chunk = json.loads(raw)
+                    choices = chunk.get("choices") or []
+                    delta = choices[0].get("delta", {}).get("content") if choices else None
+                except (ValueError, AttributeError, IndexError, TypeError):
+                    continue
+                if isinstance(delta, str) and delta:
+                    emitted = True
+                    yield delta
+    if not emitted:
+        raise ProviderResponseInvalid("empty completion")
+
+
+async def stream_chat(messages, max_tokens=CHAT_MAX_TOKENS):
+    """Stream tutor text with the same provider fallback as non-streaming chat."""
+    config = get_active_ai_config()
+    active = config["provider"]
+    last_exc = None
+    for provider in _provider_candidates(active):
+        model = config["model"] if provider == active else AI_PROVIDER_SPECS[provider]["default_model"]
+        try:
+            async for delta in call_ai_provider_stream(messages, provider, model, max_tokens):
+                yield delta
+            _record_provider_success(provider)
+            return
+        except (HTTPException, ProviderResponseInvalid) as exc:
+            last_exc = exc
+            _record_provider_failure(provider)
+    if isinstance(last_exc, ProviderResponseInvalid):
+        raise last_exc
+    raise last_exc or HTTPException(status_code=503, detail="No AI provider is currently available.")
 
 
 # ============================================================
@@ -2153,26 +2288,20 @@ async def delete_conversation(conv_id: str, user=Depends(require_auth)):
 
 # --- Chat ---
 
-@app.post("/api/chat")
-@limiter.limit("30/minute")
-async def chat(request: Request, msg: ChatMessage, user=Depends(require_auth)):
-    # Task 3.9: per-user daily LLM budget. Increments the counter; raises
-    # 429 if the user has exceeded DAILY_LLM_BUDGET for today.
+def _prepare_chat(msg, user):
+    """Reserve budget, validate input and build the provider message list."""
     check_daily_llm_budget(user)
 
     message = validate_user_text(msg.message, MAX_CHAT_MESSAGE_LENGTH, "message")
-    
     level = (msg.level or user.get('level', 'A1')).upper()
     if not get_public_course(level):
         if msg.level:
             raise HTTPException(status_code=400, detail="That course level is not currently available.")
         level = 'A1'
     active_courses = get_enabled_courses()
-    
-    # Detect mode from message
+
     mode = msg.mode or detect_mode(message, level)
-    
-    # Find lesson context if needed
+
     lesson_ctx = None
     if msg.lesson_id:
         for course in active_courses:
@@ -2192,55 +2321,29 @@ async def chat(request: Request, msg: ChatMessage, user=Depends(require_auth)):
                         break
     elif mode == 'lesson':
         lesson_ctx = find_lesson_context(message, active_courses)
-    
-    # Find scenario if in conversation mode
+
     scenario = None
     if msg.scenario_id:
         for s in conversation_scenarios:
             if s.id == msg.scenario_id:
                 scenario = {'name': s.label, 'description': s.description}
                 break
-    
-    # Get weak areas for personalized teaching
-    user_history = user.get('exercise_history', [])
-    user_test_results = user.get('test_results', [])
-    weak_analysis = analyze_weak_areas(user_history, user_test_results)
+
+    weak_analysis = analyze_weak_areas(user.get('exercise_history', []), user.get('test_results', []))
     adjustments = get_difficulty_adjustments(level, weak_analysis)
-    
-    # Build system prompt
     system_prompt = build_system_prompt(level=level, mode=mode, lesson_context=lesson_ctx, scenario=scenario)
     system_prompt += build_adaptive_prompt_addition(level, weak_analysis, adjustments)
-    
-    # Build messages
+
     messages = [{"role": "system", "content": system_prompt}]
     conv = user.get('conversations', {}).get(msg.conv_id, {})
     for m in conv.get("messages", [])[-15:]:
         messages.append({"role": m["role"], "content": m["content"]})
     messages.append({"role": "user", "content": message})
-    
-    # Call AI. A 200 with an empty/truncated message is a failure: never persist
-    # a fake assistant reply or award XP for it.
-    try:
-        r = await call_nvidia(messages, max_tokens=CHAT_MAX_TOKENS)
-        resp = extract_assistant_text(r)
-    except ProviderResponseInvalid as exc:
-        logger.error("Chat provider returned unusable content: %s", exc.reason)
-        raise HTTPException(
-            status_code=502,
-            detail="The tutor produced an empty response. Please try again.",
-        )
-    except HTTPException:
-        raise
-    except Exception:
-        # Don't leak exception text to the client (fixes S11). Mirror the
-        # /api/writing/correct pattern: log internally, return a generic 503.
-        logger.exception("Chat LLM call failed")
-        raise HTTPException(
-            status_code=503,
-            detail="The tutor is temporarily unavailable. Please try again.",
-        )
-    
-    # Save to conversation (in memory only — single save_user below)
+    return messages, message, mode, level
+
+
+def _finalize_chat(user, msg, message, resp, mode, level):
+    """Persist a successful exchange and return the client payload."""
     user_convs = user.get('conversations', {})
     if msg.conv_id and msg.conv_id in user_convs:
         user_convs[msg.conv_id]["messages"].append({"role": "user", "content": message})
@@ -2249,7 +2352,6 @@ async def chat(request: Request, msg: ChatMessage, user=Depends(require_auth)):
         if not user_convs[msg.conv_id].get("title_set"):
             user_convs[msg.conv_id]["title"] = message[:50]
 
-    # Update XP
     progress = user.setdefault('progress', {"xp": 0, "streak": 0, "best_streak": 0, "last_active": None})
     progress['xp'] = progress.get('xp', 0) + XP.CHAT_MESSAGE
     today = datetime.date.today().isoformat()
@@ -2263,16 +2365,65 @@ async def chat(request: Request, msg: ChatMessage, user=Depends(require_auth)):
         progress['streak'] = 1
     progress['last_active'] = today
 
-    # Single save_user at the end halves the lost-update race window (Task 3.1).
     storage.save_user(user)
-    
     return {
         "response": resp,
         "mode": mode,
         "level": level,
-        "xp_earned": 5,
+        "xp_earned": XP.CHAT_MESSAGE,
         "total_xp": progress.get('xp', 0),
     }
+
+
+@app.post("/api/chat")
+@limiter.limit("30/minute")
+async def chat(request: Request, msg: ChatMessage, user=Depends(require_auth)):
+    messages, message, mode, level = _prepare_chat(msg, user)
+    try:
+        r = await call_nvidia(messages, max_tokens=CHAT_MAX_TOKENS)
+        resp = extract_assistant_text(r)
+    except ProviderResponseInvalid as exc:
+        logger.error("Chat provider returned unusable content: %s", exc.reason)
+        raise HTTPException(status_code=502, detail="The tutor produced an empty response. Please try again.")
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Chat LLM call failed")
+        raise HTTPException(status_code=503, detail="The tutor is temporarily unavailable. Please try again.")
+    return _finalize_chat(user, msg, message, resp, mode, level)
+
+
+@app.post("/api/chat/stream")
+@limiter.limit("30/minute")
+async def chat_stream(request: Request, msg: ChatMessage, user=Depends(require_auth)):
+    """SSE variant of /api/chat: emits delta events then a final done event."""
+    messages, message, mode, level = _prepare_chat(msg, user)
+
+    async def event_stream():
+        chunks = []
+        try:
+            async for delta in stream_chat(messages, max_tokens=CHAT_MAX_TOKENS):
+                chunks.append(delta)
+                yield "data: " + json.dumps({"delta": delta}) + "\n\n"
+            resp = "".join(chunks).strip()
+            if not resp:
+                raise ProviderResponseInvalid("empty completion")
+            result = _finalize_chat(user, msg, message, resp, mode, level)
+            yield "data: " + json.dumps({"done": True, **result}) + "\n\n"
+        except ProviderResponseInvalid as exc:
+            logger.error("Streaming chat returned unusable content: %s", exc.reason)
+            yield "data: " + json.dumps({"error": "The tutor produced an empty response. Please try again."}) + "\n\n"
+        except HTTPException as exc:
+            yield "data: " + json.dumps({"error": exc.detail}) + "\n\n"
+        except Exception:
+            logger.exception("Streaming chat failed")
+            yield "data: " + json.dumps({"error": "The tutor is temporarily unavailable. Please try again."}) + "\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 # --- Exercise checking ---

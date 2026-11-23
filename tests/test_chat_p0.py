@@ -111,6 +111,19 @@ def test_lesson_vocabulary_and_grammar_reach_the_system_prompt():
     assert "CULTURAL NOTE: French greetings" in prompt
 
 
+def test_exercise_schema_is_only_attached_to_practice_modes():
+    from engine import build_system_prompt
+
+    conversation = build_system_prompt(level="B1", mode="conversation")
+    lesson = build_system_prompt(level="A1", mode="lesson", lesson_context={"title": "Hi"})
+
+    assert "EXERCISE FORMAT" not in conversation
+    assert len(conversation) < 2500  # was ~4900+ with the always-on schema
+    assert "EXERCISE FORMAT" in lesson
+    assert len(lesson) > len(conversation) + 3000
+    assert "LANGUAGE RATIO instruction" in lesson
+
+
 def test_new_learner_is_not_treated_as_failing():
     from engine.adaptive import (
         analyze_weak_areas,
@@ -150,6 +163,90 @@ def test_llm_budget_rejects_over_limit(monkeypatch):
         main.check_daily_llm_budget(user)
     assert exc.value.status_code == 429
     assert "midnight UTC" in exc.value.detail
+
+
+class _FakeStreamResponse:
+    status_code = 200
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        pass
+
+    async def aiter_lines(self):
+        lines = [
+            'data: {"choices":[{"delta":{"content":"Bon"}}]}',
+            'data: {"choices":[{"delta":{"content":"jour"}}]}',
+            'data: [DONE]',
+        ]
+        for line in lines:
+            yield line
+
+
+class _FakeStreamClient:
+    def __init__(self, *args, **kwargs):
+        pass
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        pass
+
+    def stream(self, *args, **kwargs):
+        return _FakeStreamResponse()
+
+
+def test_streaming_provider_yields_text_deltas(monkeypatch):
+    monkeypatch.setattr(main, "NVIDIA_API_KEY", "test-key")
+    monkeypatch.setattr(main.httpx, "AsyncClient", _FakeStreamClient)
+
+    async def collect():
+        return [delta async for delta in main.call_ai_provider_stream(
+            [{"role": "user", "content": "Bonjour"}], "nvidia", "nvidia/test-model", 2048
+        )]
+
+    assert asyncio.run(collect()) == ["Bon", "jour"]
+
+
+def test_provider_failover_when_active_provider_fails(monkeypatch):
+    monkeypatch.setattr(main, "NVIDIA_API_KEY", "test-key")
+    monkeypatch.setenv("GEMINI_API_KEY", "fallback-key")
+    main._provider_circuit.clear()
+    calls = []
+
+    async def fake_call(messages, provider, model, max_tokens=2048, operation="chat"):
+        calls.append(provider)
+        if provider == "nvidia":
+            raise HTTPException(status_code=503, detail="down")
+        return {"choices": [{"message": {"content": "Bonjour"}}]}
+
+    monkeypatch.setattr(main, "call_ai_provider", fake_call)
+
+    result = asyncio.run(main.call_nvidia([{"role": "user", "content": "Bonjour"}]))
+
+    assert result["choices"][0]["message"]["content"] == "Bonjour"
+    assert calls[0] == "nvidia"
+    assert "gemini" in calls
+
+
+def test_chat_stream_endpoint_emits_sse_events(auth_client, monkeypatch):
+    async def fake_stream(messages, max_tokens=None):
+        yield "Bon"
+        yield "jour"
+
+    monkeypatch.setattr(main, "stream_chat", fake_stream)
+
+    r = auth_client.post("/api/chat/stream", json={"message": "Bonjour"})
+
+    assert r.status_code == 200
+    assert "text/event-stream" in r.headers["content-type"]
+    assert '"delta": "Bon"' in r.text
+    assert '"done": true' in r.text
+    assert '"response": "Bonjour"' in r.text
+    user = main.storage.get_user_by_username("testuser")
+    assert user["progress"]["xp"] == 5
 
 
 def test_chat_does_not_award_xp_for_empty_reply(auth_client, monkeypatch):

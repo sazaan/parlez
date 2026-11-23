@@ -1128,6 +1128,62 @@ function removeTypingIndicator() {
     if (ind) ind.remove();
 }
 
+// Placeholder bubble shown while an SSE response is arriving. It is replaced
+// by the normal message renderer once the final event arrives.
+function addStreamingMessage() {
+    const welcome = document.querySelector('.welcome-message');
+    if (welcome) welcome.remove();
+    const message = document.createElement('div');
+    message.className = 'message assistant';
+    const av = document.createElement('div');
+    av.className = 'message-avatar';
+    av.textContent = 'P';
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'message-content';
+    const bubble = document.createElement('div');
+    bubble.className = 'message-bubble streaming-bubble';
+    contentDiv.appendChild(bubble);
+    message.appendChild(av);
+    message.appendChild(contentDiv);
+    messagesContainer.appendChild(message);
+    return { message, bubble };
+}
+
+async function sendChatStreaming(payload, signal, onDelta) {
+    const r = await apiFetch('/api/chat/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal
+    });
+    if (!r.ok || !r.body) throw new Error('stream unavailable');
+    const reader = r.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let final = null;
+    let serverError = null;
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let idx;
+        while ((idx = buffer.indexOf('\n\n')) >= 0) {
+            const block = buffer.slice(0, idx);
+            buffer = buffer.slice(idx + 2);
+            const line = block.split('\n').find(l => l.startsWith('data:'));
+            if (!line) continue;
+            let event;
+            try { event = JSON.parse(line.slice(5).trim()); } catch (e) { continue; }
+            if (event.delta) onDelta(event.delta);
+            if (event.done) final = event;
+            if (event.error) serverError = event.error;
+        }
+    }
+    if (serverError) throw new Error(serverError);
+    if (!final) throw new Error('incomplete stream');
+    return final;
+}
+
 function updateSendButton() {
     sendButton.disabled = !messageInput.value.trim() || isGenerating;
 }
@@ -1288,29 +1344,44 @@ async function sendMessage(text) {
     chatContext = {};
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 120000);
+    const payload = { message: text, conv_id: currentConvId, level: currentLevel, ...context };
+    let streamView = null;
 
     try {
-        const r = await apiFetch('/api/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: text, conv_id: currentConvId, level: currentLevel, ...context }),
-            signal: controller.signal
+        const final = await sendChatStreaming(payload, controller.signal, (delta) => {
+            if (!streamView) {
+                removeTypingIndicator();
+                streamView = addStreamingMessage();
+            }
+            streamView.bubble.textContent += delta;
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
         });
-        const d = await r.json();
-        removeTypingIndicator();
-        if (!r.ok) {
-            addMessage(d.detail || 'The tutor could not answer that. Please try again.', 'assistant');
-            return;
-        }
-        addMessage(d.response, 'assistant');
-        if (d.total_xp) updateXP(d.total_xp);
+        if (streamView) streamView.message.remove();
+        addMessage(final.response, 'assistant');
+        if (final.total_xp) updateXP(final.total_xp);
         await loadConversations();
     } catch (e) {
+        if (streamView) streamView.message.remove();
         removeTypingIndicator();
         if (e && e.name === 'AbortError') {
             addMessage('That took longer than expected. Please try again.', 'assistant');
         } else {
-            addMessage('Sorry, I encountered an error. Please try again.', 'assistant');
+            // Streams can be blocked by proxies; fall back to the plain JSON endpoint.
+            try {
+                const r = await apiFetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                    signal: controller.signal
+                });
+                const d = await r.json();
+                if (!r.ok) throw new Error(d.detail || 'Chat failed');
+                addMessage(d.response, 'assistant');
+                if (d.total_xp) updateXP(d.total_xp);
+                await loadConversations();
+            } catch (e2) {
+                addMessage('Sorry, I encountered an error. Please try again.', 'assistant');
+            }
         }
     } finally {
         clearTimeout(timeoutId);
