@@ -1,0 +1,48 @@
+# Parlez design system
+
+Status: living document · updated 2026-11-23
+
+## Principles
+
+1. **Calm, not loud.** Ivory paper, wine, gold and sage — a study space, not a casino.
+2. **Outcome-led copy.** Say what the learner can do, not how settings are synchronized.
+3. **Honest by default.** Practice labels are not certification; never imply official exam scores or immigration outcomes.
+4. **Motion has meaning.** Animate feedback, progress and state changes; respect `prefers-reduced-motion`.
+
+## Tokens
+
+Defined in `static/landing.css` (`:root`) and mirrored in `static/styles.css` / `static/app-theme.css`.
+
+| Token | Value | Use |
+| --- | --- | --- |
+| `--paper` / `--paper-deep` | `#FBF8F3` / `#F4EEE4` | Page backgrounds |
+| `--card` | `#FFFDFA` | Cards, panels |
+| `--ink` / `--ink-soft` / `--ink-muted` | `#1D1815` / `#4A423C` / `#6F645B` | Text hierarchy |
+| `--wine` / `--wine-deep` / `--wine-ink` | `#7C2D3F` / `#5E2130` / `#3E1620` | Brand, primary buttons, headers |
+| `--gold` / `--gold-soft` | `#C0934A` / `#E9CD97` | Accents, highlights, mascot beak |
+| `--sage` | `#6E8574` | Success / secondary accents |
+| `--radius` / `--radius-lg` | `18px` / `26px` | Card and panel rounding |
+| `--font-display` | Fraunces, Playfair Display, Georgia | Headlines |
+| `--font-sans` | Inter, system stack | UI and body |
+
+> The two CSS files still duplicate some tokens with different names. Consolidation is a follow-up; do not introduce a *third* naming scheme.
+
+## Mascot — Pip
+
+- Asset: `static/mascot.svg` (original Parlez parrot, brand palette).
+- Usage: hero (`static/landing.html`), app welcome (`static/app.js` `welcomeHTML()` and `static/index.html`), share card (`static/og-card.svg`).
+- Meaning: a friendly study companion who gives feedback a face. The XP update path adds `.mascot-celebrate` for a short pop animation.
+- Rules: keep the silhouette and 2–3 colour palette consistent; no imitations of other apps' characters; always `aria-hidden`/empty `alt` when decorative.
+
+## Motion
+
+- Native CSS animations only; no animation library dependency.
+- `mascot-float` (landing), `mascot-bob` + `mascot-pop` (app), marquee, reveal-on-scroll, reading-progress bar.
+- Every decorative animation must be disabled under `@media (prefers-reduced-motion: reduce)`.
+- Prefer `transform` and `opacity`; avoid layout-triggering properties.
+
+## Components
+
+- **Buttons**: `btn-solid` (primary), `btn-outline`, `btn-quiet`, `btn-gold`; `btn-block` for full-width pricing CTAs.
+- **Confirmations**: `confirmDialog()` in `static/app.js` — accessible in-app replacement for `confirm()`, with Escape/backdrop dismissal and focus on the destructive action.
+- **Landing sections**: navbar, hero + app window, trust bar, marquee, How it works, features bento, About/pathways, pricing, CTA, collapsible footer disclosures.

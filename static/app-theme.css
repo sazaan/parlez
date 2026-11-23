@@ -277,13 +277,35 @@ button { -webkit-tap-highlight-color: transparent; }
     box-shadow: none;
     animation: fadeInUp 0.55s ease-out both;
 }
+.quick-action.resume-action { border-color: rgba(124,45,63,0.35); background: rgba(124,45,63,0.06); }
+.quick-action.resume-action[hidden] { display: none; }
+
+.message.user .message-bubble { white-space: pre-wrap; }
+
 .welcome-icon {
-    width: 52px; height: 52px;
+    width: 64px; height: 64px;
     margin: 0 0 1.2rem;
     border-radius: 15px;
-    background: var(--primary);
+    background: transparent;
     color: var(--secondary-light);
-    box-shadow: 0 10px 24px -16px rgba(124, 45, 63, 0.85);
+}
+.app-mascot {
+    width: 100%; height: 100%; object-fit: contain;
+    animation: mascot-bob 4s ease-in-out infinite;
+}
+@keyframes mascot-bob {
+    0%, 100% { transform: translateY(0) rotate(-2deg); }
+    50% { transform: translateY(-4px) rotate(2deg); }
+}
+.mascot-celebrate { animation: mascot-pop 0.6s ease-out !important; }
+@keyframes mascot-pop {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.22) rotate(-8deg); }
+    70% { transform: scale(0.94) rotate(6deg); }
+    100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .app-mascot, .mascot-celebrate { animation: none !important; }
 }
 .welcome-icon span {
     font-family: var(--font-display);

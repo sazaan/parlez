@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 260" role="img" aria-label="Pip, the Parlez parrot mascot">
+  <title>Pip — the Parlez parrot</title>
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#963B4F"/>
+      <stop offset="1" stop-color="#6B2536"/>
+    </linearGradient>
+    <linearGradient id="wing" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#B65567"/>
+      <stop offset="1" stop-color="#7C2D3F"/>
+    </linearGradient>
+  </defs>
+
+  <!-- tail -->
+  <path d="M96 196c-8 24-4 44 6 58 6-18 18-30 34-38l-16-24z" fill="#5E2130"/>
+  <path d="M138 196c4 22 14 38 30 48-2-20-6-36-16-50z" fill="#7C2D3F"/>
+
+  <!-- feet -->
+  <path d="M104 220v18m-9 0h18m-9-18c-8 0-13 4-16 10" stroke="#C0934A" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <path d="M145 218v20m-9 0h18" stroke="#C0934A" stroke-width="5" stroke-linecap="round" fill="none"/>
+
+  <!-- body -->
+  <path d="M120 30c-42 0-66 30-66 74 0 56 30 110 66 110s66-54 66-110c0-44-24-74-66-74z" fill="url(#body)"/>
+  <!-- belly -->
+  <ellipse cx="120" cy="156" rx="42" ry="50" fill="#FBF8F3" opacity="0.95"/>
+
+  <!-- head crest -->
+  <path d="M104 34c-2-18 6-28 18-34 0 14-4 24-18 34z" fill="#C0934A"/>
+  <path d="M124 32c4-16 14-22 26-24-4 14-12 21-26 24z" fill="#E9CD97"/>
+
+  <!-- eyes -->
+  <ellipse cx="101" cy="92" rx="16" ry="18" fill="#FFFDFA"/>
+  <ellipse cx="143" cy="92" rx="16" ry="18" fill="#FFFDFA"/>
+  <circle cx="105" cy="94" r="8" fill="#1D1815"/>
+  <circle cx="139" cy="94" r="8" fill="#1D1815"/>
+  <circle cx="108" cy="91" r="2.6" fill="#FFFDFA"/>
+  <circle cx="142" cy="91" r="2.6" fill="#FFFDFA"/>
+
+  <!-- beak -->
+  <path d="M120 106c-14 0-24 8-24 18 0 12 12 22 24 22s24-10 24-22c0-10-10-18-24-18z" fill="#E9CD97"/>
+  <path d="M104 124h32" stroke="#8A6520" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- wings -->
+  <path d="M62 112c-14 22-12 54 6 76 12-8 18-22 18-40 0-18-8-30-24-36z" fill="url(#wing)"/>
+  <path d="M178 112c14 22 12 54-6 76-12-8-18-22-18-40 0-18 8-30 24-36z" fill="url(#wing)"/>
+
+  <!-- scarf -->
+  <path d="M86 142c22 12 46 12 68 0l2 12c-24 14-50 14-72 0z" fill="#6E8574"/>
+  <path d="M150 150l14 34-12 4-12-32z" fill="#557063"/>
+
+  <!-- little book -->
+  <path d="M92 176h56v30H92z" fill="#C0934A"/>
+  <path d="M120 176v30" stroke="#5E2130" stroke-width="2"/>
+  <path d="M100 184h14m-14 8h14m12-8h14m-14 8h14" stroke="#FBF8F3" stroke-width="2" stroke-linecap="round"/>
+</svg>

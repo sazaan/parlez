@@ -34,7 +34,7 @@
             
             <form id="authForm" class="auth-form">
                 <div class="form-group">
-                    <label>Username</label>
+                    <label for="authUsername">Username</label>
                     <input type="text" id="authUsername" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Enter username" required minlength="3">
                 </div>
                 <div class="form-group" id="emailGroup" style="display:none">
@@ -42,11 +42,11 @@
                     <input type="email" id="authEmail" name="email" placeholder="you@example.com" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" maxlength="254" disabled>
                 </div>
                 <div class="form-group" id="nameGroup" style="display:none">
-                    <label>Name</label>
+                    <label for="authName">Name</label>
                     <input type="text" id="authName" placeholder="Your name">
                 </div>
                 <div class="form-group">
-                    <label>Password</label>
+                    <label for="authPassword">Password</label>
                     <input type="password" id="authPassword" placeholder="Enter password" autocomplete="current-password" required minlength="1">
                 </div>
                 <button type="submit" class="auth-submit" id="authSubmit">Log In</button>
@@ -173,7 +173,7 @@
             <div id="chatView" class="main-view">
                 <div id="messages" class="messages">
                     <div class="welcome-message">
-                        <div class="welcome-icon" aria-hidden="true"><span>P</span></div>
+                        <div class="welcome-icon" aria-hidden="true"><img class="app-mascot" src="/static/mascot.svg" alt=""></div>
                         <p class="welcome-eyebrow">Your French companion</p>
                         <h2>Bonjour. Let’s make French feel natural.</h2>
                         <p>Practise a little at a time with friendly explanations, useful lessons and conversations that meet you where you are.</p>
@@ -182,6 +182,7 @@
                             <button class="quick-action" data-action="send-quick-message" data-text="Show me numbers 1-20 in French"><span class="quick-index">02</span> Numbers 1–20</button>
                             <button class="quick-action" data-action="send-quick-message" data-text="Practice conversation at a café"><span class="quick-index">03</span> Café conversation</button>
                             <button class="quick-action" data-action="send-quick-message" data-text="Give me a French quiz"><span class="quick-index">04</span> Try a quick quiz</button>
+                            <button class="quick-action resume-action" data-action="resume-last-tool" id="resumeActivityBtn" hidden><span class="quick-index">↺</span> Resume last activity</button>
                         </div>
                     </div>
                 </div>

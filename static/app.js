@@ -305,6 +305,9 @@ function setupDelegatedHandlers() {
             case 'show-adaptive-analysis':
                 if (typeof window.showAdaptiveAnalysis === 'function') window.showAdaptiveAnalysis();
                 break;
+            case 'resume-last-tool':
+                if (typeof window.resumeLastTool === 'function') window.resumeLastTool();
+                break;
             case 'prompt-content-ingest':
                 if (typeof window.promptContentIngest === 'function') window.promptContentIngest();
                 break;
@@ -384,6 +387,7 @@ let selectedCourseLevel = 'A1';
 let activeMainSection = 'chat';
 let toolViewBackTarget = 'chat';
 let courseLoadRequestId = 0;
+let lastToolSnapshot = null;
 
 // ============================================================
 // TTS
@@ -1218,6 +1222,13 @@ function autoResize() {
 
 function updateXP(xp) {
     document.getElementById('xpDisplay').textContent = xp || 0;
+    const mascot = document.querySelector('.app-mascot');
+    if (mascot) {
+        mascot.classList.remove('mascot-celebrate');
+        void mascot.offsetWidth; // restart the CSS animation
+        mascot.classList.add('mascot-celebrate');
+        setTimeout(() => mascot.classList.remove('mascot-celebrate'), 700);
+    }
 }
 
 // ============================================================
@@ -1255,7 +1266,6 @@ function showToolView(title, html, options = {}) {
     document.getElementById('btnBackToChat').style.display = 'flex';
     // Reset scroll so the user sees the top of the new view
     getToolContent().scrollTop = 0;
-    window.scrollTo(0, 0);
 }
 
 function showChatView() {
@@ -1274,7 +1284,6 @@ function showChatView() {
     document.getElementById('btnBackToChat').style.display = 'none';
     // Reset scroll so the user sees the latest messages / welcome
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    window.scrollTo(0, 0);
 }
 
 function handleToolViewBack() {
@@ -1282,8 +1291,37 @@ function handleToolViewBack() {
         window.openCourses(selectedCourseLevel);
         return;
     }
+    // Keep a snapshot so an interrupted exercise can be resumed from chat.
+    const content = getToolContent();
+    if (content && content.querySelector('.tool-header') && toolViewBackTarget !== 'courses') {
+        lastToolSnapshot = {
+            title: document.getElementById('chatTitle').textContent,
+            html: content.innerHTML,
+            backTarget: toolViewBackTarget
+        };
+    }
     showChatView();
+    updateResumeButton();
 }
+
+function updateResumeButton() {
+    const btn = document.getElementById('resumeActivityBtn');
+    if (btn) btn.hidden = !lastToolSnapshot;
+}
+
+window.resumeLastTool = function() {
+    if (!lastToolSnapshot) return;
+    const snapshot = lastToolSnapshot;
+    activeMainSection = 'tool';
+    setCoursesNavActive(false);
+    setToolViewBackTarget(snapshot.backTarget || 'chat');
+    document.getElementById('chatView').style.display = 'none';
+    document.getElementById('toolView').style.display = 'flex';
+    getToolContent().innerHTML = snapshot.html;
+    document.getElementById('chatTitle').textContent = snapshot.title;
+    document.getElementById('btnBackToChat').style.display = 'flex';
+    getToolContent().scrollTop = 0;
+};
 
 btnBackToChat?.addEventListener('click', handleToolViewBack);
 
@@ -1292,7 +1330,7 @@ btnBackToChat?.addEventListener('click', handleToolViewBack);
 // ============================================================
 function welcomeHTML() { return `
 <div class="welcome-message">
-    <div class="welcome-icon" aria-hidden="true"><span>P</span></div>
+    <div class="welcome-icon" aria-hidden="true"><img class="app-mascot" src="/static/mascot.svg" alt=""></div>
     <p class="welcome-eyebrow">Your ${escapeHtml(currentLevel || 'A1')} French companion</p>
     <h2>Bonjour. Let’s make French feel natural.</h2>
     <p>Practise a little at a time with friendly explanations, useful lessons and conversations that meet you where you are.</p>
@@ -1301,6 +1339,7 @@ function welcomeHTML() { return `
         <button class="quick-action" data-action="send-quick-message" data-text="Show me numbers 1-20 in French"><span class="quick-index">02</span> Numbers 1–20</button>
         <button class="quick-action" data-action="send-quick-message" data-text="Practice conversation at a café"><span class="quick-index">03</span> Café conversation</button>
         <button class="quick-action" data-action="send-quick-message" data-text="Give me a French quiz"><span class="quick-index">04</span> Try a quick quiz</button>
+        <button class="quick-action resume-action" data-action="resume-last-tool" id="resumeActivityBtn" hidden><span class="quick-index">↺</span> Resume last activity</button>
     </div>
 </div>`; }
 
@@ -1308,6 +1347,7 @@ function resetChatToWelcome() {
     currentConvId = null;
     chatTitle.textContent = 'Parlez — French AI Tutor';
     messagesContainer.innerHTML = welcomeHTML();
+    updateResumeButton();
 }
 
 // ============================================================
@@ -2251,6 +2291,7 @@ async function initApp() {
     loadScenarios();
     loadConversations();
     loadProgress();
+    updateResumeButton();
     initVoice();
     messageInput.focus();
     if (window.speechSynthesis) {
@@ -3131,16 +3172,25 @@ function renderExamQuestion(idx) {
 function startExamTimer() {
     if (examState.paused) return;
     if (examState.timer) clearInterval(examState.timer);
+    // Count against wall-clock time so backgrounded tabs cannot under-count.
+    examState.lastTick = Date.now();
     examState.timer = setInterval(() => {
-        if (examState.paused) return;
-        examState.timeLeft--;
+        const now = Date.now();
+        if (examState.paused) {
+            examState.lastTick = now;
+            return;
+        }
+        const elapsed = Math.floor((now - examState.lastTick) / 1000);
+        examState.lastTick = now;
+        if (elapsed <= 0) return;
+        examState.timeLeft = Math.max(0, examState.timeLeft - elapsed);
         const timerEl = document.getElementById('examTimer');
         if (timerEl) timerEl.textContent = '⏱️ ' + formatTime(examState.timeLeft);
         if (examState.timeLeft <= 0) {
             clearInterval(examState.timer);
             submitExam();
         }
-    }, 1000);
+    }, 250);
 }
 
 function stopExamTimer() {
