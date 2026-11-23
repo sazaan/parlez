@@ -76,6 +76,7 @@
                 <button class="tab" type="button" data-section="courses">Course publishing</button>
                 <button class="tab" type="button" data-section="users">Users</button>
                 <button class="tab" type="button" data-section="security">Security</button>
+                <button class="tab" type="button" data-section="sessions">Sessions</button>
                 <button class="tab" type="button" data-section="observability">Observability</button>
                 <button class="tab" type="button" data-section="audit">Change log</button>
             </nav>
@@ -195,6 +196,18 @@
                     </div>
                     <p class="inline-message" id="mfaMessage" role="status" aria-live="polite"></p>
                     <p class="field-help">Enabling, replacing, or disabling MFA signs out all admin sessions. Keep access to the authenticator app; recovery requires server-side admin recovery.</p>
+                </div>
+            </section>
+
+            <section class="panel-section" id="section-sessions" hidden>
+                <div class="section-heading">
+                    <div><p class="eyebrow">SECURITY</p><h2>Active sessions</h2><p>Review and revoke signed-in admin sessions. Revoking your current session signs you out.</p></div>
+                    <span class="section-icon" aria-hidden="true">⌘</span>
+                </div>
+                <div class="card">
+                    <div class="card-actions"><button class="button button-primary" id="revokeAllSessionsButton" type="button">Revoke all sessions</button></div>
+                    <div class="observability-table-wrap"><table class="observability-table"><thead><tr><th scope="col">Session</th><th scope="col">Expires</th><th scope="col">Action</th></tr></thead><tbody id="adminSessionRows"><tr><td colspan="3" class="users-empty">Loading sessions…</td></tr></tbody></table></div>
+                    <p class="inline-message" id="sessionsMessage" role="status" aria-live="polite"></p>
                 </div>
             </section>
 

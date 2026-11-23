@@ -290,6 +290,45 @@
         }
     }
 
+    async function loadAdminSessions() {
+        const rows = document.getElementById('adminSessionRows');
+        const message = document.getElementById('sessionsMessage');
+        try {
+            const data = await adminRequest('/api/admin/sessions');
+            const sessions = Array.isArray(data.sessions) ? data.sessions : [];
+            rows.innerHTML = sessions.length
+                ? sessions.map(session => {
+                    const when = new Date(session.expires_at * 1000).toLocaleString();
+                    return `<tr><td><code>${escapeHTML(String(session.id).slice(0, 12))}…</code><small>${escapeHTML(session.username)}</small></td><td>${escapeHTML(when)}</td><td><button class="button button-quiet" type="button" data-revoke-session="${escapeHTML(session.id)}">Revoke</button></td></tr>`;
+                }).join('')
+                : '<tr><td colspan="3" class="users-empty">No active sessions.</td></tr>';
+            setMessage(message, '');
+        } catch (error) {
+            setMessage(message, error.message || 'Could not load sessions.');
+        }
+    }
+
+    document.addEventListener('click', async (event) => {
+        const button = event.target.closest('[data-revoke-session]');
+        if (!button) return;
+        try {
+            await adminRequest(`/api/admin/sessions/${encodeURIComponent(button.dataset.revokeSession)}`, { method: 'DELETE' });
+            await loadAdminSessions();
+        } catch (error) {
+            setMessage(document.getElementById('sessionsMessage'), error.message || 'Could not revoke session.');
+        }
+    });
+
+    document.getElementById('revokeAllSessionsButton')?.addEventListener('click', async () => {
+        try {
+            await adminRequest('/api/admin/sessions/revoke-all', { method: 'POST' });
+            await loadAdminSessions();
+            setMessage(document.getElementById('sessionsMessage'), 'All admin sessions were revoked.');
+        } catch (error) {
+            setMessage(document.getElementById('sessionsMessage'), error.message || 'Could not revoke sessions.');
+        }
+    });
+
     function startObservabilityRefresh() {
         if (observabilityTimer !== null) return;
         observabilityTimer = setInterval(() => {
@@ -705,6 +744,7 @@
             });
             if (tab.dataset.section === 'users') loadAdminUsers(0);
             if (tab.dataset.section === 'observability') loadObservability();
+            if (tab.dataset.section === 'sessions') loadAdminSessions();
         });
     });
 

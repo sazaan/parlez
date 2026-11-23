@@ -256,6 +256,21 @@ class Storage:
             row = session.query(User).filter_by(id=user_id).first()
             return self._user_from_row(row) if row else None
 
+    def find_user_by_referral_code(self, code: str) -> Optional[dict]:
+        """Find the account that owns a referral code (small-scale scan)."""
+        with self.Session() as session:
+            for row in session.query(User).all():
+                if (row.data or {}).get("referral_code") == code:
+                    return self._user_from_row(row)
+        return None
+
+    def count_referrals(self, code: str) -> int:
+        with self.Session() as session:
+            return sum(
+                1 for row in session.query(User).all()
+                if (row.data or {}).get("referred_by") == code
+            )
+
     def get_user_by_username(self, username: str) -> Optional[dict]:
         with self.Session() as session:
             row = session.query(User).filter_by(username=username).first()
@@ -594,10 +609,19 @@ class Storage:
                 AdminSession.expires_at > time.time(),
             ).first() is not None
 
-    def revoke_admin_session(self, session_id: str) -> None:
+    def revoke_admin_session(self, session_id: str) -> bool:
         with self.Session() as session:
             with session.begin():
-                session.query(AdminSession).filter_by(id=session_id).delete(synchronize_session=False)
+                deleted = session.query(AdminSession).filter_by(id=session_id).delete(synchronize_session=False)
+                return bool(deleted)
+
+    def list_admin_sessions(self) -> list[dict]:
+        with self.Session() as session:
+            rows = session.query(AdminSession).order_by(AdminSession.expires_at.desc()).all()
+            return [
+                {"id": row.id, "username": row.username, "expires_at": row.expires_at}
+                for row in rows
+            ]
 
     def revoke_all_admin_sessions(self, username: str) -> None:
         """Revoke all active admin sessions after an authentication-factor change."""

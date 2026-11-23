@@ -158,6 +158,7 @@ from engine.adaptive import analyze_weak_areas, get_difficulty_adjustments, buil
 from engine.content_ingestion import process_french_content
 from engine.writing import build_writing_correction_prompt, parse_correction_response, format_correction_for_display
 from engine.rewards import award as award_reward, utc_day as reward_day, BADGES as REWARD_BADGES, DAILY_XP_CAP
+from engine.moderation import sanitize_output, check_output, SAFE_REPLY
 from mock_tests import mock_tests, get_test
 from mock_tests.data import (
     get_practice_set_questions,
@@ -801,6 +802,7 @@ class SignupRequest(BaseModel):
     username: str
     password: str
     name: Optional[str] = None
+    ref: Optional[str] = None
 
 class LoginRequest(BaseModel):
     username: str
@@ -1504,10 +1506,12 @@ async def admin_login(request: Request, credentials: AdminLoginRequest, response
         raise HTTPException(status_code=503, detail="Admin access is not configured on this server.")
     if not _admin_origin_is_same(request) or request.headers.get("sec-fetch-site") == "cross-site":
         log_event("auth.admin_login.failure", logging.WARNING, outcome="failure", reason_code="origin_rejected")
+        storage.add_admin_audit(str(credentials.username)[:80], "admin_login_failed", {"reason": "origin_rejected"})
         raise HTTPException(status_code=403, detail="Cross-origin admin sign-in is not allowed.")
 
     if not _admin_password_matches(credentials.username, credentials.password):
         log_event("auth.admin_login.failure", logging.WARNING, outcome="failure", reason_code="credentials_rejected")
+        storage.add_admin_audit(str(credentials.username)[:80], "admin_login_failed", {"reason": "credentials_rejected"})
         raise HTTPException(status_code=401, detail="Invalid admin credentials or verification code.")
 
     mfa = _get_admin_mfa_state()
@@ -1516,6 +1520,7 @@ async def admin_login(request: Request, credentials: AdminLoginRequest, response
         raise HTTPException(status_code=428, detail="Authenticator code required.")
     if mfa["enabled"] and not _valid_admin_totp(mfa["secret"], credentials.totp):
         log_event("auth.admin_login.failure", logging.WARNING, outcome="failure", reason_code="totp_rejected")
+        storage.add_admin_audit(str(credentials.username)[:80], "admin_login_failed", {"reason": "totp_rejected"})
         raise HTTPException(status_code=401, detail="Invalid admin credentials or verification code.")
 
     now = datetime.datetime.now(datetime.timezone.utc)
@@ -1551,6 +1556,26 @@ async def admin_login(request: Request, credentials: AdminLoginRequest, response
 @app.get("/api/admin/session", include_in_schema=False)
 async def admin_session(admin=Depends(require_admin)):
     return {"username": admin["username"], "csrf_token": admin["csrf"]}
+
+
+@app.get("/api/admin/sessions", include_in_schema=False)
+async def admin_sessions(admin=Depends(require_admin)):
+    """List active admin sessions (no tokens are stored in the database)."""
+    return {"sessions": storage.list_admin_sessions()}
+
+
+@app.delete("/api/admin/sessions/{session_id}", include_in_schema=False)
+async def admin_revoke_session(session_id: str, admin=Depends(require_admin)):
+    revoked = storage.revoke_admin_session(session_id)
+    storage.add_admin_audit(admin["username"], "admin_session_revoked", {"session_id": session_id[:8], "revoked": revoked})
+    return {"ok": revoked}
+
+
+@app.post("/api/admin/sessions/revoke-all", include_in_schema=False)
+async def admin_revoke_all_sessions(admin=Depends(require_admin)):
+    storage.revoke_all_admin_sessions(ADMIN_USERNAME)
+    storage.add_admin_audit(admin["username"], "admin_sessions_revoked_all", {})
+    return {"ok": True}
 
 
 @app.get("/api/admin/users/count", include_in_schema=False)
@@ -2100,6 +2125,12 @@ async def signup(request: Request, req: SignupRequest, response: Response):
         log_event("auth.signup.failure", logging.INFO, outcome="failure", reason_code="account_exists")
         raise HTTPException(409, "Username or email address already registered. Please log in.")
 
+    user["referral_code"] = secrets.token_urlsafe(6).upper().replace("-", "X")[:8]
+    ref_code = (req.ref or "").strip().upper()
+    if ref_code and ref_code != user["referral_code"] and storage.find_user_by_referral_code(ref_code):
+        user["referred_by"] = ref_code
+    storage.save_user(user)
+
     log_event("auth.signup.success", logging.INFO, outcome="success", learner_level=user.get("level", "A1"))
 
     # Generate token
@@ -2262,6 +2293,17 @@ async def get_my_entitlements(user=Depends(require_auth)):
             feature: payments.has_entitlement(entitlement, feature)
             for feature in ("lessons", "chat", "flashcards", "exam_style", "extended_speaking")
         },
+    }
+
+
+@app.get("/api/referrals/me")
+async def my_referral(user=Depends(require_auth)):
+    code = user.get("referral_code") or ""
+    return {
+        "code": code,
+        "link": f"/login?mode=signup&ref={code}" if code else None,
+        "referredCount": storage.count_referrals(code) if code else 0,
+        "reward": "A reward is granted when a referred learner completes their first lesson.",
     }
 
 
@@ -2495,6 +2537,9 @@ async def chat(request: Request, msg: ChatMessage, user=Depends(require_auth)):
     try:
         r = await call_nvidia(messages, max_tokens=CHAT_MAX_TOKENS)
         resp = extract_assistant_text(r)
+        resp, blocked = sanitize_output(resp)
+        if blocked:
+            log_event("ai.output.blocked", logging.WARNING, operation="chat", outcome="blocked")
     except ProviderResponseInvalid as exc:
         logger.error("Chat provider returned unusable content: %s", exc.reason)
         raise HTTPException(status_code=502, detail="The tutor produced an empty response. Please try again.")
@@ -2517,6 +2562,11 @@ async def chat_stream(request: Request, msg: ChatMessage, user=Depends(require_a
         try:
             async for delta in stream_chat(messages, max_tokens=CHAT_MAX_TOKENS):
                 chunks.append(delta)
+                allowed, reason = check_output("".join(chunks))
+                if not allowed:
+                    log_event("ai.output.blocked", logging.WARNING, operation="chat_stream", reason=reason)
+                    yield "data: " + json.dumps({"error": SAFE_REPLY}) + "\n\n"
+                    return
                 yield "data: " + json.dumps({"delta": delta}) + "\n\n"
             resp = "".join(chunks).strip()
             if not resp:
@@ -2635,6 +2685,13 @@ async def complete_lesson(data: dict, user=Depends(require_auth)):
     if lesson_id and lesson_id not in progress.get('lessons_completed', []):
         progress.setdefault('lessons_completed', []).append(lesson_id)
         award_reward(storage, user, "lesson_complete", metadata={"lesson_id": lesson_id})
+        ref_code = user.get("referred_by")
+        if ref_code and not user.get("referral_rewarded"):
+            referrer = storage.find_user_by_referral_code(ref_code)
+            if referrer and referrer["id"] != user["id"]:
+                award_reward(storage, referrer, "lesson_complete", metadata={"referral": user["id"]})
+                storage.save_user(referrer)
+            user["referral_rewarded"] = True
     storage.save_user(user)
     return progress
 
@@ -3198,6 +3255,9 @@ async def correct_writing(req: WritingCorrectionRequest, user=Depends(require_au
     try:
         r = await call_nvidia(messages, operation="writing_correction")
         resp = extract_assistant_text(r)
+        resp, blocked = sanitize_output(resp)
+        if blocked:
+            log_event("ai.output.blocked", logging.WARNING, operation="writing_correction", outcome="blocked")
     except ProviderResponseInvalid as exc:
         logger.error("Writing correction provider returned unusable content: %s", exc.reason)
         raise HTTPException(

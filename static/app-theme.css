@@ -277,6 +277,21 @@ button { -webkit-tap-highlight-color: transparent; }
     box-shadow: none;
     animation: fadeInUp 0.55s ease-out both;
 }
+.rewards-view { max-width: 760px; }
+.reward-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.7rem; }
+.reward-stat { padding: 0.9rem; border: 1px solid var(--border); border-radius: 12px; background: var(--card); text-align: center; }
+.reward-stat strong { display: block; font-family: var(--font-display); font-size: 1.7rem; color: var(--wine); }
+.reward-stat span { font-size: 0.78rem; color: var(--muted-foreground); }
+.reward-note { font-size: 0.8rem; color: var(--muted-foreground); margin: 0.9rem 0 1.2rem; }
+.rewards-view h3 { margin: 1.2rem 0 0.6rem; font-size: 1rem; }
+.badge-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.6rem; }
+.reward-badge { display: flex; gap: 0.6rem; align-items: center; padding: 0.7rem; border: 1px solid var(--border); border-radius: 10px; opacity: 0.65; }
+.reward-badge.earned { opacity: 1; border-color: var(--gold); background: rgba(192,147,74,0.08); }
+.badge-icon { font-size: 1.3rem; color: var(--gold); }
+.reward-badge small { display: block; color: var(--muted-foreground); }
+.reward-ledger { list-style: none; padding: 0; margin: 0; }
+.reward-ledger li { display: flex; justify-content: space-between; padding: 0.45rem 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+
 .speaking-card { display: grid; gap: 0.8rem; max-width: 720px; }
 .speaking-prompts { display: grid; gap: 0.4rem; }
 .speaking-prompt { text-align: left; padding: 0.7rem 0.85rem; border: 1px solid var(--border); border-radius: 10px; background: var(--card); color: inherit; cursor: pointer; font-size: 0.9rem; }

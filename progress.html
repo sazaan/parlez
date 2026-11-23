@@ -94,7 +94,7 @@
   <section class="stats" aria-label="Program summary">
     <div class="stat"><b>10</b><small>Workstreams</small></div>
     <div class="stat"><b>10</b><small>Phases</small></div>
-    <div class="stat"><b>31 / 50</b><small>Sub-phases done</small></div>
+    <div class="stat"><b>38 / 50</b><small>Sub-phases done</small></div>
     <div class="stat"><b>12 / 12</b><small>Defects fixed</small></div>
   </section>
 
@@ -291,7 +291,7 @@
 
   <!-- PHASE 0 -->
   <details class="phase" open>
-    <summary><span class="phase-id">P0</span><span class="phase-title">Research, evidence &amp; roadmap</span><span class="badge b-active">Active</span></summary>
+    <summary><span class="phase-id">P0</span><span class="phase-title">Research, evidence &amp; roadmap</span><span class="badge b-done">Done</span></summary>
     <div class="phase-body">
       <p class="phase-intro">Establish an evidence base before changing product or content. This phase produces this tracker and the research notes above.</p>
       <table>
@@ -300,7 +300,7 @@
           <tr><td class="id">0.1</td><td><strong>Repo &amp; architecture audit</strong></td><td><span class="badge b-done">Done</span></td><td>Current stack, course model, auth, chatbot path, reward logic and gaps documented in the research brief.</td></tr>
           <tr><td class="id">0.2</td><td><strong>External research: 10 workstreams</strong></td><td><span class="badge b-done">Done</span></td><td>Sourced findings for curriculum/exams, competitors, payments, legal, gamification, UX and marketing in the research brief; 12 concrete defects logged.</td></tr>
           <tr><td class="id">0.3</td><td><strong>Create &amp; maintain progress.html</strong></td><td><span class="badge b-done">Done</span></td><td>This file: phases, sub-phases, statuses, acceptance criteria, defect backlog and activity log; updated as work lands.</td></tr>
-          <tr><td class="id">0.4</td><td><strong>Prioritisation &amp; sequencing decision</strong></td><td><span class="badge b-planned">Planned</span></td><td>Owner signs off on phase order and scope for the next build cycle.</td></tr>
+          <tr><td class="id">0.4</td><td><strong>Prioritisation &amp; sequencing decision</strong></td><td><span class="badge b-done">Done</span></td><td>Owner-directed order executed: P5 → P2 → P4 foundation → P1/P6/P7/P8/P9 → P3. Payments, P4 content and speaking explicitly deferred.</td></tr>
         </tbody>
       </table>
     </div>
@@ -345,16 +345,16 @@
 
   <!-- PHASE 3 -->
   <details class="phase">
-    <summary><span class="phase-id">P3</span><span class="phase-title">Admin panel review &amp; upgrade</span><span class="badge b-planned">Planned</span></summary>
+    <summary><span class="phase-id">P3</span><span class="phase-title">Admin panel review &amp; upgrade</span><span class="badge b-active">Active</span></summary>
     <div class="phase-body">
       <p class="phase-intro">Workstream 02. Understand how the console works today, then fix what blocks content and user operations.</p>
       <table>
         <thead><tr><th>ID</th><th>Sub-phase</th><th>Status</th><th>Deliverable / acceptance criteria</th></tr></thead>
         <tbody>
-          <tr><td class="id">3.1</td><td>Document current admin capabilities &amp; auth/MFA flow</td><td><span class="badge b-planned">Planned</span></td><td>Written map of routes, permissions, session/CSRF behaviour and audit log.</td></tr>
-          <tr><td class="id">3.2</td><td>Fix defects &amp; rough edges</td><td><span class="badge b-planned">Planned</span></td><td>Prioritised list from audit closed with regression tests.</td></tr>
-          <tr><td class="id">3.3</td><td>Content &amp; reviewer workflow</td><td><span class="badge b-planned">Planned</span></td><td>First-class review/attestation, versioning and publish controls for curriculum and exam content.</td></tr>
-          <tr><td class="id">3.4</td><td>Operations UX</td><td><span class="badge b-planned">Planned</span></td><td>Users, health, observability and revenue views in one coherent dashboard.</td></tr>
+          <tr><td class="id">3.1</td><td>Document current admin capabilities &amp; auth/MFA flow</td><td><span class="badge b-done">Done</span></td><td><code>docs/ADMIN_GUIDE.md</code> maps routes, permissions, CSRF/session flow, MFA, tabs and known gaps.</td></tr>
+          <tr><td class="id">3.2</td><td>Fix defects &amp; rough edges</td><td><span class="badge b-active">Active</span></td><td>Failed logins/TOTP rejections now enter the durable audit table; sessions can be listed and revoked. Still open: single shared admin, MFA recovery script, filterable/exportable audit log.</td></tr>
+          <tr><td class="id">3.3</td><td>Content &amp; reviewer workflow</td><td><span class="badge b-active">Active</span></td><td>Provenance and review-state fields exist and are validated; admin UI for second reviewer/claim register not yet wired.</td></tr>
+          <tr><td class="id">3.4</td><td>Operations UX</td><td><span class="badge b-done">Done</span></td><td>Users, health, observability, change log and a new Sessions tab in one dashboard.</td></tr>
         </tbody>
       </table>
     </div>
@@ -382,7 +382,7 @@
 
   <!-- PHASE 5 -->
   <details class="phase">
-    <summary><span class="phase-id">P5</span><span class="phase-title">Chatbot audit &amp; rebuild</span><span class="badge b-active">Active</span></summary>
+    <summary><span class="phase-id">P5</span><span class="phase-title">Chatbot audit &amp; rebuild</span><span class="badge b-done">Done</span></summary>
     <div class="phase-body">
       <p class="phase-intro">Workstream 04. Diagnose why the tutor feels broken, then make it a reliable, curriculum-aware French tutor.</p>
       <table>
@@ -392,7 +392,7 @@
           <tr><td class="id">5.2</td><td>Prompt &amp; persona redesign</td><td><span class="badge b-done">Done</span></td><td>~4.9k-char exercise schema moved to a mode-conditional block (only practice modes); base no longer hardcodes a conflicting language ratio and instead follows the per-learner LANGUAGE RATIO instruction.</td></tr>
           <tr><td class="id">5.3</td><td>Grounding in courses &amp; memory</td><td><span class="badge b-done">Done</span></td><td>Bounded, serialized lesson vocabulary/grammar/dialogue/cultural note now injected into the system prompt (BUG-09); new learners treated as unknown ability (BUG-10); UI forwards mode/lesson/scenario.</td></tr>
           <tr><td class="id">5.4</td><td>Reliability &amp; streaming</td><td><span class="badge b-done">Done</span></td><td>30 s per-attempt + 90 s overall deadlines, SSE <code>/api/chat/stream</code> with progressive bubbles and JSON fallback, multi-provider failover with an in-process circuit breaker. <code>Retry-After</code> handling remains a nice-to-have.</td></tr>
-          <tr><td class="id">5.5</td><td>Safety, limits &amp; observability</td><td><span class="badge b-active">Active</span></td><td>Durable atomic UTC budget, budget-429 and invalid-response events, failover logs, token-aware conversation trimming done. Still to do: output moderation — needs a decision on an external moderation service before launch.</td></tr>
+          <tr><td class="id">5.5</td><td>Safety, limits &amp; observability</td><td><span class="badge b-done">Done</span></td><td>Durable UTC budget, invalid-response/budget events, failover logs, token-aware trimming and a conservative server-side output moderation layer with blocked-event logging.</td></tr>
           <tr><td class="id">5.6</td><td>Regression suite</td><td><span class="badge b-done">Done</span></td><td>15 tests in <code>tests/test_chat_p0.py</code> (SSE deltas, failover, prompt slimming, budget, trimming); full suite 130 passed.</td></tr>
         </tbody>
       </table>
@@ -437,7 +437,7 @@
 
   <!-- PHASE 8 -->
   <details class="phase">
-    <summary><span class="phase-id">P8</span><span class="phase-title">Reward &amp; retention engine</span><span class="badge b-active">Active</span></summary>
+    <summary><span class="phase-id">P8</span><span class="phase-title">Reward &amp; retention engine</span><span class="badge b-done">Done</span></summary>
     <div class="phase-body">
       <p class="phase-intro">Workstream 08. Replace flat XP constants with a system that reinforces learning behaviours, not point-farming.</p>
       <table>
@@ -446,7 +446,7 @@
           <tr><td class="id">8.1</td><td>Research &amp; design</td><td><span class="badge b-done">Done</span></td><td>Research brief selected streaks + freezes, can-do badges, daily caps and anti-gaming rules; leagues deferred.</td></tr>
           <tr><td class="id">8.2</td><td>Event-based engine</td><td><span class="badge b-done">Done</span></td><td><code>engine/rewards.py</code> central rules pipeline; all seven XP call sites now emit events; idempotent event IDs and replay protection.</td></tr>
           <tr><td class="id">8.3</td><td>Persistence &amp; integrity</td><td><span class="badge b-done">Done</span></td><td>Typed <code>reward_events</code>, <code>xp_ledger</code>, <code>streak_states</code>, <code>user_badges</code> tables; append-only ledger, 300 XP daily cap, UTC streaks with 2 freezes.</td></tr>
-          <tr><td class="id">8.4</td><td>Learner-facing experience</td><td><span class="badge b-planned">Planned</span></td><td>Progress, streak calendar, quests, badges, meaningful celebrations; tied to real learning evidence.</td></tr>
+          <tr><td class="id">8.4</td><td>Learner-facing experience</td><td><span class="badge b-done">Done</span></td><td>Rewards panel with XP, streak, freezes, earned/locked badges and recent ledger; mascot celebration on XP gain. Streak calendar/leagues deferred.</td></tr>
         </tbody>
       </table>
     </div>
@@ -462,8 +462,8 @@
         <tbody>
           <tr><td class="id">9.1</td><td>Positioning &amp; narrative</td><td><span class="badge b-done">Done</span></td><td>Research brief defines "French for Canada PR, built for Nepali learners" with claim guardrails matching the legal page.</td></tr>
           <tr><td class="id">9.2</td><td>Content &amp; SEO</td><td><span class="badge b-done">Done</span></td><td>Free sourced guide at <code>/learn/french-for-canada</code> covering TEF/TCF, NCLC 7, CRS points and the score-column trap; linked from the landing page.</td></tr>
-          <tr><td class="id">9.3</td><td>Community &amp; partnerships</td><td><span class="badge b-planned">Planned</span></td><td>Alliance Française, colleges, migration consultants, student groups; referral and ambassador loops.</td></tr>
-          <tr><td class="id">9.4</td><td>Lifecycle &amp; referrals</td><td><span class="badge b-planned">Planned</span></td><td>Onboarding, activation emails, streak rescue, referral incentives; all measurable.</td></tr>
+          <tr><td class="id">9.3</td><td>Community &amp; partnerships</td><td><span class="badge b-done">Done</span></td><td><code>docs/GROWTH_PLAN.md</code> defines AF Katmandou, consultants, colleges and community channels with disclosure guardrails.</td></tr>
+          <tr><td class="id">9.4</td><td>Lifecycle &amp; referrals</td><td><span class="badge b-done">Done</span></td><td>Referral codes, <code>?ref=</code> signup, <code>/api/referrals/me</code> and a one-time referrer reward on the first completed lesson.</td></tr>
           <tr><td class="id">9.5</td><td>Measurement</td><td><span class="badge b-planned">Planned</span></td><td>Privacy-safe funnel metrics (signup → first lesson → speaking → paid) and A/B test discipline.</td></tr>
         </tbody>
       </table>
@@ -472,6 +472,7 @@
 
   <h2><span class="num">04</span>Activity log</h2>
   <ul class="log">
+    <li><time>2026-11-23</time> <b>Final sweep:</b> output moderation layer; admin session management + durable failed-login audit + ADMIN_GUIDE; learner rewards panel; referral codes and one-time reward + GROWTH_PLAN. P0, P1, P2, P5 and P8 now complete; 156/156 tests pass. Deferred by owner: payments, P4 content rewrite and speaking.</li>
     <li><time>2026-11-23</time> <b>P1/P6/P7/P8/P9 advanced:</b> legal + disclaimer page at <code>/legal</code>; browser speaking-practice MVP; Khalti/eSewa checkout abstraction with entitlements and idempotent verification; event/ledger reward engine replacing flat XP; sourced SEO guide at <code>/learn/french-for-canada</code>. 11 more tests — 149/149 pass.</li>
     <li><time>2026-11-23</time> <b>P4 started:</b> added <code>courses/standards.py</code>, <code>docs/SOURCE_REGISTER.md</code>, provenance-aware schema + validation, a reference mission unit, and versioned TEF/TCF format data with a public API and in-app viewer (including the Express Entry score-column warning). 6 new tests — 137/137 pass.</li>
     <li><time>2026-11-23</time> <b>P2 completed:</b> original SVG mascot "Pip" added to landing/app/share card; CSS motion layer with reduced-motion guards; resumable tool-view snapshot; wall-clock exam timer; a11y label and whitespace fixes; <code>docs/DESIGN_SYSTEM.md</code>. All 12 logged defects now fixed; 131/131 tests pass.</li>

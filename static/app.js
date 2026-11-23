@@ -128,7 +128,10 @@ authForm?.addEventListener('submit', async (e) => {
     authSubmit.disabled = true;
     try {
         const endpoint = isSignup ? '/api/auth/signup' : '/api/auth/login';
-        const body = isSignup ? { username, password, name, email: authEmail.value.trim() } : { username, password };
+        const refCode = new URLSearchParams(window.location.search).get('ref');
+        const body = isSignup
+            ? { username, password, name, email: authEmail.value.trim(), ...(refCode ? { ref: refCode } : {}) }
+            : { username, password };
         
         const r = await fetch(endpoint, {
             method: 'POST',
@@ -319,6 +322,9 @@ function setupDelegatedHandlers() {
                 break;
             case 'start-speaking-practice':
                 if (typeof window.startSpeakingPractice === 'function') window.startSpeakingPractice();
+                break;
+            case 'show-rewards':
+                if (typeof window.showRewards === 'function') window.showRewards();
                 break;
             case 'speaking-prompt': {
                 const field = document.getElementById('speakingText');
@@ -3342,6 +3348,38 @@ const SPEAKING_PROMPTS = [
     "Commande un café au lait dans un café.",
     "Explique pourquoi tu apprends le français."
 ];
+
+window.showRewards = async function() {
+    showToolView('🏅 Rewards &amp; streaks', spinnerHTML('Loading your rewards...', false));
+    try {
+        const r = await apiFetch('/api/rewards/summary');
+        const data = await r.json();
+        const earned = new Set(data.badges || []);
+        let html = '<div class="rewards-view">';
+        html += '<div class="reward-stats">';
+        html += `<div class="reward-stat"><strong>${escapeHtml(data.total_xp)}</strong><span>Total XP</span></div>`;
+        html += `<div class="reward-stat"><strong>${escapeHtml(data.streak)}</strong><span>Day streak</span></div>`;
+        html += `<div class="reward-stat"><strong>${escapeHtml(data.best_streak)}</strong><span>Best streak</span></div>`;
+        html += `<div class="reward-stat"><strong>${escapeHtml(data.freezes)}</strong><span>Streak freezes</span></div>`;
+        html += '</div>';
+        html += `<p class="reward-note">Daily XP: ${escapeHtml(data.today_xp)} / ${escapeHtml(data.dailyCap)}. XP reflects learning actions; it is not a score or a CEFR/NCLC level.</p>`;
+        html += '<h3>Badges</h3><div class="badge-grid">';
+        for (const badge of data.badgeDefinitions || []) {
+            const has = earned.has(badge.id);
+            html += `<div class="reward-badge ${has ? 'earned' : ''}"><span class="badge-icon">${has ? '★' : '☆'}</span><div><strong>${escapeHtml(badge.id.replaceAll('_', ' '))}</strong><small>${escapeHtml(badge.description)}</small></div></div>`;
+        }
+        html += '</div>';
+        html += '<h3>Recent activity</h3><ul class="reward-ledger">';
+        for (const item of (data.ledger || []).slice(0, 10)) {
+            html += `<li><span>${escapeHtml(item.reason.replaceAll('_', ' '))}</span><strong>+${escapeHtml(item.delta)} XP</strong></li>`;
+        }
+        if (!(data.ledger || []).length) html += '<li>No activity yet — send your first message!</li>';
+        html += '</ul></div>';
+        getToolContent().innerHTML = html;
+    } catch (e) {
+        getToolContent().innerHTML = '<div class="tool-header"><h2>🏅 Rewards</h2></div><p>Could not load rewards. Please try again.</p>';
+    }
+};
 
 window.startSpeakingPractice = function() {
     const supported = Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);

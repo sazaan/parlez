@@ -124,6 +124,39 @@ def test_admin_login_starts_with_username_password_only_and_rejects_cross_origin
     assert cross_origin.status_code == 403
 
 
+def test_admin_can_list_and_revoke_sessions(signed_admin):
+    client, csrf = signed_admin
+
+    listed = client.get("/api/admin/sessions")
+    assert listed.status_code == 200
+    assert len(listed.json()["sessions"]) >= 1
+
+    session_id = listed.json()["sessions"][0]["id"]
+    revoked = client.delete(
+        f"/api/admin/sessions/{session_id}",
+        headers={"X-CSRF-Token": csrf},
+    )
+    assert revoked.status_code == 200
+    assert revoked.json()["ok"] is True
+    assert client.get("/api/admin/sessions").status_code == 401
+
+
+def test_failed_admin_login_is_audited(client, monkeypatch):
+    monkeypatch.setattr(main, "ADMIN_USERNAME", ADMIN_TEST_USERNAME)
+    monkeypatch.setattr(
+        main, "ADMIN_PASSWORD_HASH",
+        bcrypt.hashpw(ADMIN_TEST_PASSWORD.encode(), bcrypt.gensalt(rounds=4)).decode(),
+    )
+    monkeypatch.setattr(main, "ADMIN_SESSION_SECRET", "test-admin-session-secret-0123456789abcdef")
+    monkeypatch.setattr(main, "ADMIN_AUTH_CONFIGURED", True)
+
+    r = client.post("/api/admin/login", json={"username": "attacker", "password": "wrong"})
+    assert r.status_code == 401
+
+    audit = main.storage.list_admin_audit(limit=10)
+    assert any(row["action"] == "admin_login_failed" for row in audit)
+
+
 def test_admin_users_directory_requires_an_authenticated_admin(client, monkeypatch):
     monkeypatch.setattr(main, "ADMIN_AUTH_CONFIGURED", True)
     response = client.get("/api/admin/users")
