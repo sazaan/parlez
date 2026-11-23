@@ -2288,6 +2288,26 @@ async def delete_conversation(conv_id: str, user=Depends(require_auth)):
 
 # --- Chat ---
 
+def _trim_conversation(recent_messages, max_chars=24000, per_message_chars=6000):
+    """Keep the newest messages that fit an approximate token budget.
+
+    Character count is used as a cheap proxy (~4 chars/token). This prevents
+    a few very long code-block replies from evicting all useful conversation
+    history while keeping the prompt size predictable.
+    """
+    kept = []
+    remaining = max_chars
+    for item in reversed(list(recent_messages)):
+        content = str(item.get("content", ""))
+        if len(content) > per_message_chars:
+            content = content[-per_message_chars:]
+        if kept and len(content) > remaining:
+            break
+        remaining -= len(content)
+        kept.append({"role": item.get("role", "user"), "content": content})
+    return list(reversed(kept))
+
+
 def _prepare_chat(msg, user):
     """Reserve budget, validate input and build the provider message list."""
     check_daily_llm_budget(user)
@@ -2336,8 +2356,7 @@ def _prepare_chat(msg, user):
 
     messages = [{"role": "system", "content": system_prompt}]
     conv = user.get('conversations', {}).get(msg.conv_id, {})
-    for m in conv.get("messages", [])[-15:]:
-        messages.append({"role": m["role"], "content": m["content"]})
+    messages.extend(_trim_conversation(conv.get("messages", [])[-15:]))
     messages.append({"role": "user", "content": message})
     return messages, message, mode, level
 

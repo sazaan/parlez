@@ -392,8 +392,8 @@
           <tr><td class="id">5.2</td><td>Prompt &amp; persona redesign</td><td><span class="badge b-done">Done</span></td><td>~4.9k-char exercise schema moved to a mode-conditional block (only practice modes); base no longer hardcodes a conflicting language ratio and instead follows the per-learner LANGUAGE RATIO instruction.</td></tr>
           <tr><td class="id">5.3</td><td>Grounding in courses &amp; memory</td><td><span class="badge b-done">Done</span></td><td>Bounded, serialized lesson vocabulary/grammar/dialogue/cultural note now injected into the system prompt (BUG-09); new learners treated as unknown ability (BUG-10); UI forwards mode/lesson/scenario.</td></tr>
           <tr><td class="id">5.4</td><td>Reliability &amp; streaming</td><td><span class="badge b-done">Done</span></td><td>30 s per-attempt + 90 s overall deadlines, SSE <code>/api/chat/stream</code> with progressive bubbles and JSON fallback, multi-provider failover with an in-process circuit breaker. <code>Retry-After</code> handling remains a nice-to-have.</td></tr>
-          <tr><td class="id">5.5</td><td>Safety, limits &amp; observability</td><td><span class="badge b-active">Active</span></td><td>Durable atomic UTC budget, budget-429 and invalid-response events instrumented, failover logged. Still to do: token-aware context trimming and input/output moderation.</td></tr>
-          <tr><td class="id">5.6</td><td>Regression suite</td><td><span class="badge b-done">Done</span></td><td>14 tests in <code>tests/test_chat_p0.py</code> (incl. SSE deltas, failover, prompt slimming, budget); full suite 129 passed.</td></tr>
+          <tr><td class="id">5.5</td><td>Safety, limits &amp; observability</td><td><span class="badge b-active">Active</span></td><td>Durable atomic UTC budget, budget-429 and invalid-response events, failover logs, token-aware conversation trimming done. Still to do: output moderation — needs a decision on an external moderation service before launch.</td></tr>
+          <tr><td class="id">5.6</td><td>Regression suite</td><td><span class="badge b-done">Done</span></td><td>15 tests in <code>tests/test_chat_p0.py</code> (SSE deltas, failover, prompt slimming, budget, trimming); full suite 130 passed.</td></tr>
         </tbody>
       </table>
     </div>
@@ -472,6 +472,7 @@
 
   <h2><span class="num">04</span>Activity log</h2>
   <ul class="log">
+    <li><time>2026-11-23</time> Added token-aware conversation trimming to keep chat prompts bounded; 130/130 tests pass. Output moderation deferred pending an external-service decision.</li>
     <li><time>2026-11-23</time> <b>P5 continued:</b> mode-conditional exercise schema and consistent language-ratio instructions; SSE <code>/api/chat/stream</code> with progressive rendering and JSON fallback; multi-provider failover + circuit breaker; budget-429 and invalid-response events. Added 4 more tests — 129/129 pass, <code>app.js</code> syntax OK.</li>
     <li><time>2026-11-23</time> <b>P5 chatbot P0 fixes shipped:</b> BUG-08…BUG-12 fixed — JSON/stream negotiation, 4096-token budget and empty/<code>length</code> detection with retry, 90 s global deadline, real lesson data in the prompt, new-learner handling, durable UTC LLM budget, mode forwarding + browser timeout. Added 10 regression tests; 125/125 pass. Scoped ruff reports 3 pre-existing errors in untouched code.</li>
     <li><time>2026-11-23</time> All five research threads completed: curriculum/TEF/TCF, payments/legal, gamification/UX/marketing, landing/UX audit, admin/chatbot audit. Findings and source links added to every research card.</li>

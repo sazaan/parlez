@@ -249,6 +249,19 @@ def test_chat_stream_endpoint_emits_sse_events(auth_client, monkeypatch):
     assert user["progress"]["xp"] == 5
 
 
+def test_conversation_trimming_keeps_newest_messages_within_budget():
+    history = [
+        {"role": "user", "content": "old " * 3000},
+        {"role": "assistant", "content": "middle " * 2000},
+        {"role": "user", "content": "most recent question"},
+    ]
+    trimmed = main._trim_conversation(history, max_chars=24000, per_message_chars=6000)
+
+    assert trimmed[-1]["content"] == "most recent question"
+    assert sum(len(m["content"]) for m in trimmed) <= 24000
+    assert all(len(m["content"]) <= 6000 for m in trimmed)
+
+
 def test_chat_does_not_award_xp_for_empty_reply(auth_client, monkeypatch):
     async def fake_call(messages, max_tokens=None, operation="chat"):
         return {"choices": [{"message": {"content": ""}, "finish_reason": "length"}]}
