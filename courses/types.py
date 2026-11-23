@@ -1,6 +1,30 @@
 from dataclasses import dataclass, field
 from typing import Optional
 
+
+@dataclass
+class ContentProvenance:
+    """Audit trail for a piece of curriculum content.
+
+    `review_state` is an internal editorial state (draft / practice / reviewed),
+    never a public proficiency credential. `verified_on` is required for
+    exam-format facts and is checked again every 90 days.
+    """
+    author: str = "Parlez"
+    source_links: list[str] = field(default_factory=list)
+    license: str = "original"
+    attribution: Optional[str] = None
+    created: Optional[str] = None
+    last_reviewed: Optional[str] = None
+    reviewer: Optional[str] = None
+    reviewer_credentials: Optional[str] = None
+    review_date: Optional[str] = None
+    review_state: str = "draft"
+    version: str = "1.0"
+    exam_format_version: Optional[str] = None
+    verified_on: Optional[str] = None
+
+
 @dataclass
 class VocabItem:
     fr: str
@@ -84,6 +108,10 @@ class Lesson:
     skillTags: list[str] = field(default_factory=list)
     transferTask: Optional[str] = None
     selfCheck: list[str] = field(default_factory=list)
+    descriptor_ids: list[str] = field(default_factory=list)
+    communicative_modes: list[str] = field(default_factory=list)
+    skill_evidence: list[str] = field(default_factory=list)
+    provenance: ContentProvenance = field(default_factory=ContentProvenance)
 
 @dataclass
 class Unit:
@@ -97,6 +125,9 @@ class Unit:
     skillTags: list[str] = field(default_factory=list)
     capstone: Optional[str] = None
     capstoneCriteria: list[str] = field(default_factory=list)
+    descriptor_ids: list[str] = field(default_factory=list)
+    communicative_modes: list[str] = field(default_factory=list)
+    provenance: ContentProvenance = field(default_factory=ContentProvenance)
 
 @dataclass
 class Course:
@@ -110,6 +141,9 @@ class Course:
     levelOutcomes: list[str] = field(default_factory=list)
     version: str = "1.0"
     contentStatus: str = "draft"
+    framework: str = "legacy"
+    descriptor_ids: list[str] = field(default_factory=list)
+    provenance: ContentProvenance = field(default_factory=ContentProvenance)
 
 @dataclass
 class ScenarioTopic:

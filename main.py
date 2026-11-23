@@ -167,6 +167,7 @@ from mock_tests.data import (
     PRACTICE_SETS_COUNT,
 )
 from mock_tests.preparation import get_exam_preparation, get_exam_study_plan
+from mock_tests.formats import EXAM_FORMATS, public_format
 
 def build_limiter(redis_url: str | None = None) -> Limiter:
     """Create a rate limiter. Use Redis storage when a URL is provided."""
@@ -2744,6 +2745,15 @@ async def fill_blank_practice(req: VocabQuizRequest):
     
     exercises = generate_fill_blank_vocab(all_vocab, n=req.count)
     return {"exercises": exercises}
+
+@app.get("/api/exam/formats")
+async def get_exam_formats():
+    """Versioned, sourced exam-format reference (never a score prediction)."""
+    return {
+        "formats": {key: public_format(spec) for key, spec in EXAM_FORMATS.items()},
+        "notice": "Original, unofficial practice. Verify current requirements with IRCC and the test owners.",
+    }
+
 
 @app.get("/api/mock-tests")
 async def get_mock_tests():

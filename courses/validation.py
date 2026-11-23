@@ -48,6 +48,37 @@ def _exercises(lesson):
         yield from lesson.conjugation.practice
 
 
+COMMUNICATIVE_MODES = {"reception", "production", "interaction", "mediation"}
+REVIEW_STATES = {"draft", "practice", "reviewed"}
+
+
+def _validate_provenance(provenance, path, issues, *, published, exam=False):
+    """Check the editorial audit trail for mission-v2 content.
+
+    Review state is internal; it never becomes a public credential claim.
+    """
+    if provenance is None:
+        issues.append(f"{path}: missing provenance")
+        return
+    if provenance.review_state not in REVIEW_STATES:
+        issues.append(f"{path}: invalid review state {provenance.review_state!r}")
+    if not provenance.author.strip():
+        issues.append(f"{path}: missing author")
+    if not provenance.license.strip():
+        issues.append(f"{path}: missing licence")
+    if provenance.license != "original" and not provenance.source_links:
+        issues.append(f"{path}: non-original content needs source links")
+    if published and provenance.review_state == "reviewed":
+        missing = [
+            name for name in ("reviewer", "reviewer_credentials", "review_date")
+            if not str(getattr(provenance, name) or "").strip()
+        ]
+        if missing:
+            issues.append(f"{path}: reviewed content needs {', '.join(missing)}")
+    if exam and (not provenance.exam_format_version or not provenance.verified_on):
+        issues.append(f"{path}: exam content needs format version and verified-on date")
+
+
 def validate_course(course: Course) -> list[str]:
     """Return content-integrity errors without changing learner-facing data."""
     issues: list[str] = []
@@ -57,6 +88,15 @@ def validate_course(course: Course) -> list[str]:
         issues.append(f"course: invalid contentStatus {course.contentStatus!r}")
     if not course.units:
         issues.append("course: no units")
+
+    mission_v2 = course.framework == "mission-v2"
+    if mission_v2:
+        if not course.descriptor_ids:
+            issues.append(f"{course.level}: no CEFR descriptor references")
+        _validate_provenance(
+            course.provenance, f"{course.level}.provenance", issues,
+            published=course.contentStatus != "draft",
+        )
 
     for path, value in _iter_strings(course):
         if value.endswith("\\"):
@@ -85,6 +125,17 @@ def validate_course(course: Course) -> list[str]:
         if not unit.lessons:
             issues.append(f"{unit_path}: no lessons")
 
+        exam_unit = any(key in f"{unit.title} {unit.theme}".upper() for key in ("TEF", "TCF"))
+        if mission_v2:
+            if not unit.descriptor_ids:
+                issues.append(f"{unit_path}: no descriptor references")
+            if not unit.communicative_modes or not set(unit.communicative_modes) <= COMMUNICATIVE_MODES:
+                issues.append(f"{unit_path}: invalid communicative modes")
+            _validate_provenance(
+                unit.provenance, f"{unit_path}.provenance", issues,
+                published=course.contentStatus != "draft", exam=exam_unit,
+            )
+
         for lesson_index, lesson in enumerate(unit.lessons):
             lesson_path = f"{unit_path}.lessons[{lesson_index}]"
             if not lesson.id:
@@ -102,6 +153,18 @@ def validate_course(course: Course) -> list[str]:
                 issues.append(f"{lesson_path}: missing skill tags")
             if not lesson.transferTask or not lesson.selfCheck:
                 issues.append(f"{lesson_path}: missing unscored transfer task or self-check")
+
+            if mission_v2:
+                if not lesson.descriptor_ids:
+                    issues.append(f"{lesson_path}: no descriptor references")
+                if not lesson.communicative_modes or not set(lesson.communicative_modes) <= COMMUNICATIVE_MODES:
+                    issues.append(f"{lesson_path}: invalid communicative modes")
+                if not lesson.skill_evidence:
+                    issues.append(f"{lesson_path}: no skill evidence")
+                _validate_provenance(
+                    lesson.provenance, f"{lesson_path}.provenance", issues,
+                    published=course.contentStatus != "draft", exam=exam_unit,
+                )
 
             for vocab_index, item in enumerate(lesson.vocabulary):
                 if not item.fr.strip() or not item.en.strip():

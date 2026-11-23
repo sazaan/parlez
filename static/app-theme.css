@@ -277,6 +277,18 @@ button { -webkit-tap-highlight-color: transparent; }
     box-shadow: none;
     animation: fadeInUp 0.55s ease-out both;
 }
+.exam-formats { display: grid; gap: 1.2rem; }
+.format-card { padding: 1.25rem; border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
+.format-card h3 { margin: 0 0 0.3rem; }
+.format-meta { font-size: 0.8rem; color: var(--muted-foreground); margin: 0 0 1rem; }
+.format-sections { display: grid; gap: 0.6rem; margin-bottom: 1rem; }
+.format-section { padding: 0.7rem; border-radius: 9px; background: rgba(0,0,0,0.025); font-size: 0.88rem; }
+.format-note, .format-task { font-size: 0.78rem; color: var(--muted-foreground); margin-top: 0.25rem; }
+.format-scale { font-size: 0.82rem; line-height: 1.5; }
+.format-bands { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin: 0.75rem 0; }
+.format-bands th, .format-bands td { text-align: left; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--border); }
+.format-notice { font-size: 0.78rem; color: var(--wine); margin: 0; }
+
 .quick-action.resume-action { border-color: rgba(124,45,63,0.35); background: rgba(124,45,63,0.06); }
 .quick-action.resume-action[hidden] { display: none; }
 

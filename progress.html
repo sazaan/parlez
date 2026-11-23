@@ -94,7 +94,7 @@
   <section class="stats" aria-label="Program summary">
     <div class="stat"><b>10</b><small>Workstreams</small></div>
     <div class="stat"><b>10</b><small>Phases</small></div>
-    <div class="stat"><b>13 / 50</b><small>Sub-phases done</small></div>
+    <div class="stat"><b>16 / 50</b><small>Sub-phases done</small></div>
     <div class="stat"><b>12 / 12</b><small>Defects fixed</small></div>
   </section>
 
@@ -362,19 +362,19 @@
 
   <!-- PHASE 4 -->
   <details class="phase">
-    <summary><span class="phase-id">P4</span><span class="phase-title">Curriculum &amp; real courses</span><span class="badge b-planned">Planned</span></summary>
+    <summary><span class="phase-id">P4</span><span class="phase-title">Curriculum &amp; real courses</span><span class="badge b-active">Active</span></summary>
     <div class="phase-body">
       <p class="phase-intro">Workstream 03 — the heart of the product. Replace "topic + grammar list" lessons with a task-led, evidence-informed syllabus and honest exam prep.</p>
       <table>
         <thead><tr><th>ID</th><th>Sub-phase</th><th>Status</th><th>Deliverable / acceptance criteria</th></tr></thead>
         <tbody>
-          <tr><td class="id">4.1</td><td>Curriculum framework &amp; standards</td><td><span class="badge b-planned">Planned</span></td><td>CEFR Companion Volume can-do outcomes, four activities + mediation, phonology strand, SRS revisits at 1/3/7/30 days, interleaving, TBLT capstones with CAF rubrics.</td></tr>
-          <tr><td class="id">4.2</td><td>Source register &amp; rights</td><td><span class="badge b-planned">Planned</span></td><td>Register authoritative references (CoE, IRCC, FEI, CCI), link out to TV5MONDE/RFI/official samples; no past papers or copyrighted PDFs rehosted; attribution and licence fields per asset.</td></tr>
-          <tr><td class="id">4.3</td><td>Authoring pipeline &amp; schema</td><td><span class="badge b-planned">Planned</span></td><td>Versioned content models with provenance, review state, asset licenses and automated integrity checks.</td></tr>
-          <tr><td class="id">4.4</td><td>A1–B2 mission-led rewrite</td><td><span class="badge b-planned">Planned</span></td><td>Sub-levels A1.1–B2.3; 8–10 units/level; repeatable lesson: retrieval → graded input → noticing → interleaved practice with explanations → TBLT task → feedback → SRS + can-do self-check.</td></tr>
-          <tr><td class="id">4.5</td><td>TEF Canada / TCF Canada tracks</td><td><span class="badge b-planned">Planned</span></td><td>Version-accurate formats (TCF 2h47 / 39+39 MCQ; TEF ~2h55 / 40+40 MCQ), both TEF score scales with Express Entry "Équivalence ancien score" warning, NCLC 7 targets, original prompts, "verified on" dates, no official-mock claims.</td></tr>
+          <tr><td class="id">4.1</td><td>Curriculum framework &amp; standards</td><td><span class="badge b-done">Done</span></td><td><code>courses/standards.py</code>: original can-do statements, four modes, level scopes, 1/3/7/30 revisit cadence, 90-day exam verification, CAF rubric bands and lesson rhythm.</td></tr>
+          <tr><td class="id">4.2</td><td>Source register &amp; rights</td><td><span class="badge b-done">Done</span></td><td><code>docs/SOURCE_REGISTER.md</code> separates authoritative references, reusable CC-licensed material and link-only resources; no past papers hosted.</td></tr>
+          <tr><td class="id">4.3</td><td>Authoring pipeline &amp; schema</td><td><span class="badge b-done">Done</span></td><td><code>ContentProvenance</code> on course/unit/lesson + framework/descriptor/mode fields; validation enforces review details and exam verification for <code>mission-v2</code> content only.</td></tr>
+          <tr><td class="id">4.4</td><td>A1–B2 mission-led rewrite</td><td><span class="badge b-active">Active</span></td><td>Reference mission unit authored in <code>courses/mission_v2_example.py</code> (template, not published). Full A1–B2 content migration to the new schema is the remaining work.</td></tr>
+          <tr><td class="id">4.5</td><td>TEF Canada / TCF Canada tracks</td><td><span class="badge b-active">Active</span></td><td><code>mock_tests/formats.py</code> + <code>/api/exam/formats</code> + in-app viewer: versioned formats, both TEF score scales, Express Entry warning, NCLC bands and verified-on dates. Practice item revision still pending.</td></tr>
           <tr><td class="id">4.6</td><td>Assessment &amp; placement</td><td><span class="badge b-planned">Planned</span></td><td>Level check, per-skill mastery estimates, honest reporting that practice accuracy ≠ official score.</td></tr>
-          <tr><td class="id">4.7</td><td>Reviewer attestation &amp; publishing</td><td><span class="badge b-planned">Planned</span></td><td>Qualified FLE reviewer + second reviewer for exam items, independent level benchmarking, pilot evidence file, provenance/version fields, 90-day exam-fact re-verification, public claims register; status labels draft/practice/reviewed.</td></tr>
+          <tr><td class="id">4.7</td><td>Reviewer attestation &amp; publishing</td><td><span class="badge b-active">Active</span></td><td>Provenance fields, review states and 90-day exam verification now enforced by validation. Admin UI for second reviewer/claim register remains to be wired.</td></tr>
         </tbody>
       </table>
     </div>
@@ -472,6 +472,7 @@
 
   <h2><span class="num">04</span>Activity log</h2>
   <ul class="log">
+    <li><time>2026-11-23</time> <b>P4 started:</b> added <code>courses/standards.py</code>, <code>docs/SOURCE_REGISTER.md</code>, provenance-aware schema + validation, a reference mission unit, and versioned TEF/TCF format data with a public API and in-app viewer (including the Express Entry score-column warning). 6 new tests — 137/137 pass.</li>
     <li><time>2026-11-23</time> <b>P2 completed:</b> original SVG mascot "Pip" added to landing/app/share card; CSS motion layer with reduced-motion guards; resumable tool-view snapshot; wall-clock exam timer; a11y label and whitespace fixes; <code>docs/DESIGN_SYSTEM.md</code>. All 12 logged defects now fixed; 131/131 tests pass.</li>
     <li><time>2026-11-23</time> <b>P2 started:</b> fixed BUG-01…BUG-05 (exam answer clicks, stored-XSS in writing/flashcards/exam review, dead share/comment/ingest actions, markdown <code>$2</code>, dead file input), replaced native dialogs with an accessible in-app confirm, rebuilt the landing page (app window, trust bar, honest pricing, collapsed disclosures, OG card, progress bar). Added an XSS regression test — 131/131 pass.</li>
     <li><time>2026-11-23</time> Added token-aware conversation trimming to keep chat prompts bounded; 130/130 tests pass. Output moderation deferred pending an external-service decision.</li>

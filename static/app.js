@@ -314,6 +314,9 @@ function setupDelegatedHandlers() {
             case 'show-test-stats':
                 if (typeof window.showTestStats === 'function') window.showTestStats();
                 break;
+            case 'show-exam-formats':
+                if (typeof window.showExamFormats === 'function') window.showExamFormats();
+                break;
             case 'start-mock-test':
                 if (typeof window.startMockTest === 'function') window.startMockTest(btn.dataset.type);
                 break;
@@ -3316,6 +3319,42 @@ function renderExamResults(result) {
     
     getToolContent().innerHTML = html;
 }
+
+window.showExamFormats = async function() {
+    showToolView('📚 Exam formats &amp; levels', spinnerHTML('Loading exam formats...', false));
+    try {
+        const r = await apiFetch('/api/exam/formats');
+        const data = await r.json();
+        let html = '<div class="exam-formats">';
+        html += `<div class="exam-practice-notice">${escapeHtml(data.notice)}</div>`;
+        for (const format of Object.values(data.formats)) {
+            html += '<section class="format-card">';
+            html += `<h3>${escapeHtml(format.name)}</h3>`;
+            html += `<p class="format-meta">${escapeHtml(format.administeredBy)} · ${format.totalMinutes} min · verified ${escapeHtml(format.verifiedOn)}</p>`;
+            html += '<div class="format-sections">';
+            for (const s of format.sections) {
+                html += `<div class="format-section"><strong>${escapeHtml(s.name)}</strong> · ${escapeHtml(s.nameFr)} · ${escapeHtml(s.minutes)} min`;
+                if (s.questionCount) html += ` · ${escapeHtml(s.questionCount)} questions`;
+                if (s.note) html += `<div class="format-note">${escapeHtml(s.note)}</div>`;
+                for (const task of s.tasks || []) html += `<div class="format-task">${escapeHtml(task)}</div>`;
+                html += '</div>';
+            }
+            html += '</div>';
+            html += `<p class="format-scale">${escapeHtml(format.scoreScaleNote)}</p>`;
+            html += '<table class="format-bands"><thead><tr><th>NCLC</th><th>Listening</th><th>Reading</th><th>Speaking</th><th>Writing</th></tr></thead><tbody>';
+            for (const b of format.scoreBands) {
+                html += `<tr><td>${escapeHtml(b.nclc)}</td><td>${escapeHtml(b.listening)}</td><td>${escapeHtml(b.reading)}</td><td>${escapeHtml(b.speaking)}</td><td>${escapeHtml(b.writing)}</td></tr>`;
+            }
+            html += '</tbody></table>';
+            html += `<p class="format-notice">${escapeHtml(format.practiceNotice)}</p>`;
+            html += '</section>';
+        }
+        html += '</div>';
+        getToolContent().innerHTML = html;
+    } catch (e) {
+        getToolContent().innerHTML = '<div class="tool-header"><h2>📚 Exam formats</h2></div><p>Could not load exam formats. Please try again.</p>';
+    }
+};
 
 window.showTestStats = async function() {
     showToolView('📊 Test History', spinnerHTML('Loading test history...', false));
