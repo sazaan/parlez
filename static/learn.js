@@ -248,6 +248,114 @@
         observer.observe(observeTarget, { subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
     }
 
+    // ---------------- Phase B: exam missions ----------------
+
+    let examMission = null;
+
+    async function appendResourceLinks() {
+        try {
+            const data = await apiFetch('/api/practice/resources').then(r => r.json());
+            const card = sessionEl.querySelector('.session-card');
+            if (!card) return;
+            const box = document.createElement('details');
+            box.className = 'session-resources';
+            box.innerHTML = '<summary>Official samples &amp; open question banks (licence-aware)</summary>' +
+                '<ul>' + data.resources.map(r => `<li><a href="${h(r.url)}" target="_blank" rel="noopener">${h(r.name)}</a> · ${h(r.licence)} · ${r.mode === 'link_only' ? 'link only' : 'adapt with attribution'}</li>`).join('') + '</ul>' +
+                `<p class="session-text"><small>${h(data.notice)}</small></p>`;
+            card.appendChild(box);
+        } catch (e) { /* non-essential */ }
+    }
+
+    function showExamBriefing(exam) {
+        showSession();
+        shell(`<p class="session-kicker">Exam mission · unofficial practice</p>
+            <h2 class="session-title">${h(exam)} Canada practice</h2>
+            <p class="session-text">Original items written from published task specifications. Timed like the real format, but these are <strong>not</strong> real past questions and the result is <strong>not</strong> an official score.</p>
+            <div class="vocab-grid">
+                <button class="vocab-flip" data-action="exam-mission" data-exam="${h(exam)}" data-skill="reading"><strong>Reading</strong><small>Timed comprehension set →</small></button>
+                <button class="vocab-flip" data-action="exam-mission" data-exam="${h(exam)}" data-skill="listening"><strong>Listening</strong><small>Audio script + questions →</small></button>
+            </div>
+            <p class="session-text">Official samples for reference: <a href="https://www.lefrancaisdesaffaires.fr/candidat/test-evaluation-francais/tef-canada/preparation/" target="_blank" rel="noopener">TEF (CCI)</a> · <a href="https://www.france-education-international.fr/en/test/exemples-epreuves-tcf" target="_blank" rel="noopener">TCF (FEI)</a></p>`,
+            '<button class="ghost" data-action="learn-quit">Back to path</button>');
+        appendResourceLinks();
+    }
+
+    async function startExamMission(exam, skill) {
+        try {
+            const r = await apiFetch(`/api/exam/practice/${encodeURIComponent(exam)}/${encodeURIComponent(skill)}`);
+            const data = await r.json();
+            examMission = { exam, skill, items: data.items, answers: {}, seconds: 180 };
+            renderExamMission();
+            clearInterval(examMission.timer);
+            examMission.timer = setInterval(() => {
+                examMission.seconds -= 1;
+                const el = document.getElementById('examTimer');
+                if (el) el.textContent = `${Math.floor(examMission.seconds / 60)}:${String(examMission.seconds % 60).padStart(2, '0')}`;
+                if (examMission.seconds <= 0) {
+                    clearInterval(examMission.timer);
+                    submitExamMission();
+                }
+            }, 1000);
+        } catch (e) {
+            showToast('Could not load this exam mission.');
+        }
+    }
+
+    function renderExamMission(result) {
+        if (!examMission) return;
+        if (examMission.timer) clearInterval(examMission.timer);
+        const mission = examMission;
+        let html = `<p class="session-kicker">${h(mission.exam)} · ${h(mission.skill)} · unofficial practice</p>
+            <h2 class="session-title">Exam mission <span id="examTimer" class="hud-item">3:00</span></h2>
+            <p class="session-text">Read each item and choose one answer. Practice accuracy only — not an official score, CEFR/NCLC level, or immigration evidence.</p>`;
+        if (result) {
+            html += `<div class="session-feedback ${result.accuracyPercent >= 60 ? 'good' : 'bad'}"><strong>${h(result.correct)} / ${h(result.total)} correct (${h(result.accuracyPercent)}%)</strong><br>${h(result.notice)}</div>`;
+        }
+        mission.items.forEach((item, index) => {
+            const graded = result?.results?.find(x => x.id === item.id);
+            html += `<div class="exam-item"><p class="session-text"><strong>${index + 1}. ${h(item.prompt)}</strong></p>
+                <p class="session-text">${h(item.passage)}</p><div class="quiz-options">`;
+            item.options.forEach((option, idx) => {
+                let cls = 'quiz-option';
+                if (graded) {
+                    if (idx === graded.correctIndex) cls += ' correct';
+                    else if (mission.answers[item.id] === idx) cls += ' incorrect';
+                } else if (mission.answers[item.id] === idx) cls += ' selected';
+                html += `<button class="${cls}" data-action="exam-select" data-id="${h(item.id)}" data-idx="${idx}" ${graded ? 'disabled' : ''}>${String.fromCharCode(65 + idx)}. ${h(option)}</button>`;
+            });
+            html += '</div>';
+            if (graded) html += `<p class="session-text">${h(graded.explanation)}</p>`;
+            html += `<p class="session-text"><small>Format fact: ${h(item.specFact)} <a href="${h(item.specSource)}" target="_blank" rel="noopener">Source</a></small></p></div>`;
+        });
+        shell(html, result
+            ? '<button data-action="learn-quit">Back to path</button>'
+            : '<button data-action="exam-submit">Submit answers</button><button class="ghost" data-action="learn-quit">Quit</button>');
+        if (result) {
+            const timerEl = document.getElementById('examTimer');
+            if (timerEl) timerEl.textContent = 'done';
+            appendResourceLinks();
+        }
+    }
+
+    async function submitExamMission() {
+        if (!examMission) return;
+        try {
+            const r = await apiFetch('/api/exam/practice/grade', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ exam: examMission.exam, skill: examMission.skill, answers: examMission.answers }),
+            });
+            const result = await r.json();
+            examMission.result = result;
+            renderExamMission(result);
+            if (typeof updateXP === 'function') {
+                const p = await apiFetch('/api/progress').then(x => x.json()).catch(() => null);
+                if (p && p.xp) updateXP(p.xp);
+            }
+        } catch (e) {
+            showToast('Could not grade this mission. Please try again.');
+        }
+    }
+
     function renderLearnResults() {
         const total = session.correct + session.wrong || 1;
         const accuracy = Math.round((session.correct / total) * 100);
@@ -294,8 +402,16 @@
             const text = btn.querySelector('small');
             if (text) text.textContent = btn.classList.contains('flipped') ? 'Tap to hide' : text.dataset.original || text.textContent;
         } else if (action === 'learn-exam') {
-            if (typeof window.startMockTest === 'function') window.startMockTest(btn.dataset.type);
-            else showToast('Exam practice is available from Quick Practice.');
+            showExamBriefing(btn.dataset.type);
+        } else if (action === 'exam-mission') {
+            startExamMission(btn.dataset.exam, btn.dataset.skill);
+        } else if (action === 'exam-select') {
+            if (!examMission) return;
+            examMission.answers[btn.dataset.id] = parseInt(btn.dataset.idx, 10);
+            btn.parentElement.querySelectorAll('.quiz-option').forEach(o => o.classList.remove('selected'));
+            btn.classList.add('selected');
+        } else if (action === 'exam-submit') {
+            submitExamMission();
         } else if (action === 'learn-go-path') {
             showLearnView();
         } else if (action === 'learn-go-practice') {

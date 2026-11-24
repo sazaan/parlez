@@ -56,6 +56,15 @@ Recurring unit skeleton to re-implement in Parlez's own words: **opening contrac
 
 Attribution template: *“Adapted from Français interactif, Blyth/Kelton/Guilloteau, COERLL, University of Texas at Austin, CC BY 4.0. Pedagogical sequence inspired by Inspire (Hachette FLE) and Édito (Didier).”*
 
+## 3c. Open question banks & official samples (live registry)
+
+The app exposes a licence-aware registry at `GET /api/practice/resources`, defined in `mock_tests/resources.py`. It separates:
+- **Link-only official samples** — FEI TCF examples, CCI TEF Canada sample PDFs/audio, TV5MONDE TCF simulator/booklets, IRCC score tables. Never hosted or copied.
+- **Adapt-with-attribution CC BY banks** — Tex's French Grammar, Français interactif, Le Français Interactif Activity Companion (BCcampus), Introduction to French Level I (Pressbooks). These are commercial-use safe with exact credit.
+- **NC/SA banks** — French OER 2, Wikibooks French, Enhancing French Skills, Palacios 2nd ed. Link-only for a commercial product unless permission is obtained.
+
+**No public-domain or CC BY past-paper bank exists.** Real TEF/TCF/DELF papers are confidential and copyrighted; sites offering "annales" are unofficial simulations or infringing reposts. The lawful substitute is original items from published specs (see `mock_tests/original_items.py`) plus linked official samples.
+
 ## 4. Authoring rules
 
 1. Every lesson, unit and course carries a `ContentProvenance` record: author, licence, source links, version, review state and dates.

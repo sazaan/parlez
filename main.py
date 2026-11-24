@@ -170,6 +170,8 @@ from mock_tests.data import (
 )
 from mock_tests.preparation import get_exam_preparation, get_exam_study_plan
 from mock_tests.formats import EXAM_FORMATS, public_format
+from mock_tests.original_items import get_items as get_practice_items, grade as grade_practice, SPEC_SOURCES
+from mock_tests.resources import public_resources as public_practice_resources
 import payments
 
 def build_limiter(redis_url: str | None = None) -> Limiter:
@@ -2926,6 +2928,38 @@ async def get_exam_formats():
         "formats": {key: public_format(spec) for key, spec in EXAM_FORMATS.items()},
         "notice": "Original, unofficial practice. Verify current requirements with IRCC and the test owners.",
     }
+
+
+@app.get("/api/exam/practice/{exam}/{skill}")
+async def get_exam_practice(exam: str, skill: str):
+    """Original, unofficial practice items (no answer key sent to the client)."""
+    exam = exam.upper()
+    if exam not in {"TEF", "TCF"} or skill.lower() not in {"reading", "listening"}:
+        raise HTTPException(status_code=400, detail="Unknown practice mission.")
+    return {
+        "items": get_practice_items(exam, skill),
+        "specSources": SPEC_SOURCES,
+        "notice": "Original practice items written from published task descriptions. Not real or past exam questions.",
+    }
+
+
+@app.get("/api/practice/resources")
+async def get_practice_resources():
+    """Licence-aware registry of official samples and open question banks."""
+    return {
+        "resources": public_practice_resources(),
+        "notice": "Official samples are linked only, never hosted. Open items may be adapted only where the licence allows commercial use and attribution is given.",
+    }
+
+
+@app.post("/api/exam/practice/grade")
+async def grade_exam_practice(data: dict):
+    exam = str(data.get("exam") or "").upper()
+    skill = str(data.get("skill") or "").lower()
+    answers = data.get("answers") or {}
+    if exam not in {"TEF", "TCF"} or skill not in {"reading", "listening"} or not isinstance(answers, dict):
+        raise HTTPException(status_code=400, detail="Invalid practice submission.")
+    return grade_practice(exam, skill, answers)
 
 
 @app.get("/api/mock-tests")

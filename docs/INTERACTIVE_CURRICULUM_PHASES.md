@@ -28,7 +28,9 @@ Uses the existing `/api/courses/{level}`, `/api/courses/{level}/lessons/{id}` an
 - "Explain My Answer" is a thin inline overlay backed by the existing tutor, free and never interrupting the loop.
 - Exam missions are nodes/missions in the same shell (timed chrome + honest labels), not a separate app.
 
-## Phase B — Exam missions inside the shell
+## Phase B — Exam missions inside the shell ✅ SHIPPED 2026-11-24
+
+Delivered: exam mission cards in the path; briefing with official-sample links; timed reading/listening missions using **original** items from `mock_tests/original_items.py`; server-side grading with per-item explanations and spec sources; licence-aware resource registry at `/api/practice/resources` shown in the mission UI. No real past questions are reproduced — see `docs/SOURCE_REGISTER.md` §0/§3c. Writing/speaking task players remain for a later increment.
 
 - B1. Exam mission cards in the path (TCF/TEF streams) with honest "original practice, not official" labels.
 - B2. Timed listening/reading item player: audio-once rules, question navigator, review screen with explanations.
