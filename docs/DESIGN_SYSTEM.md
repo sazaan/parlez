@@ -2,6 +2,19 @@
 
 Status: living document · updated 2026-11-23
 
+## Adapted from Newa Bhaye (2026-11-24)
+
+Side-by-side review of `../NewaBhaye` screens and styles identified these concrete improvements, now ported to Parlez:
+
+- **Topbar stat pills** (streak, XP) and an avatar button, with a matching color treatment.
+- **Learn home greeting** with time-of-day salutation and learner name.
+- **Continue hero** featuring the next lesson, a primary CTA, mixed-review secondary action and Pip art.
+- **Daily goal strip** with a conic-gradient progress ring, meter, streak and streak-freeze status.
+- **Quick cards** (Mixed review, Level check, Word of the day) using the same card component as Practice.
+- **Word-of-the-day card** populated from `/api/practice/word-of-day`.
+- **"Your path" header with progress count**, unit badges, `done/total` counters and per-unit progress meters.
+- **Lesson feedback polish**: combo counter and subtle Web Audio tones for correct/incorrect answers; the existing mascot celebration, confetti and unlock animations remain.
+
 ## Collapsible sidebar (2026-11-24)
 
 The sidebar can be collapsed on desktop with either the header hamburger or the new `«` button in the sidebar header (`»` expands). The state is saved in `localStorage` so it survives reloads. On tablets/phones the same control opens the sidebar as a slide-over with a backdrop; it closes on backdrop click, Escape, resize, or after choosing a destination. CSS uses `transform` for the mobile drawer and animated width/margin for desktop collapse.

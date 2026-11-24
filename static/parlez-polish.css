@@ -156,6 +156,18 @@ body::after {
   min-height: 66px;
 }
 #chatTitle { font-family: var(--font-display); font-weight: 700; font-size: 1.25rem; color: var(--ink); }
+.header-stats { display: flex; align-items: center; gap: 6px; margin-left: auto; margin-right: 4px; }
+.header-pill {
+  display: inline-flex; align-items: center; gap: 4px; padding: 5px 10px; border-radius: var(--radius-full);
+  background: var(--paper-deep); border: 1px solid var(--line-soft); font-size: .78rem; font-weight: 800;
+}
+.header-pill.hot { background: var(--wine-soft); color: var(--wine); }
+.header-avatar {
+  width: 36px; height: 36px; border-radius: 12px; border: 0; cursor: pointer;
+  background: linear-gradient(145deg,var(--wine),var(--wine-deep)); color: var(--gold);
+  font-family: var(--font-display); font-style: italic; font-size: 1.1rem; font-weight: 800;
+}
+@media (max-width: 520px) { .header-pill { display: none; } }
 .btn-action {
   border-radius: 13px; background: var(--paper-deep); border: 1px solid var(--line-soft);
   transition: transform .18s ease, background .18s ease;
@@ -273,6 +285,66 @@ body::after {
 }
 .terms-check a { font-weight: 700; }
 
+/* Learn home — greeting, continue hero, goal, quick cards (Newa Bhaye pattern) */
+.learn-home { display: grid; gap: 16px; }
+.learn-greeting .eyebrow, .learn-hero .eyebrow, .word-card .eyebrow {
+  color: var(--wine); font-weight: 800; letter-spacing: .1em; text-transform: uppercase; font-size: .72rem;
+}
+.learn-greeting h2 { font-family: var(--font-display); font-size: clamp(1.8rem,4vw,2.5rem); letter-spacing: -.02em; margin: 4px 0; }
+.learn-greeting p { color: var(--muted); font-size: .92rem; }
+.learn-hero {
+  position: relative; overflow: hidden; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 22px; border-radius: 26px; border: 1px solid rgba(242,169,59,.45);
+  background: linear-gradient(125deg,#fffaf0,#ffe9cf 60%,#fde3e8); box-shadow: var(--shadow-page);
+}
+.learn-hero h3 { font-family: var(--font-display); font-size: clamp(1.4rem,3vw,2rem); margin: 6px 0; color: var(--wine-deep); }
+.learn-hero p { color: var(--ink-soft); font-size: .9rem; max-width: 46ch; }
+.learn-hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.learn-hero-actions .btn, .learn-hero-actions button {
+  min-height: 46px; padding: 0 18px; border-radius: 15px; font-weight: 800; cursor: pointer;
+}
+.btn-saffron { background: linear-gradient(135deg,var(--saffron),var(--saffron-deep)); color: #3a2108; border: 0; box-shadow: 0 10px 22px -12px rgba(217,130,26,.9); }
+.btn-ghost { background: rgba(255,255,255,.65); color: var(--wine); border: 1px solid var(--line); }
+.learn-hero-mascot { width: 96px; height: 96px; flex: none; }
+.goal-strip {
+  display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 20px;
+  background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow-tile);
+}
+.goal-ring {
+  width: 58px; height: 58px; flex: none; border-radius: 50%; display: grid; place-items: center;
+  background: conic-gradient(var(--wine) var(--pct), var(--paper-deep) 0); position: relative;
+}
+.goal-ring:before { content: ''; position: absolute; inset: 6px; border-radius: 50%; background: var(--card); }
+.goal-ring span { position: relative; font-size: .74rem; font-weight: 800; color: var(--wine); }
+.goal-copy { flex: 1; min-width: 0; display: grid; gap: 6px; font-size: .84rem; }
+.goal-copy > span { color: var(--muted); font-size: .76rem; }
+.goal-meter { height: 8px; border-radius: 999px; background: var(--paper-deep); overflow: hidden; }
+.goal-meter i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg,var(--saffron),var(--wine)); transition: width .4s ease; }
+.learn-quick-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(160px,1fr)); gap: 10px; }
+.learn-quick-card {
+  display: grid; gap: 2px; text-align: left; padding: 14px; border-radius: 16px;
+  border: 1px solid var(--line); background: var(--card); box-shadow: var(--shadow-tile); cursor: pointer;
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.learn-quick-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.learn-quick-card > span { font-size: 1.5rem; }
+.learn-quick-card strong { font-size: .9rem; }
+.learn-quick-card small { color: var(--muted); font-size: .74rem; }
+.word-card { padding: 16px; border-radius: 20px; background: linear-gradient(125deg,#fffaf0,#fff2e4); border: 1px solid var(--line); }
+.word-card-main { display: flex; align-items: center; gap: 12px; margin-top: 6px; }
+.word-card-main strong { display: block; font-family: var(--font-display); font-size: 1.3rem; }
+.word-card-main span { color: var(--muted); font-size: .85rem; }
+.word-card-main small { margin-left: auto; color: var(--wine); }
+.word-emoji { font-size: 1.8rem; }
+.learn-section-head { display: flex; align-items: baseline; justify-content: space-between; margin-top: 8px; }
+.learn-section-head h3 { font-family: var(--font-display); font-size: 1.5rem; }
+.learn-section-head span { color: var(--muted); font-size: .78rem; }
+.path-unit-head .unit-badge { font-size: 1.4rem; }
+.path-unit-head > div { flex: 1; }
+.unit-count { font-size: .76rem; font-weight: 800; color: var(--wine); background: var(--paper-deep); padding: 4px 10px; border-radius: var(--radius-full); }
+.unit-meter { height: 6px; border-radius: 999px; background: var(--paper-deep); overflow: hidden; margin: 8px 0; }
+.unit-meter i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg,var(--saffron),var(--green)); }
+
 /* Learn path: tactile, playful */
 .learn-path { background: transparent; }
 .path-intro h2 { font-family: var(--font-display); font-size: clamp(1.8rem,4vw,2.4rem); }
@@ -293,6 +365,7 @@ body::after {
   box-shadow: 0 0 12px rgba(232,182,75,.7);
 }
 .session-card { border-radius: 26px !important; border: 1px solid var(--line) !important; box-shadow: var(--shadow-page); }
+.session-combo { margin-left: 8px; color: var(--saffron-deep); animation: pop-in .3s ease; }
 .session-title { color: var(--wine-deep); }
 .vocab-flip { border-radius: 18px !important; background: linear-gradient(150deg,#fffdf8,#fff2da) !important; transition: transform .3s ease, background .3s ease; }
 .vocab-flip.flipped { background: linear-gradient(150deg,var(--wine-soft),#fff) !important; transform: rotateY(8deg); }

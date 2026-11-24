@@ -1267,6 +1267,8 @@ function autoResize() {
 
 function updateXP(xp) {
     document.getElementById('xpDisplay').textContent = xp || 0;
+    const topXp = document.getElementById('topXp');
+    if (topXp) topXp.textContent = xp || 0;
     const mascot = document.querySelector('.app-mascot');
     if (mascot) {
         mascot.classList.remove('mascot-celebrate');
@@ -2336,6 +2338,9 @@ try {
 syncSidebarToggleLabel();
 toggleSidebar.addEventListener('click', toggleSidebarState);
 if (collapseSidebar) collapseSidebar.addEventListener('click', toggleSidebarState);
+document.getElementById('topAvatar')?.addEventListener('click', () => {
+    if (typeof window.showRewards === 'function') window.showRewards();
+});
 if (sidebarBackdrop) {
     sidebarBackdrop.addEventListener('click', closeMobileSidebar);
 }
@@ -2420,6 +2425,14 @@ async function initApp() {
     loadScenarios();
     loadConversations();
     loadProgress();
+    apiFetch('/api/rewards/summary').then(r => r.json()).then(data => {
+        const topXp = document.getElementById('topXp');
+        const topStreak = document.getElementById('topStreak');
+        if (topXp) topXp.textContent = data.total_xp || 0;
+        if (topStreak) topStreak.textContent = data.streak || 0;
+        const avatar = document.getElementById('topAvatar');
+        if (avatar && currentUser?.name) avatar.textContent = currentUser.name.slice(0, 1).toUpperCase();
+    }).catch(() => {});
     updateResumeButton();
     initVoice();
     messageInput.focus();

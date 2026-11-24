@@ -16,6 +16,7 @@
     let session = null;
     let levelMeta = {};
     let levelDetailsCache = null;
+    let learnGoal = { todayXp: 0, dailyGoal: 50, streak: 0, freezes: 0 };
 
     function h(value) {
         return typeof escapeHtml === 'function' ? escapeHtml(value) : String(value ?? '');
@@ -71,6 +72,12 @@
         if (streakEl) streakEl.textContent = rewards.streak || 0;
         if (badgeEl) badgeEl.textContent = (rewards.badges || []).length;
         if (starEl) starEl.textContent = rewards.totalStars || 0;
+        learnGoal = {
+            todayXp: rewards.today_xp || 0,
+            dailyGoal: 50,
+            streak: rewards.streak || 0,
+            freezes: rewards.freezes || 0,
+        };
 
         if (!levelEl.options.length) await loadLearnLevels(progress);
         await loadLearnPath(levelEl.value || currentLevel || 'A1', progress);
@@ -138,7 +145,39 @@
 
     function renderLearnPath(data, progress) {
         const done = passedSet(progress);
-        let html = '<div class="path-intro"><h2>Your learning path</h2><p>Short, focused steps. Tap a lesson to begin — your progress saves automatically.</p><p><button class="explain-button" data-action="learn-placement">Check your level (informal, 12 questions)</button></p></div>';
+        const allLessons = (data.units || []).flatMap(u => u.lessons || []);
+        const nextLesson = allLessons.find(l => !done.has(l.id)) || allLessons[0];
+        const nextUnit = (data.units || []).find(u => (u.lessons || []).some(l => l.id === nextLesson?.id));
+        const hour = new Date().getHours();
+        const greeting = hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir';
+        const name = ((currentUser && currentUser.name) || '').trim();
+        const goalPct = Math.min(100, Math.round((learnGoal.todayXp / Math.max(1, learnGoal.dailyGoal)) * 100));
+        let html = `<div class="learn-home">
+            <div class="learn-greeting"><span class="eyebrow">✦ ${greeting}${name ? `, ${h(name)}` : ''}</span>
+                <h2>${greeting}${name ? `, ${h(name)}` : ''}.</h2>
+                <p>${done.size ? 'Your streak is alive. A few minutes of French today?' : 'Your first lesson is waiting. One small step at a time.'}</p></div>
+            ${nextLesson ? `<section class="learn-hero">
+                <div><span class="eyebrow">${nextUnit ? `${h(nextUnit.title)} · ${h(data.level)}` : h(data.level)}</span>
+                    <h3>${h(nextLesson.title)}</h3><p>${h(nextLesson.description || nextLesson.titleFr || '')}</p>
+                    <div class="learn-hero-actions">
+                        <button class="btn btn-saffron" data-action="learn-start" data-level="${h(data.level)}" data-id="${h(nextLesson.id)}">▶ Continue</button>
+                        <button class="btn btn-ghost" data-action="learn-go-practice">Mixed review</button>
+                    </div></div>
+                <img class="learn-hero-mascot" src="/static/mascot.svg" alt="" aria-hidden="true">
+            </section>` : ''}
+            <section class="goal-strip">
+                <div class="goal-ring" style="--pct:${goalPct}%"><span>${goalPct}%</span></div>
+                <div class="goal-copy"><strong>${learnGoal.todayXp} / ${learnGoal.dailyGoal} XP today</strong>
+                    <div class="goal-meter"><i style="width:${goalPct}%"></i></div>
+                    <span>🔥 ${learnGoal.streak} day streak${learnGoal.freezes ? ` · ❄️ ${learnGoal.freezes} freeze ready` : ''}</span></div>
+            </section>
+            <div class="learn-quick-grid">
+                <button class="learn-quick-card" data-action="learn-go-practice"><span>🔁</span><strong>Mixed review</strong><small>Smart practice</small></button>
+                <button class="learn-quick-card" data-action="learn-placement"><span>🔎</span><strong>Level check</strong><small>Informal estimate</small></button>
+                <button class="learn-quick-card" data-action="show-word-of-day"><span>📅</span><strong>Word of the day</strong><small>One useful word</small></button>
+            </div>
+            <div id="wordOfDaySlot"></div>
+            <div class="learn-section-head"><h3>Your path</h3><span>${done.size} / ${allLessons.length} stages</span></div>`;
         const resume = readSession();
         if (resume && resume.lessonId) {
             html += `<div class="path-banner"><span>Continue where you left off: <strong>${h(resume.title || 'your lesson')}</strong></span><button data-action="learn-resume">Resume</button></div>`;
@@ -149,13 +188,15 @@
             return;
         }
         let firstUndone = true;
-        const allLessons = (data.units || []).flatMap(u => u.lessons || []);
         let globalIndex = -1;
         for (const unit of data.units) {
-            html += `<section class="path-unit"><div class="path-unit-head"><h3>${h(unit.title)}</h3><small>${h(unit.titleFr || '')}</small></div>`;
+            const lessons = unit.lessons || [];
+            const unitDone = lessons.filter(l => done.has(l.id)).length;
+            const unitPct = lessons.length ? Math.round((unitDone / lessons.length) * 100) : 0;
+            html += `<section class="path-unit"><div class="path-unit-head"><span class="unit-badge">📖</span><div><h3>${h(unit.title)}</h3><small>${h(unit.titleFr || '')}</small></div><span class="unit-count">${unitDone}/${lessons.length}</span></div>`;
+            html += `<div class="unit-meter"><i style="width:${unitPct}%"></i></div>`;
             html += `<p class="session-text">${h(unit.description || '')}</p>`;
             html += '<div class="path-node-list">';
-            const lessons = unit.lessons || [];
             for (let li = 0; li < lessons.length; li += 1) {
                 const lesson = lessons[li];
                 globalIndex += 1;
@@ -184,7 +225,24 @@
                 <button class="path-node" data-action="learn-exam" data-type="TEF"><span class="path-node-icon">🎯</span><span><strong>TEF Canada mission</strong><small>Reading · listening · writing · speaking practice</small></span><span class="path-node-status">Practice</span></button>
                 <button class="path-node" data-action="learn-exam" data-type="TCF"><span class="path-node-icon">🎯</span><span><strong>TCF Canada mission</strong><small>Reading · listening · writing · speaking practice</small></span><span class="path-node-status">Practice</span></button>
             </div></section>`;
+        html += '</div>';
         pathEl.innerHTML = html;
+        appendWordOfDay();
+    }
+
+    async function appendWordOfDay() {
+        const slot = document.getElementById('wordOfDaySlot');
+        if (!slot) return;
+        try {
+            const data = await apiFetch('/api/practice/word-of-day').then(r => r.json());
+            const word = data.word || data;
+            if (!word || (!word.fr && !word.word)) return;
+            slot.innerHTML = `<section class="word-card"><span class="eyebrow">Word of the day</span>
+                <div class="word-card-main"><span class="word-emoji">📖</span><div><strong>${h(word.fr || word.word || '')}</strong>
+                <span>${h(word.en || word.translation || '')}</span></div>
+                ${word.ipa ? `<small>${h(word.ipa)}</small>` : ''}</div>
+                ${word.example ? `<p class="session-text">“${h(word.example)}”</p>` : ''}</section>`;
+        } catch (e) { slot.innerHTML = ''; }
     }
 
     function showResumeBanner(saved) {
@@ -293,8 +351,26 @@
         }
     }
 
+    function playAnswerTone(ok) {
+        try {
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            if (!Ctx) return;
+            const ctx = new Ctx();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = ok ? 780 : 220;
+            gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.09, ctx.currentTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.2);
+            osc.connect(gain).connect(ctx.destination);
+            osc.start(); osc.stop(ctx.currentTime + 0.21);
+            setTimeout(() => ctx.close(), 400);
+        } catch (e) { /* sound is decorative */ }
+    }
+
     function renderLearnExercise(exercise) {
-        shell(`<p class="session-kicker">Practice</p><div id="learnExerciseMount"></div>
+        shell(`<p class="session-kicker">Practice <span id="sessionCombo" class="session-combo"></span></p><div id="learnExerciseMount"></div>
             <div id="learnExerciseFeedback" class="session-feedback" role="status" aria-live="polite" hidden></div>`,
             '<button id="learnContinue" data-action="learn-next" hidden>Continue →</button>');
         const mount = document.getElementById('learnExerciseMount');
@@ -322,8 +398,17 @@
                 answer: observeTarget.querySelector('.quiz-option.selected')?.textContent?.trim() ||
                         observeTarget.querySelector('.exercise-input')?.value?.trim() || '',
             };
-            if (good) session.correct += 1;
-            else { session.wrong += 1; session.mistakes.push(exercise.prompt || exercise.id); }
+            if (good) {
+                session.correct += 1;
+                session.combo = (session.combo || 0) + 1;
+            } else {
+                session.wrong += 1;
+                session.combo = 0;
+                session.mistakes.push(exercise.prompt || exercise.id);
+            }
+            const comboEl = document.getElementById('sessionCombo');
+            if (comboEl) comboEl.textContent = session.combo >= 2 ? `⚡ ${session.combo} combo` : '';
+            playAnswerTone(good);
             saveSession();
             continueBtn.hidden = false;
             observer.disconnect();
