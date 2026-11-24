@@ -15,6 +15,10 @@ Side-by-side review of `../NewaBhaye` screens and styles identified these concre
 - **"Your path" header with progress count**, unit badges, `done/total` counters and per-unit progress meters.
 - **Lesson feedback polish**: combo counter and subtle Web Audio tones for correct/incorrect answers; the existing mascot celebration, confetti and unlock animations remain.
 
+## Collapse button placement (2026-11-24)
+
+The `«` collapse control is absolutely positioned at the top-right of the sidebar header (outside the logo row), so it no longer floats mid-row or shifts when the logo size changes.
+
 ## Collapse layout fix (2026-11-24)
 
 Collapsing previously used a zero-width flex item with a negative margin, which could leave a stray gap or squeeze the main column. The collapsed sidebar is now removed from flex flow with `display:none`, and `.main-content` is explicitly `flex:1; width:auto`. The JS `isMobile()` threshold was aligned to the CSS drawer breakpoint (1023px), so tablet widths use the slide-over instead of a desktop collapse that never visually expands.
