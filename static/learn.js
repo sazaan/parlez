@@ -690,13 +690,66 @@
         const levels = levelEl ? [...levelEl.options].map(o => o.value) : [];
         const current = levels.indexOf(session.level);
         if (current >= 0 && current < levels.length - 1) {
-            return { type: 'level', name: levels[current + 1] };
+            return { type: 'level', name: levels[current + 1], fromLevel: session.level };
         }
         return { type: 'course', name: 'the whole A1–B2 path' };
     }
 
+    function playSuccessTone() {
+        try {
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            if (!Ctx) return;
+            const ctx = new Ctx();
+            [523.25, 659.25, 783.99].forEach((frequency, index) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = frequency;
+                gain.gain.setValueAtTime(0.0001, ctx.currentTime + index * 0.12);
+                gain.gain.exponentialRampToValueAtTime(0.16, ctx.currentTime + index * 0.12 + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + index * 0.12 + 0.35);
+                osc.connect(gain).connect(ctx.destination);
+                osc.start(ctx.currentTime + index * 0.12);
+                osc.stop(ctx.currentTime + index * 0.12 + 0.36);
+            });
+            setTimeout(() => ctx.close(), 900);
+        } catch (e) { /* audio is decorative */ }
+    }
+
+    function showLevelUpOverlay(target) {
+        const current = (target.fromLevel || session.level || 'A1').toUpperCase();
+        const next = String(target.name || '').toUpperCase();
+        const overlay = document.createElement('div');
+        overlay.className = 'unlock-overlay levelup-overlay';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.innerHTML = `<div class="levelup-card">
+            <div class="levelup-rays" aria-hidden="true"></div>
+            <p class="session-kicker">Checkpoint complete</p>
+            <h2 class="levelup-title">LEVEL UP!</h2>
+            <div class="levelup-stairs" aria-hidden="true">
+                <span class="step step-3"></span><span class="step step-2"></span><span class="step step-1"></span>
+                <img src="/static/mascot.svg" alt="" class="levelup-mascot">
+                <span class="sparkle s1">✦</span><span class="sparkle s2">✦</span><span class="sparkle s3">✦</span>
+            </div>
+            <div class="levelup-levels">
+                <span class="level-chip old">${h(current)}</span>
+                <span class="levelup-arrow">→</span>
+                <span class="level-chip new">${h(next)}</span>
+            </div>
+            <p class="session-text"><strong>Level ${h(next)}</strong> is now unlocked. Onwards !</p>
+            <button class="btn-primary" data-action="unlock-continue">Continue to ${h(next)} →</button>
+        </div>`;
+        document.body.appendChild(overlay);
+        playSuccessTone();
+    }
+
     function showUnlockOverlay() {
         const target = unlockTarget();
+        if (target.type === 'level') {
+            showLevelUpOverlay(target);
+            return;
+        }
         const overlay = document.createElement('div');
         overlay.className = 'unlock-overlay';
         overlay.setAttribute('role', 'dialog');
@@ -710,6 +763,7 @@
             <button class="btn-primary" data-action="unlock-continue">Continue →</button>
         </div>`;
         document.body.appendChild(overlay);
+        playSuccessTone();
     }
 
     function celebrate() {

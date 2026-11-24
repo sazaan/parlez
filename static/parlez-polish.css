@@ -288,6 +288,64 @@ body::after {
 @keyframes mic-pulse { 50%{ box-shadow: 0 0 0 8px rgba(195,58,78,.15); } }
 @keyframes confetti-fall { to { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
 
+.levelup-card {
+  width: min(100%, 460px); padding: 30px 26px; text-align: center; border-radius: 32px; position: relative; overflow: hidden;
+  background: linear-gradient(160deg,#fffdf8 0%,#fff0cf 55%,#fde3e8 100%);
+  border: 1px solid rgba(232,182,75,.75); box-shadow: var(--shadow-page);
+}
+.levelup-rays {
+  position: absolute; inset: -60%; opacity: .35; pointer-events: none;
+  background: repeating-conic-gradient(from 0deg, rgba(242,169,59,.35) 0deg 8deg, transparent 8deg 18deg);
+  animation: rays-spin 14s linear infinite;
+}
+.levelup-title {
+  font-family: var(--font-display); font-size: clamp(2.3rem,8vw,3.6rem); letter-spacing: -.03em; margin: 6px 0 10px;
+  color: var(--wine-deep); position: relative;
+  background: linear-gradient(100deg,var(--saffron-deep),var(--wine),var(--saffron-deep));
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  animation: levelup-pop .8s cubic-bezier(.2,1.5,.35,1) both;
+}
+.levelup-stairs { position: relative; height: 130px; margin: 8px 0 4px; }
+.levelup-stairs .step {
+  position: absolute; bottom: 0; height: 16px; border-radius: 7px;
+  background: linear-gradient(180deg,var(--saffron),var(--saffron-deep));
+  box-shadow: 0 6px 12px -8px rgba(217,130,26,.9);
+}
+.step-1 { left: 14%; width: 28%; }
+.step-2 { left: 37%; width: 28%; bottom: 32px; }
+.step-3 { left: 60%; width: 28%; bottom: 64px; }
+.levelup-mascot {
+  position: absolute; left: 55%; bottom: 66px; width: 74px; height: 74px;
+  animation: climb-up 1.5s cubic-bezier(.3,.8,.3,1) .15s both;
+}
+.sparkle { position: absolute; color: var(--gold); font-size: 1.4rem; animation: sparkle-pop 1.4s ease-in-out infinite; }
+.s1 { left: 22%; top: 24%; animation-delay: .1s; }
+.s2 { right: 22%; top: 12%; animation-delay: .45s; }
+.s3 { right: 16%; top: 52%; animation-delay: .8s; }
+.levelup-levels { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 10px 0; position: relative; }
+.level-chip {
+  display: inline-grid; place-items: center; min-width: 70px; padding: 8px 14px; border-radius: var(--radius-full);
+  font-family: var(--font-display); font-weight: 800; font-size: 1.35rem;
+}
+.level-chip.old { background: var(--paper-deep); color: var(--muted); animation: level-fade 1.4s ease both; }
+.level-chip.new {
+  background: linear-gradient(145deg,var(--wine),var(--wine-deep)); color: var(--gold);
+  box-shadow: 0 10px 24px -12px rgba(118,16,31,.9); animation: level-rise 1s cubic-bezier(.2,1.5,.4,1) both;
+}
+.levelup-arrow { font-size: 1.4rem; color: var(--saffron-deep); animation: arrow-nudge 1s ease-in-out infinite; }
+@keyframes rays-spin { to { transform: rotate(360deg); } }
+@keyframes levelup-pop { 0%{transform:scale(.6);opacity:0} 60%{transform:scale(1.08);opacity:1} 100%{transform:scale(1)} }
+@keyframes climb-up {
+  0%{ transform: translate(-40px,10px) rotate(-12deg) scale(.85); opacity:0 }
+  35%{ transform: translate(-20px,-4px) rotate(8deg) scale(1) ; opacity:1 }
+  70%{ transform: translate(0,-28px) rotate(-6deg) }
+  100%{ transform: translate(0,-34px) rotate(0) }
+}
+@keyframes sparkle-pop { 0%,100%{transform:scale(.7);opacity:.4} 50%{transform:scale(1.3);opacity:1} }
+@keyframes level-fade { 0%{transform:translateY(0);opacity:1} 100%{transform:translateY(14px);opacity:.45} }
+@keyframes level-rise { 0%{transform:translateY(22px) scale(.7);opacity:0} 60%{transform:translateY(-6px) scale(1.1)} 100%{transform:none;opacity:1} }
+@keyframes arrow-nudge { 50%{transform:translateX(5px)} }
+
 .unlock-overlay {
   position: fixed; inset: 0; z-index: 6000; display: grid; place-items: center; padding: 20px;
   background: rgba(44,26,19,.62); backdrop-filter: blur(6px);
