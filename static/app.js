@@ -2318,7 +2318,8 @@ document.querySelectorAll('.section-header').forEach(header => {
 // Mobile sidebar helpers
 // ============================================================
 function isMobile() {
-    return window.innerWidth <= 768;
+    // Matches the CSS breakpoint where the sidebar becomes a fixed drawer.
+    return window.innerWidth <= 1023;
 }
 
 function syncSidebarToggleLabel() {

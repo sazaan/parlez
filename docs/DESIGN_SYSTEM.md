@@ -15,6 +15,10 @@ Side-by-side review of `../NewaBhaye` screens and styles identified these concre
 - **"Your path" header with progress count**, unit badges, `done/total` counters and per-unit progress meters.
 - **Lesson feedback polish**: combo counter and subtle Web Audio tones for correct/incorrect answers; the existing mascot celebration, confetti and unlock animations remain.
 
+## Collapse layout fix (2026-11-24)
+
+Collapsing previously used a zero-width flex item with a negative margin, which could leave a stray gap or squeeze the main column. The collapsed sidebar is now removed from flex flow with `display:none`, and `.main-content` is explicitly `flex:1; width:auto`. The JS `isMobile()` threshold was aligned to the CSS drawer breakpoint (1023px), so tablet widths use the slide-over instead of a desktop collapse that never visually expands.
+
 ## Sidebar reopen & loading mascot (2026-11-24)
 
 When the desktop sidebar collapses, a persistent `»` rail button appears at the left edge to reopen it (alongside the header hamburger and the in-sidebar `«` button). The state is mirrored on `#appContainer` so the rail can be shown purely with CSS. The "New Chat" control was redesigned as a full-width gradient card with a＋icon and a clearer "New conversation" label, instead of a cramped pill squeezed next to the logo.
