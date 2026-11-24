@@ -803,6 +803,7 @@ class SignupRequest(BaseModel):
     password: str
     name: Optional[str] = None
     ref: Optional[str] = None
+    accept_terms: bool = False
 
 class LoginRequest(BaseModel):
     username: str
@@ -1478,6 +1479,15 @@ async def admin_page():
     )
 
 
+# Friendly alias: the console is reachable at /admin as well as the
+# configurable ADMIN_PATH (default /parlez-admin). Both serve the same shell.
+if ADMIN_PATH != "/admin":
+    app.add_api_route(
+        "/admin", admin_page, methods=["GET"], response_class=HTMLResponse,
+        include_in_schema=False,
+    )
+
+
 @app.get("/metrics", include_in_schema=False)
 async def prometheus_metrics(request: Request):
     """Expose Prometheus metrics only when explicitly enabled and token-protected."""
@@ -2082,6 +2092,9 @@ async def health(response: Response):
 @limiter.limit("5/minute")
 async def signup(request: Request, req: SignupRequest, response: Response):
     """Create a new user account."""
+    if not req.accept_terms:
+        log_event("auth.signup.failure", logging.WARNING, outcome="failure", reason_code="terms_not_accepted")
+        raise HTTPException(400, "Please read and accept the terms and disclaimers to create an account.")
     # Validate syntax without DNS/network dependency. This does NOT prove inbox ownership.
     try:
         email = validate_email(req.email.strip(), check_deliverability=False, allow_smtputf8=False).normalized.casefold()

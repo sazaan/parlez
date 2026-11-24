@@ -64,7 +64,7 @@ def auth_client(client):
         "email": "fixture@example.com",
         "username": "testuser",
         "password": "password123",
-        "name": "Test User"
+        "name": "Test User", "accept_terms": True
     })
     r = client.post("/api/auth/login", json={
         "username": "testuser",

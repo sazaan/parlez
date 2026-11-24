@@ -7,7 +7,7 @@ import main
 def _signup(client, username, ref=None):
     payload = {
         "email": f"{username}@example.com", "username": username,
-        "password": "password123", "name": username,
+        "password": "password123", "name": username, "accept_terms": True,
     }
     if ref:
         payload["ref"] = ref

@@ -80,6 +80,8 @@ const authError = document.getElementById('authError');
 const nameGroup = document.getElementById('nameGroup');
 const emailGroup = document.getElementById('emailGroup');
 const authEmail = document.getElementById('authEmail');
+const acceptTerms = document.getElementById('acceptTerms');
+const termsGroup = document.getElementById('termsGroup');
 
 // Task 5.3 (F7 fix): delegate the toggle click instead of rewriting
 // innerHTML and re-binding to a detached node each time. One listener on
@@ -95,6 +97,8 @@ function setAuthMode(signup) {
         : 'Don\'t have an account? <a href="#" id="authToggleLink">Sign Up</a>';
     nameGroup.style.display = signup ? 'block' : 'none';
     emailGroup.style.display = signup ? 'block' : 'none';
+    if (termsGroup) termsGroup.style.display = signup ? 'block' : 'none';
+    if (acceptTerms) acceptTerms.checked = false;
     authEmail.disabled = !signup;
     authEmail.required = signup;
     const passwordInput = document.getElementById('authPassword');
@@ -128,9 +132,19 @@ authForm?.addEventListener('submit', async (e) => {
     authSubmit.disabled = true;
     try {
         const endpoint = isSignup ? '/api/auth/signup' : '/api/auth/login';
+        if (isSignup && acceptTerms && !acceptTerms.checked) {
+            authError.textContent = 'Please read and accept the terms and disclaimers.';
+            authError.style.display = 'block';
+            authSubmit.disabled = false;
+            return;
+        }
         const refCode = new URLSearchParams(window.location.search).get('ref');
         const body = isSignup
-            ? { username, password, name, email: authEmail.value.trim(), ...(refCode ? { ref: refCode } : {}) }
+            ? {
+                username, password, name, email: authEmail.value.trim(),
+                accept_terms: Boolean(acceptTerms && acceptTerms.checked),
+                ...(refCode ? { ref: refCode } : {}),
+            }
             : { username, password };
         
         const r = await fetch(endpoint, {
@@ -994,13 +1008,13 @@ window.checkQuizAnswer = function(btn) {
     fb.style.display = 'block';
 };
 
-window.checkExercise = function(id, input) {
+window.checkExercise = function(id, input, onResult) {
     const exercise = window._exercises?.[id];
     if (!exercise) return;
     const answer = input.value.trim();
     if (!answer) return;
 
-    apiFetch('/api/check-exercise', {
+    return apiFetch('/api/check-exercise', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ exercise_id: id, answer, exercise_data: exercise })
@@ -1022,6 +1036,7 @@ window.checkExercise = function(id, input) {
             fb.textContent = d.explanation || '✗ Incorrect. Try again!';
         }
         updateXP(d.total_xp);
+        if (typeof onResult === 'function') onResult(d);
     });
 };
 

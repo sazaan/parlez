@@ -1,6 +1,17 @@
 # Curriculum source register
 
-Status: living document · research checked 2026-11-23 · re-verify exam facts every 90 days.
+Status: living document · research checked **2026-11-24** · re-verify exam facts every 90 days.
+
+## 0. Critical legal boundary (read first)
+
+**Parlez cannot reproduce real or past TEF/TCF exam questions.** CCI Paris Île-de-France and France Éducation international reserve copyright in their sample booklets, answer keys and audio; Canadian *Copyright Act* s.3/s.29 and French CPI art. L.122-4 point the same way, and exam-board precedent (AQA; *Chicago Bd. of Education v. Substance*) treats past papers as protected. What we **may** do:
+
+- use published **task specifications** (formats, timings, word counts, skill descriptors) — these are facts;
+- write **original items** in those formats, with our own texts, audio and rubrics;
+- **link** to official samples (plain hyperlinks, with attribution) — never mirror PDFs/audio or embed them behind our product;
+- state clearly that results are practice accuracy, not official scores, CEFR/NCLC levels, or immigration evidence.
+
+Full source: the research in `docs/INTERACTIVE_CURRICULUM_PHASES.md` and the disclosure in `static/legal.html`.
 
 This register separates **authoritative references**, **reusable materials**, and **link-only resources**. Parlez publishes original practice content. We do not host or reproduce past exam papers or official sample PDFs. See `docs/PROJECT_OVERVIEW.md` and `docs/CURRICULUM_REDESIGN.md` for product research and the earlier audit.
 
@@ -26,6 +37,24 @@ This register separates **authoritative references**, **reusable materials**, an
 - Official TEF/TCF sample PDFs and past papers (FEI, CCI, Hachette, CLE).
 - Commercial coursebooks used as task-design models: *Inspire* (AF Kathmandu), *Édito*, *Cosmopolite*, *Grammaire progressive du français*, *Bescherelle*, *Assimil*, *ABC TEF*, *Réussir le TCF*, Hachette's 2023+ TEF workbook.
 - Paid platforms: PrepMyTEF, Kwiziq, Lawless French (reference only).
+
+## 3b. Publisher series as structural models (researched 2026-11-24)
+
+All are © their publishers — **structure only, never wording, exercises, audio or images**:
+
+| Series | Levels | Structural lesson to borrow |
+| --- | --- | --- |
+| **Inspire** (Hachette) | A1–B2 | Direct A1/A2 template: 12-page units, 3 learning lessons + *Techniques pour…* + *S’entraîner* + *Faites le point*, DELF prep every 2 units, TV5MONDE video stitches. |
+| **Édito** (Didier) | A1–C1 | Best B1/B2 argumentation model: *Échauffement → Fonctionnement → Entraînement*, phonetics every unit, *Culture, Cultures*, *Atelier-médiation*, RFI link + quiz. |
+| **Cosmopolite** (Hachette) | A1–C1 | Project/mediation model: two projects per dossier, `Focus Langue`, `Expressions utiles pour…`, `Apprenons ensemble !`. |
+| **Adomania** / **Totem** (Hachette) | A1–B1 | Video-first hook, continuing fiction, *Faits et gestes* (non-verbal culture), collective final task. |
+| **Alter Ego+** (Hachette) | A1–B2 | `Point Langue`, `Aide-mémoire` speech-act toolboxes, project per dossier, DELF pages. |
+
+Recurring unit skeleton to re-implement in Parlez's own words: **opening contract → trigger documents → global then detailed comprehension → inductive grammar discovery → vocabulary + phonetics → culture note → drills → mediation/strategy → final task → bilan/self-evaluation**, with spiral recycling and a four-skill check every second unit.
+
+**Cleanest reusable open content:** COERLL *Français interactif* and *Tex’s French Grammar* (**CC BY** — commercial adaptation allowed with attribution), *Grammaire Ouverte*, *Tout un Monde*, *Le littéraire dans le quotidien*. Avoid **CC BY-NC(-SA)** unless Parlez is non-commercial; **CC BY-SA** is viral. TV5MONDE *fiches* may be adapted with a visible credit; their videos may be iframe-embedded but not rehosted. RFI and Le Point du FLE are link-only.
+
+Attribution template: *“Adapted from Français interactif, Blyth/Kelton/Guilloteau, COERLL, University of Texas at Austin, CC BY 4.0. Pedagogical sequence inspired by Inspire (Hachette FLE) and Édito (Didier).”*
 
 ## 4. Authoring rules
 

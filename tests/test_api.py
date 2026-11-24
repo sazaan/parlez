@@ -9,7 +9,7 @@ def test_signup_and_login(client):
         "email": "person@example.com",
         "username": "alice",
         "password": "password123",
-        "name": "Alice"
+        "name": "Alice", "accept_terms": True
     })
     assert r.status_code == 200
     data = r.json()
@@ -30,7 +30,7 @@ def test_signup_password_too_short(client):
         "email": "person@example.com",
         "username": "bob",
         "password": "short",
-        "name": "Bob"
+        "name": "Bob", "accept_terms": True
     })
     assert r.status_code == 400
     assert "8" in r.json()["detail"]
@@ -41,7 +41,7 @@ def test_login_invalid_credentials(client):
         "email": "person@example.com",
         "username": "carol",
         "password": "password123",
-        "name": "Carol"
+        "name": "Carol", "accept_terms": True
     })
     r = client.post("/api/auth/login", json={
         "username": "carol",

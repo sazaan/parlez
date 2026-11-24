@@ -40,6 +40,12 @@ def signed_admin(client, monkeypatch):
     return client, session.json()["csrf_token"]
 
 
+def test_admin_alias_at_slash_admin(client):
+    response = client.get("/admin")
+    assert response.status_code == 200
+    assert "Parlez Admin" in response.text
+
+
 def test_admin_shell_is_same_origin_and_not_indexed(client):
     response = client.get(main.ADMIN_PATH)
     assert response.status_code == 200
@@ -325,7 +331,7 @@ def test_regular_user_session_does_not_authorize_admin_api(client, monkeypatch):
         "email": "learner@example.com",
         "username": "learner",
         "password": "password123",
-        "name": "Learner",
+        "name": "Learner", "accept_terms": True,
     })
     login = client.post("/api/auth/login", json={"username": "learner", "password": "password123"})
     client.headers["Authorization"] = f"Bearer {login.json()['token']}"

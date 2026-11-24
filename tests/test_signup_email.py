@@ -14,7 +14,7 @@ import main
 def signup(client, **overrides):
     return client.post('/api/auth/signup', json={
         'username': 'newlearner', 'password': 'password123',
-        'email': 'Learner@EXAMPLE.COM', **overrides,
+        'email': 'Learner@EXAMPLE.COM', 'accept_terms': True, **overrides,
     })
 
 
@@ -29,8 +29,17 @@ def test_rejects_invalid_email(client, email):
 
 
 def test_email_required_for_new_signup(client):
-    response = client.post('/api/auth/signup', json={'username': 'learner', 'password': 'password123'})
+    response = client.post('/api/auth/signup', json={'username': 'learner', 'password': 'password123', 'accept_terms': True})
     assert response.status_code == 422
+
+
+def test_signup_requires_terms_acceptance(client):
+    response = client.post('/api/auth/signup', json={
+        'username': 'noterms', 'password': 'password123',
+        'email': 'noterms@example.com', 'accept_terms': False,
+    })
+    assert response.status_code == 400
+    assert 'terms' in response.json()['detail'].lower()
 
 
 def test_normalized_email_persists_through_progress_updates(client):

@@ -4,7 +4,7 @@ Status: living document · updated 2026-11-23
 
 ## Access
 
-The console is served at `ADMIN_PATH` (default `/parlez-admin`, configurable). It is a separate credential from learner accounts:
+The console is served at `ADMIN_PATH` (default `/parlez-admin`, configurable) and is also reachable at the friendly alias `/admin`. It is a separate credential from learner accounts:
 
 - `ADMIN_USERNAME`
 - `ADMIN_PASSWORD_HASH` (bcrypt; generate with `scripts/generate_admin_credentials.py`)

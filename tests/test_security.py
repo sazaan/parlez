@@ -65,7 +65,7 @@ def test_user_cannot_access_another_users_data(auth_client, client):
         "email": "other@example.com",
         "username": "otheruser",
         "password": "password123",
-        "name": "Other"
+        "name": "Other", "accept_terms": True
     })
     r = client.post("/api/auth/login", json={
         "username": "otheruser",
@@ -120,7 +120,7 @@ def test_signup_rejects_weak_passwords(client):
         "email": "person@example.com",
         "username": "weakuser",
         "password": "1234567",
-        "name": "Weak"
+        "name": "Weak", "accept_terms": True
     })
     assert r.status_code == 400
 
@@ -130,7 +130,7 @@ def test_signup_rejects_long_username(client):
         "email": "person@example.com",
         "username": "a" * 21,
         "password": "password123",
-        "name": "Long"
+        "name": "Long", "accept_terms": True
     })
     assert r.status_code == 400
 

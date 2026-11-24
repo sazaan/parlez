@@ -277,6 +277,14 @@ button { -webkit-tap-highlight-color: transparent; }
     box-shadow: none;
     animation: fadeInUp 0.55s ease-out both;
 }
+.terms-group { margin: 0.4rem 0 0.9rem; }
+.terms-check { display: flex; gap: 0.55rem; align-items: flex-start; font-size: 0.78rem; line-height: 1.45; cursor: pointer; }
+.terms-check input { margin-top: 0.15rem; accent-color: var(--primary); flex: none; }
+.terms-check a { color: var(--primary); }
+.signup-disclaimers { margin-top: 0.45rem; font-size: 0.74rem; color: var(--muted-foreground); }
+.signup-disclaimers summary { cursor: pointer; }
+.signup-disclaimers ul { margin: 0.4rem 0 0; padding-left: 1.1rem; }
+
 .rewards-view { max-width: 760px; }
 .reward-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.7rem; }
 .reward-stat { padding: 0.9rem; border: 1px solid var(--border); border-radius: 12px; background: var(--card); text-align: center; }
