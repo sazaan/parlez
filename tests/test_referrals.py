@@ -30,7 +30,7 @@ def test_referral_link_endpoint(client):
     assert r.status_code == 200
     data = r.json()
     assert len(data["code"]) >= 6
-    assert data["link"].startswith("/login?mode=signup&ref=")
+    assert data["link"].startswith("/signup?ref=")
     assert data["referredCount"] == 0
 
 

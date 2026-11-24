@@ -2133,9 +2133,20 @@ async def admin_health(admin=Depends(require_admin)):
     }
 
 
+def _page_with_absolute_meta(template: str, canonical_path: str, request: Request) -> str:
+    """Make canonical/og:url absolute using the deployed host."""
+    url = f"{str(request.base_url).rstrip('/')}{canonical_path}"
+    return (template
+        .replace('<link rel="canonical" href="/">', f'<link rel="canonical" href="{url}">')
+        .replace('<meta property="og:url" content="/">', f'<meta property="og:url" content="{url}">')
+        .replace('<link rel="canonical" href="/login">', f'<link rel="canonical" href="{url}">')
+        .replace('<meta property="og:url" content="/login">', f'<meta property="og:url" content="{url}">'))
+
+
 @app.get("/", response_class=HTMLResponse)
-async def root():
-    return Response(content=_LANDING_HTML, media_type="text/html", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+async def root(request: Request):
+    html = _page_with_absolute_meta(_LANDING_HTML, "/", request)
+    return Response(content=html, media_type="text/html", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
 
 @app.get("/legal", response_class=HTMLResponse)
@@ -2170,8 +2181,19 @@ async def french_for_canada_guide():
 
 
 @app.get("/login", response_class=HTMLResponse)
-async def login_page():
-    return Response(content=_INDEX_HTML, media_type="text/html", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+async def login_page(request: Request):
+    # Old marketing links used /login?mode=signup; keep them working with a
+    # clean canonical URL instead of a query-string "signup page".
+    if request.query_params.get("mode") == "signup":
+        return RedirectResponse("/signup", status_code=308)
+    html = _page_with_absolute_meta(_INDEX_HTML, "/login", request)
+    return Response(content=html, media_type="text/html", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+
+
+@app.get("/signup", response_class=HTMLResponse)
+async def signup_page(request: Request):
+    html = _page_with_absolute_meta(_INDEX_HTML, "/signup", request)
+    return Response(content=html, media_type="text/html", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
 
 @app.get("/health")
@@ -2491,7 +2513,7 @@ async def my_referral(user=Depends(require_auth)):
     code = user.get("referral_code") or ""
     return {
         "code": code,
-        "link": f"/login?mode=signup&ref={code}" if code else None,
+        "link": f"/signup?ref={code}" if code else None,
         "referredCount": storage.count_referrals(code) if code else 0,
         "reward": "A reward is granted when a referred learner completes their first lesson.",
     }

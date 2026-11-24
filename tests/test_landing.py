@@ -52,6 +52,21 @@ def test_french_for_canada_guide(client):
     assert "Educational content only" in r.text
 
 
+def test_signup_page_and_legacy_redirect(client):
+    signup = client.get("/signup")
+    assert signup.status_code == 200
+    assert 'rel="canonical" href="http://testserver/signup"' in signup.text
+    legacy = client.get("/login?mode=signup", follow_redirects=False)
+    assert legacy.status_code == 308
+    assert legacy.headers["location"] == "/signup"
+
+
+def test_landing_canonical_is_absolute(client):
+    r = client.get("/")
+    assert 'rel="canonical" href="http://testserver/"' in r.text
+    assert 'og:url" content="http://testserver/"' in r.text
+
+
 def test_login_page(client):
     r = client.get("/login")
     assert r.status_code == 200

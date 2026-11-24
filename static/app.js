@@ -35,8 +35,8 @@ async function checkAuth() {
     }
 }
 
-// Landing CTAs link to /login?mode=signup. Without this, every "Get Started"
-// button silently landed on the Log In form.
+// Landing CTAs link to /signup (older links used /login?mode=signup).
+// Without this, every "Get Started" button silently landed on the Log In form.
 let authModeFromUrl = false;
 
 function showAuthScreen() {
@@ -44,7 +44,8 @@ function showAuthScreen() {
     document.getElementById('appContainer').style.display = 'none';
     if (authModeFromUrl) return;
     authModeFromUrl = true;
-    if (new URLSearchParams(window.location.search).get('mode') === 'signup') {
+    if (window.location.pathname.replace(/\/$/, '') === '/signup'
+        || new URLSearchParams(window.location.search).get('mode') === 'signup') {
         setAuthMode(true);
     }
 }
