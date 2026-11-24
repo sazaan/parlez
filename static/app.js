@@ -407,6 +407,8 @@ const sidebar = document.getElementById('sidebar');
 const sidebarBackdrop = document.getElementById('sidebarBackdrop');
 const toggleSidebar = document.getElementById('toggleSidebar');
 const collapseSidebar = document.getElementById('collapseSidebar');
+const reopenSidebar = document.getElementById('reopenSidebar');
+const appContainer = document.getElementById('appContainer');
 const newChatBtn = document.getElementById('newChat');
 const chatList = document.getElementById('chatList');
 const coursesNav = document.getElementById('coursesNav');
@@ -1281,6 +1283,33 @@ function updateXP(xp) {
 // ============================================================
 // View Management
 // ============================================================
+let sectionLoaderDepth = 0;
+function showSectionLoader(message) {
+    const el = document.getElementById('sectionLoader');
+    if (!el) return;
+    sectionLoaderDepth += 1;
+    if (message) {
+        const text = el.querySelector('.loader-text');
+        if (text) text.textContent = message;
+    }
+    el.hidden = false;
+}
+function hideSectionLoader() {
+    sectionLoaderDepth = Math.max(0, sectionLoaderDepth - 1);
+    if (sectionLoaderDepth === 0) {
+        const el = document.getElementById('sectionLoader');
+        if (el) el.hidden = true;
+    }
+}
+async function withSectionLoader(task, message) {
+    showSectionLoader(message);
+    try {
+        return await task();
+    } finally {
+        setTimeout(hideSectionLoader, 180);
+    }
+}
+
 function animateView(element) {
     if (!element) return;
     element.classList.remove('view-enter');
@@ -2186,6 +2215,8 @@ async function loadScenarios() {
 // Unified Practice hub — scenarios + quick drills in one place
 // ============================================================
 window.showPractice = async function() {
+    showSectionLoader('Pip is laying out your drills…');
+    try {
     showToolView('🏋️ Practice', spinnerHTML('Loading your practice hub…', false), { section: 'practice' });
     const quick = `
         <div class="practice-grid">
@@ -2215,6 +2246,9 @@ window.showPractice = async function() {
             <div class="practice-hub-head"><p class="session-kicker">Conversation scenarios</p><h3>Talk about real situations</h3></div>
             ${scenariosHtml}
         </div>`;
+    } finally {
+        setTimeout(hideSectionLoader, 180);
+    }
 };
 
 // ============================================================
@@ -2315,6 +2349,7 @@ function toggleSidebarState() {
         if (sidebarBackdrop) sidebarBackdrop.classList.toggle('open');
     } else {
         sidebar.classList.toggle('collapsed');
+        if (appContainer) appContainer.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
         try {
             localStorage.setItem('parlezSidebarCollapsed', sidebar.classList.contains('collapsed') ? '1' : '0');
         } catch (e) { /* storage may be disabled */ }
@@ -2332,12 +2367,14 @@ function toggleSidebarState() {
 try {
     if (localStorage.getItem('parlezSidebarCollapsed') === '1' && !isMobile()) {
         sidebar.classList.add('collapsed');
+        if (appContainer) appContainer.classList.add('sidebar-collapsed');
         if (collapseSidebar) collapseSidebar.textContent = '»';
     }
 } catch (e) { /* storage may be disabled */ }
 syncSidebarToggleLabel();
 toggleSidebar.addEventListener('click', toggleSidebarState);
 if (collapseSidebar) collapseSidebar.addEventListener('click', toggleSidebarState);
+if (reopenSidebar) reopenSidebar.addEventListener('click', toggleSidebarState);
 document.getElementById('topAvatar')?.addEventListener('click', () => {
     if (typeof window.showRewards === 'function') window.showRewards();
 });
@@ -2357,6 +2394,7 @@ window.addEventListener('resize', () => {
         closeMobileSidebar();
     } else {
         sidebar.classList.remove('collapsed');
+        if (appContainer) appContainer.classList.remove('sidebar-collapsed');
         syncSidebarToggleLabel();
     }
 });
@@ -3468,8 +3506,9 @@ const SPEAKING_PROMPTS = [
 ];
 
 window.showRewards = async function() {
-    showToolView('🏅 Rewards &amp; streaks', spinnerHTML('Loading your rewards...', false));
+    showSectionLoader('Pip is counting your stars…');
     try {
+        showToolView('🏅 Rewards &amp; streaks', spinnerHTML('Loading your rewards...', false));
         const r = await apiFetch('/api/rewards/summary');
         const data = await r.json();
         const earned = new Set(data.badges || []);
@@ -3496,6 +3535,8 @@ window.showRewards = async function() {
         getToolContent().innerHTML = html;
     } catch (e) {
         getToolContent().innerHTML = '<div class="tool-header"><h2>🏅 Rewards</h2></div><p>Could not load rewards. Please try again.</p>';
+    } finally {
+        setTimeout(hideSectionLoader, 180);
     }
 };
 
@@ -3567,8 +3608,9 @@ window.sendSpeakingAnswer = async function() {
 };
 
 window.showExamFormats = async function() {
-    showToolView('📚 Exam formats &amp; levels', spinnerHTML('Loading exam formats...', false));
+    showSectionLoader('Pip is checking the exam formats…');
     try {
+        showToolView('📚 Exam formats &amp; levels', spinnerHTML('Loading exam formats...', false));
         const r = await apiFetch('/api/exam/formats');
         const data = await r.json();
         let html = '<div class="exam-formats">';
@@ -3599,6 +3641,8 @@ window.showExamFormats = async function() {
         getToolContent().innerHTML = html;
     } catch (e) {
         getToolContent().innerHTML = '<div class="tool-header"><h2>📚 Exam formats</h2></div><p>Could not load exam formats. Please try again.</p>';
+    } finally {
+        setTimeout(hideSectionLoader, 180);
     }
 };
 

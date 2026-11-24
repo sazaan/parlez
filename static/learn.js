@@ -71,31 +71,35 @@
         if (typeof setCoursesNavActive === 'function') setCoursesNavActive(false);
         setBottomNav('learn');
 
-        // One round-trip, not four sequential ones.
-        const [rewards, progress] = await Promise.all([
-            apiFetch('/api/rewards/summary').then(r => r.json()).catch(() => ({})),
-            apiFetch('/api/progress').then(r => r.json()).catch(() => ({})),
-        ]);
-        const xpEl = document.getElementById('learnXp');
-        const streakEl = document.getElementById('learnStreak');
-        const badgeEl = document.getElementById('learnBadges');
-        const starEl = document.getElementById('learnStars');
-        if (xpEl) xpEl.textContent = rewards.total_xp || 0;
-        if (streakEl) streakEl.textContent = rewards.streak || 0;
-        if (badgeEl) badgeEl.textContent = (rewards.badges || []).length;
-        if (starEl) starEl.textContent = rewards.totalStars || 0;
-        learnGoal = {
-            todayXp: rewards.today_xp || 0,
-            dailyGoal: 50,
-            streak: rewards.streak || 0,
-            freezes: rewards.freezes || 0,
-        };
+        const load = async () => {
+            // One round-trip, not four sequential ones.
+            const [rewards, progress] = await Promise.all([
+                apiFetch('/api/rewards/summary').then(r => r.json()).catch(() => ({})),
+                apiFetch('/api/progress').then(r => r.json()).catch(() => ({})),
+            ]);
+            const xpEl = document.getElementById('learnXp');
+            const streakEl = document.getElementById('learnStreak');
+            const badgeEl = document.getElementById('learnBadges');
+            const starEl = document.getElementById('learnStars');
+            if (xpEl) xpEl.textContent = rewards.total_xp || 0;
+            if (streakEl) streakEl.textContent = rewards.streak || 0;
+            if (badgeEl) badgeEl.textContent = (rewards.badges || []).length;
+            if (starEl) starEl.textContent = rewards.totalStars || 0;
+            learnGoal = {
+                todayXp: rewards.today_xp || 0,
+                dailyGoal: 50,
+                streak: rewards.streak || 0,
+                freezes: rewards.freezes || 0,
+            };
 
-        if (!levelEl.options.length) await loadLearnLevels(progress);
-        await loadLearnPath(levelEl.value || currentLevel || 'A1', progress);
-        const saved = readSession();
-        if (saved && saved.lessonId) showResumeBanner(saved);
-        else showPath();
+            if (!levelEl.options.length) await loadLearnLevels(progress);
+            await loadLearnPath(levelEl.value || currentLevel || 'A1', progress);
+            const saved = readSession();
+            if (saved && saved.lessonId) showResumeBanner(saved);
+            else showPath();
+        };
+        if (typeof withSectionLoader === 'function') await withSectionLoader(load, 'Pip is opening your path…');
+        else await load();
     };
 
     async function loadLearnLevels(providedProgress) {
@@ -282,6 +286,7 @@
     }
 
     async function startLearnSession(level, lessonId, savedSteps) {
+        if (typeof showSectionLoader === 'function') showSectionLoader('Pip is preparing your lesson…');
         try {
             const r = await apiFetch(`/api/learn/courses/${encodeURIComponent(level)}/lessons/${encodeURIComponent(lessonId)}`);
             const lesson = await r.json();
@@ -298,6 +303,8 @@
             renderLearnStep();
         } catch (e) {
             showToast('Could not start this lesson. Please try again.');
+        } finally {
+            if (typeof hideSectionLoader === 'function') setTimeout(hideSectionLoader, 180);
         }
     }
 
@@ -529,12 +536,15 @@
     let placement = null;
 
     async function startPlacement() {
+        if (typeof showSectionLoader === 'function') showSectionLoader('Pip is finding your level…');
         try {
             const data = await apiFetch('/api/assessment/placement').then(r => r.json());
             placement = { items: data.items, answers: {} };
             renderPlacement();
         } catch (e) {
             showToast('Could not load the level check.');
+        } finally {
+            if (typeof hideSectionLoader === 'function') setTimeout(hideSectionLoader, 180);
         }
     }
 
@@ -654,6 +664,7 @@
     }
 
     async function startExamMission(exam, skill) {
+        if (typeof showSectionLoader === 'function') showSectionLoader('Pip is setting up your mission…');
         try {
             const r = await apiFetch(`/api/exam/practice/${encodeURIComponent(exam)}/${encodeURIComponent(skill)}`);
             const data = await r.json();
@@ -672,6 +683,8 @@
             }, 1000);
         } catch (e) {
             showToast('Could not load this exam mission.');
+        } finally {
+            if (typeof hideSectionLoader === 'function') setTimeout(hideSectionLoader, 180);
         }
     }
 

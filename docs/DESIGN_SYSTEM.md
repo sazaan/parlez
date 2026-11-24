@@ -15,6 +15,12 @@ Side-by-side review of `../NewaBhaye` screens and styles identified these concre
 - **"Your path" header with progress count**, unit badges, `done/total` counters and per-unit progress meters.
 - **Lesson feedback polish**: combo counter and subtle Web Audio tones for correct/incorrect answers; the existing mascot celebration, confetti and unlock animations remain.
 
+## Sidebar reopen & loading mascot (2026-11-24)
+
+When the desktop sidebar collapses, a persistent `»` rail button appears at the left edge to reopen it (alongside the header hamburger and the in-sidebar `«` button). The state is mirrored on `#appContainer` so the rail can be shown purely with CSS. The "New Chat" control was redesigned as a full-width gradient card with a＋icon and a clearer "New conversation" label, instead of a cramped pill squeezed next to the logo.
+
+Section switches now show a centered Pip loader (bouncing mascot, message and animated dots) while data is fetched — Learn, Practice, Rewards, Exam formats, lessons, placement and exam missions all use it, with a small minimum display time so fast transitions still feel smooth.
+
 ## Collapsible sidebar (2026-11-24)
 
 The sidebar can be collapsed on desktop with either the header hamburger or the new `«` button in the sidebar header (`»` expands). The state is saved in `localStorage` so it survives reloads. On tablets/phones the same control opens the sidebar as a slide-over with a backdrop; it closes on backdrop click, Escape, resize, or after choosing a destination. CSS uses `transform` for the mobile drawer and animated width/margin for desktop collapse.

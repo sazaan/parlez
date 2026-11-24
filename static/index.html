@@ -85,8 +85,8 @@
                     <span class="logo-text">Parlez</span>
                 </div>
                 <button type="button" class="sidebar-collapse" id="collapseSidebar" aria-label="Collapse navigation" title="Collapse navigation">«</button>
-                <button class="btn-new-chat" id="newChat">+ New Chat</button>
             </div>
+            <button class="btn-new-chat" id="newChat"><span class="new-chat-icon" aria-hidden="true">＋</span><span>New conversation</span></button>
 
             <div class="level-badge" id="levelBadge">
                 <span class="level-dot"></span>
@@ -165,6 +165,7 @@
             </div>
         </aside>
 
+        <button type="button" class="sidebar-reopen" id="reopenSidebar" aria-label="Open navigation" title="Open navigation">»</button>
         <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
         <main class="main-content">
@@ -332,6 +333,14 @@
                     <button class="export-download-btn" id="downloadExport">Download</button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div class="section-loader" id="sectionLoader" hidden aria-live="polite">
+        <div class="loader-card">
+            <img src="/static/mascot.svg" alt="" class="loader-mascot">
+            <span class="loader-text">Pip is getting things ready…</span>
+            <div class="loader-dots"><i></i><i></i><i></i></div>
         </div>
     </div>
 

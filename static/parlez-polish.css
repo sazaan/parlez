@@ -125,12 +125,46 @@ body::after {
 .practice-card small { color: var(--muted); font-size: .76rem; line-height: 1.35; }
 
 .btn-new-chat {
-  border-radius: var(--radius-full);
-  background: linear-gradient(135deg, var(--saffron), var(--saffron-deep));
-  color: #3a2108; font-weight: 800; box-shadow: 0 8px 18px -10px rgba(217,130,26,.9);
+  display: flex; align-items: center; gap: 9px; width: auto; margin: 4px 12px 14px;
+  min-height: 46px; padding: 0 15px; border: 0;
+  border-radius: 15px; background: linear-gradient(135deg, var(--saffron), var(--saffron-deep));
+  color: #3a2108; font-weight: 800; font-size: .86rem; letter-spacing: .01em;
+  box-shadow: 0 10px 20px -12px rgba(217,130,26,.95);
   transition: transform .18s ease, box-shadow .18s ease;
 }
-.btn-new-chat:hover { transform: translateY(-2px); box-shadow: 0 12px 24px -10px rgba(217,130,26,1); }
+.new-chat-icon {
+  display: grid; place-items: center; width: 24px; height: 24px; border-radius: 8px;
+  background: rgba(255,255,255,.55); font-size: 1.15rem; line-height: 1;
+}
+.btn-new-chat:hover { transform: translateY(-2px); box-shadow: 0 14px 26px -12px rgba(217,130,26,1); }
+.btn-new-chat:active { transform: translateY(0) scale(.98); }
+
+/* Persistent reopen affordance when the desktop sidebar is collapsed */
+.sidebar-reopen {
+  display: none; position: fixed; z-index: 30; left: 8px; top: 84px;
+  width: 40px; height: 40px; border-radius: 13px; border: 1px solid var(--line);
+  background: var(--card); color: var(--wine); font-size: 1.25rem; cursor: pointer;
+  box-shadow: var(--shadow-tile); transition: transform .18s ease, background .18s ease;
+}
+.sidebar-reopen:hover { transform: translateX(3px); background: var(--wine-soft); }
+.app-container.sidebar-collapsed .sidebar-reopen { display: block; }
+
+/* Mascot loading state between sections */
+.section-loader {
+  position: fixed; inset: 0; z-index: 7000; display: grid; place-items: center;
+  background: rgba(255,246,232,.78); backdrop-filter: blur(6px);
+  animation: view-fade .18s ease both;
+}
+.section-loader[hidden] { display: none; }
+.loader-card { display: grid; justify-items: center; gap: 8px; padding: 22px 26px; border-radius: 24px; background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow-page); }
+.loader-mascot { width: 84px; height: 84px; animation: loader-bounce 1s ease-in-out infinite; }
+.loader-text { font-size: .85rem; font-weight: 700; color: var(--wine); }
+.loader-dots { display: flex; gap: 5px; }
+.loader-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--saffron); animation: loader-dot 1s ease-in-out infinite; }
+.loader-dots i:nth-child(2) { animation-delay: .15s; }
+.loader-dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes loader-bounce { 0%,100%{transform:translateY(0) rotate(-3deg)} 50%{transform:translateY(-10px) rotate(3deg)} }
+@keyframes loader-dot { 0%,100%{opacity:.35; transform:scale(.8)} 50%{opacity:1; transform:scale(1.2)} }
 .level-badge, .streak-display, .accuracy-display, .xp-display {
   border-radius: var(--radius-full); background: var(--paper-deep); border: 1px solid var(--line-soft);
 }
