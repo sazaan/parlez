@@ -40,7 +40,7 @@ Delivered: exam mission cards in the path; briefing with official-sample links; 
 
 ## Phase C — AI tutor inside the session (in progress)
 
-Shipped: "Ask Pip why" button on exercise feedback, which opens a focus-trapped overlay and requests a two-sentence explanation plus one example through the existing tutor endpoint with `mode: grammar`. Not yet shipped: post-session coach cards, speaking-mission memory/fact list, and mid-turn confusion checks.
+Shipped: "Ask Pip why" button on exercise feedback; post-session **coach card** (three kind tips + next step from the tutor); progress share card; mascot celebration on results; XP/streak/badge HUD. Not yet shipped: speaking-mission memory/fact list and mid-turn confusion checks — both need a dedicated speaking session.
 
 - C1. Contextual "Ask Pip" panel seeded with the current lesson/exam task.
 - C2. Hint and explanation requests that never give away the assessed answer.

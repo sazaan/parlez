@@ -42,6 +42,15 @@
         document.getElementById('btnBackToChat').style.display = 'none';
         if (typeof setCoursesNavActive === 'function') setCoursesNavActive(false);
         if (!levelEl.options.length) await loadLearnLevels();
+        try {
+            const rewards = await apiFetch('/api/rewards/summary').then(r => r.json());
+            const xpEl = document.getElementById('learnXp');
+            const streakEl = document.getElementById('learnStreak');
+            const badgeEl = document.getElementById('learnBadges');
+            if (xpEl) xpEl.textContent = rewards.total_xp;
+            if (streakEl) streakEl.textContent = rewards.streak;
+            if (badgeEl) badgeEl.textContent = (rewards.badges || []).length;
+        } catch (e) { /* non-essential HUD */ }
         await loadLearnPath(levelEl.value || currentLevel || 'A1');
         const saved = readSession();
         if (saved && saved.lessonId) showResumeBanner(saved);
@@ -261,8 +270,7 @@
 
     // ---------------- Phase C: in-session tutor help ----------------
 
-    async function askPipWhy() {
-        if (!session?.lastExercise) return;
+    async function askPip(message, kicker) {
         let panel = document.getElementById('learnExplainPanel');
         if (!panel) {
             panel = document.createElement('div');
@@ -273,12 +281,12 @@
             panel.innerHTML = '<div class="explain-box"><button class="explain-close" data-action="learn-close-explain" aria-label="Close">×</button><p class="session-kicker">Ask Pip</p><div class="explain-body">Thinking…</div></div>';
             document.body.appendChild(panel);
         }
+        panel.querySelector('.session-kicker').textContent = kicker || 'Ask Pip';
         const body = panel.querySelector('.explain-body');
         try {
-            const message = `Explain this French exercise in two short sentences, then give one correct example. Exercise: ${session.lastExercise.prompt}. Learner answered: ${session.lastExercise.answer || '(no answer)'}. Stay in French-learning scope.`;
             const r = await apiFetch('/api/chat', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message, mode: 'grammar', level: session.level || currentLevel || 'A1' }),
+                body: JSON.stringify({ message, mode: 'grammar', level: session?.level || currentLevel || 'A1' }),
             });
             const data = await r.json();
             if (!r.ok) throw new Error(data.detail || 'failed');
@@ -286,6 +294,14 @@
         } catch (e) {
             body.textContent = 'Pip could not answer right now. Try again in a moment.';
         }
+    }
+
+    async function askPipWhy() {
+        if (!session?.lastExercise) return;
+        await askPip(
+            `Explain this French exercise in two short sentences, then give one correct example. Exercise: ${session.lastExercise.prompt}. Learner answered: ${session.lastExercise.answer || '(no answer)'}. Stay in French-learning scope.`,
+            'Ask Pip · why?',
+        );
     }
 
     // ---------------- Phase B: exam missions ----------------
@@ -405,7 +421,12 @@
             <div><strong>${session.mistakes.length}</strong><span>To review</span></div></div>
             <p class="session-text">${session.mistakes.length ? 'Mistakes in this session: ' + h(session.mistakes.slice(0, 3).join(', ')) : 'No mistakes — excellent work.'}</p>
             <p class="session-text">Practice accuracy is not an official score or a CEFR/NCLC level.</p>`,
-            '<button data-action="learn-quit">Back to path</button>');
+            '<button data-action="learn-coach">Coach card ✨</button><button data-action="learn-share">Share progress</button><button data-action="learn-quit">Back to path</button>');
+        const mascot = sessionEl.querySelector('.session-mascot');
+        if (mascot) {
+            mascot.classList.add('mascot-celebrate');
+            setTimeout(() => mascot.classList.remove('mascot-celebrate'), 700);
+        }
         clearSession();
         fetch('/api/progress/complete-lesson', {
             method: 'POST', credentials: 'same-origin',
@@ -456,6 +477,16 @@
             askPipWhy();
         } else if (action === 'learn-close-explain') {
             document.getElementById('learnExplainPanel')?.remove();
+        } else if (action === 'learn-coach') {
+            const mistakes = session?.mistakes?.length ? session.mistakes.join('; ') : 'none';
+            askPip(`Give me three short, kind study tips for a French learner who just finished a lesson and missed these items: ${mistakes}. Also suggest one next step. Practice only, no exam score.`, 'Pip · your coach card');
+        } else if (action === 'learn-share') {
+            const text = `I practised ${session?.title || 'French'} on Parlez — ${session?.correct || 0} correct answers. Practice makes progress!`;
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).then(() => showToast('Progress card copied to clipboard.'));
+            } else {
+                showToast(text);
+            }
         } else if (action === 'learn-go-path') {
             showLearnView();
         } else if (action === 'learn-go-practice') {

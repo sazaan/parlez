@@ -60,7 +60,7 @@
 .session-text { font-size: 0.95rem; line-height: 1.55; color: var(--ink-soft); }
 .session-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.5rem; }
 .session-list li { padding: 0.6rem 0.75rem; border-radius: 10px; background: rgba(0,0,0,.03); font-size: 0.9rem; }
-.session-actions { margin-top: auto; display: flex; gap: 0.6rem; justify-content: flex-end; padding-top: 0.8rem; }
+.session-actions { margin-top: auto; display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: flex-end; padding-top: 0.8rem; }
 .session-actions button { min-height: 46px; padding: 0 1.2rem; border-radius: 12px; border: 0; background: var(--primary); color: #fff; font-weight: 700; cursor: pointer; }
 .session-actions button.ghost { background: transparent; color: var(--foreground); border: 1px solid var(--border); }
 
