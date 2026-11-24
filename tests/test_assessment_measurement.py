@@ -45,6 +45,17 @@ def test_events_reject_unknown_names(auth_client):
     assert auth_client.post("/api/events", json={"name": "drop_all_tables"}).status_code == 400
 
 
+def test_placement_submit_works_with_browser_shaped_payload(auth_client):
+    items = auth_client.get("/api/assessment/placement").json()["items"]
+    answers = {item["id"]: index for index, item in enumerate(items)}
+    r = auth_client.post("/api/assessment/placement/submit", json={"answers": answers})
+    assert r.status_code == 200
+    assert r.json()["levelEstimate"] in {"A1", "A2", "B1", "B2"}
+    assert auth_client.post(
+        "/api/assessment/placement/submit", json={"answers": {items[0]["id"]: 0}}
+    ).status_code == 200
+
+
 def test_chat_fact_memory_and_mid_turn_guidance(auth_client, monkeypatch):
     added = auth_client.post("/api/chat/facts", json={"fact": "I am preparing for TEF Canada in 2027."})
     assert added.status_code == 200

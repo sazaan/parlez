@@ -22,6 +22,18 @@
         return typeof escapeHtml === 'function' ? escapeHtml(value) : String(value ?? '');
     }
 
+    async function postJson(url, body) {
+        const r = await apiFetch(url, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+            throw new Error(typeof data.detail === 'string' ? data.detail : `Request failed (${r.status})`);
+        }
+        return data;
+    }
+
     function recordEvent(name, props) {
         try {
             fetch('/api/events', {
@@ -501,14 +513,14 @@
         speakingMission.transcript = (field?.value || '').trim();
         if (!speakingMission.transcript) { showToast('Nothing to save yet.'); return; }
         try {
-            await apiFetch('/api/speaking/attempts', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ scenario: speakingMission.prompt,
-                    transcript: speakingMission.transcript, self_rating: speakingMission.rating }),
+            await postJson('/api/speaking/attempts', {
+                scenario: speakingMission.prompt,
+                transcript: speakingMission.transcript,
+                self_rating: speakingMission.rating,
             });
             showToast('Speaking attempt saved.');
         } catch (e) {
-            showToast('Could not save this attempt.');
+            showToast(`Could not save this attempt: ${e.message || 'unknown error'}`);
         }
     }
 
@@ -553,15 +565,22 @@
     }
 
     async function submitPlacement() {
+        if (!placement || !placement.items?.length) {
+            showToast('The level check is still loading. Try again in a moment.');
+            return;
+        }
+        const unanswered = placement.items.filter(item => placement.answers[item.id] === undefined).length;
+        if (unanswered) {
+            showToast(`Answer all ${placement.items.length} questions first (${unanswered} left).`);
+            return;
+        }
         try {
-            const result = await apiFetch('/api/assessment/placement/submit', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ answers: placement.answers }),
-            }).then(r => r.json());
+            const result = await postJson('/api/assessment/placement/submit', { answers: placement.answers });
+            if (!result || !result.levelEstimate) throw new Error('The server returned an empty result.');
             recordEvent('placement_submit', { level: result.levelEstimate });
             renderPlacement(result);
         } catch (e) {
-            showToast('Could not score the level check.');
+            showToast(`Could not score the level check: ${e.message || 'unknown error'}`);
         }
     }
 
@@ -695,11 +714,9 @@
     async function submitExamMission() {
         if (!examMission) return;
         try {
-            const r = await apiFetch('/api/exam/practice/grade', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ exam: examMission.exam, skill: examMission.skill, answers: examMission.answers }),
+            const result = await postJson('/api/exam/practice/grade', {
+                exam: examMission.exam, skill: examMission.skill, answers: examMission.answers,
             });
-            const result = await r.json();
             examMission.result = result;
             recordEvent('exam_mission_submit', { exam: examMission.exam, skill: examMission.skill });
             renderExamMission(result);
@@ -769,14 +786,14 @@
     async function submitCheckpoint() {
         if (!checkpoint) return;
         try {
-            const result = await apiFetch(`/api/learn/courses/${encodeURIComponent(session.level)}/lessons/${encodeURIComponent(session.lessonId)}/checkpoint/submit`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ answers: checkpoint.answers }),
-            }).then(r => r.json());
+            const result = await postJson(
+                `/api/learn/courses/${encodeURIComponent(session.level)}/lessons/${encodeURIComponent(session.lessonId)}/checkpoint/submit`,
+                { answers: checkpoint.answers },
+            );
             checkpoint.result = result;
             renderCheckpointQuestions(result);
         } catch (e) {
-            showToast('Could not grade the checkpoint. Please try again.');
+            showToast(`Could not grade the checkpoint: ${e.message || 'unknown error'}`);
         }
     }
 
