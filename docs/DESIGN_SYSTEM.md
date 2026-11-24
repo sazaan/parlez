@@ -2,6 +2,10 @@
 
 Status: living document · updated 2026-11-23
 
+## Navigation consolidation (2026-11-24)
+
+One sidebar component (`.sidebar-nav-link`) is used for every destination: Courses & Path, Practice, Speaking, AI Tutor (opens chat), Rewards, My Progress, Level check and the Mock Tests group placed directly below Level check. Redundant sections — the old separate Courses tool, Practice Scenarios, Quick Practice and Content Tools — were removed. Practice now opens a single hub containing both conversation scenarios and quick drills, using the same card component throughout. The mobile bottom nav mirrors the same destinations.
+
 ## Visual refresh (2026-11-24)
 
 Reference apps studied: **Newa Bhaye** (warm cream gradients, dotted texture, mascot Diyo, top stat pills, bottom nav, confetti), **Duolingo** (single clear path, tactile oversized options, instant feedback, streak/XP HUD), **Falou** (short speaking-first missions, listen → repeat → playback). Applied in `static/parlez-polish.css` (loaded last so it overrides legacy tokens):

@@ -213,6 +213,11 @@ function setupDelegatedHandlers() {
             case 'quiz-answer':
                 if (typeof window.checkQuizAnswer === 'function') window.checkQuizAnswer(btn);
                 break;
+            case 'practice-scenario':
+                showChatView();
+                chatContext = { mode: 'conversation', scenario_id: btn.dataset.id };
+                sendMessage(`Let's practice a conversation scenario: ${btn.dataset.label} - ${btn.dataset.desc}`);
+                break;
             case 'check-exercise': {
                 const id = btn.dataset.id;
                 const input = btn.previousElementSibling;
@@ -2154,6 +2159,7 @@ window.startLessonPractice = function(level, lessonId) {
 // Scenarios
 // ============================================================
 async function loadScenarios() {
+    if (!scenarioList) return; // scenarios now live in the unified Practice hub
     try {
         const r = await apiFetch('/api/scenarios');
         const scenarios = await r.json();
@@ -2172,6 +2178,41 @@ async function loadScenarios() {
         });
     } catch (e) { showToast('Could not load scenarios (network error).', { retry: loadScenarios }); }
 }
+
+// ============================================================
+// Unified Practice hub — scenarios + quick drills in one place
+// ============================================================
+window.showPractice = async function() {
+    showToolView('🏋️ Practice', spinnerHTML('Loading your practice hub…', false), { section: 'practice' });
+    const quick = `
+        <div class="practice-grid">
+            <button class="practice-card" data-action="start-vocab-quiz"><span>📝</span><strong>Vocab Quiz</strong><small>Quick multiple choice</small></button>
+            <button class="practice-card" data-action="start-conj-quiz"><span>🔄</span><strong>Conjugation Drill</strong><small>Verb forms</small></button>
+            <button class="practice-card" data-action="start-flashcard-review"><span>🃏</span><strong>Flashcards</strong><small>Spaced review</small></button>
+            <button class="practice-card" data-action="show-word-of-day"><span>📅</span><strong>Word of the Day</strong><small>One useful word</small></button>
+            <button class="practice-card" data-action="show-adaptive-analysis"><span>📊</span><strong>My Progress</strong><small>Strengths &amp; gaps</small></button>
+            <button class="practice-card" data-action="learn-placement"><span>🔎</span><strong>Level Check</strong><small>Informal estimate</small></button>
+        </div>`;
+    let scenariosHtml = '<p class="session-text">Loading scenarios…</p>';
+    try {
+        const scenarios = await apiFetch('/api/scenarios').then(r => r.json());
+        scenariosHtml = scenarios.length
+            ? `<div class="practice-grid">${scenarios.map(s => `
+                <button class="practice-card" data-action="practice-scenario" data-id="${escapeHtml(s.id)}" data-label="${escapeHtml(s.labelFr)}" data-desc="${escapeHtml(s.description)}" data-icon="${escapeHtml(s.icon)}">
+                    <span>${escapeHtml(s.icon)}</span><strong>${escapeHtml(s.labelFr)}</strong><small>${escapeHtml(s.description)}</small>
+                </button>`).join('')}</div>`
+            : '<p class="session-text">No scenarios available yet.</p>';
+    } catch (e) {
+        scenariosHtml = '<p class="session-text">Could not load scenarios.</p>';
+    }
+    getToolContent().innerHTML = `
+        <div class="practice-hub">
+            <div class="practice-hub-head"><p class="session-kicker">Daily drills</p><h2 class="session-title">Practice</h2></div>
+            ${quick}
+            <div class="practice-hub-head"><p class="session-kicker">Conversation scenarios</p><h3>Talk about real situations</h3></div>
+            ${scenariosHtml}
+        </div>`;
+};
 
 // ============================================================
 // Settings

@@ -924,8 +924,8 @@
             showLearnView();
         } else if (action === 'learn-go-practice') {
             if (typeof setBottomNav === 'function') setBottomNav('practice');
-            if (typeof window.reviewCurrentCard === 'function') window.startFlashcardReview?.();
-            else showToast('Practice tools are in the Quick Practice menu.');
+            if (typeof window.showPractice === 'function') window.showPractice();
+            else showToast('Practice is not available yet.');
         } else if (action === 'learn-go-tutor') {
             if (typeof showChatView === 'function') showChatView();
         } else if (action === 'learn-go-rewards') {

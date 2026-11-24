@@ -97,6 +97,21 @@ body::after {
 .sidebar-nav-label { display: inline-flex; align-items: center; gap: 9px; }
 .nav-emoji { font-size: 1.05rem; width: 22px; text-align: center; }
 .sidebar-nav-arrow { width: 14px; height: 14px; opacity: .45; }
+.sidebar-nav-link.sub { padding: 7px 10px 7px 14px; font-size: .82rem; font-weight: 650; }
+.sidebar-nav-link.sub .nav-emoji { font-size: .95rem; width: 18px; }
+
+.practice-hub { display: grid; gap: 18px; max-width: 860px; }
+.practice-hub-head h3 { font-family: var(--font-display); font-size: 1.3rem; margin-top: 4px; }
+.practice-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.practice-card {
+  display: grid; gap: 4px; text-align: left; padding: 16px; min-height: 118px;
+  border-radius: 18px; border: 1px solid var(--line); background: var(--card);
+  box-shadow: var(--shadow-tile); color: var(--ink); transition: transform .18s ease, box-shadow .18s ease;
+}
+.practice-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.practice-card > span { font-size: 1.6rem; }
+.practice-card strong { font-size: .96rem; }
+.practice-card small { color: var(--muted); font-size: .76rem; line-height: 1.35; }
 
 .btn-new-chat {
   border-radius: var(--radius-full);

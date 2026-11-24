@@ -127,60 +127,30 @@
                 </div>
 
                 <div class="sidebar-section">
-                    <div class="section-header collapsible" data-target="chatList">
-                        <span>Chats</span><span class="collapse-icon">▼</span>
-                    </div>
-                    <div class="collapsible-content collapsed" id="chatList"></div>
-                </div>
-
-                <div class="sidebar-section">
-                    <button type="button" class="section-header sidebar-nav-link" id="coursesNav" data-action="open-courses" aria-label="Browse courses">
-                        <span class="sidebar-nav-label">
-                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 5.5A2.5 2.5 0 0 1 7 3h12.5v16H7a2.5 2.5 0 0 0-2.5 2.5z"/><path d="M4.5 5.5v16M8.5 7h7M8.5 10.5h7"/></svg>
-                            <span>Courses</span>
-                        </span>
+                    <div class="section-header">Mock Tests</div>
+                    <button type="button" class="sidebar-nav-link sub" data-action="start-mock-test" data-type="TEF">
+                        <span class="sidebar-nav-label"><span class="nav-emoji">📝</span><span>TEF Practice</span></span>
+                        <svg class="sidebar-nav-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+                    <button type="button" class="sidebar-nav-link sub" data-action="start-mock-test" data-type="TCF">
+                        <span class="sidebar-nav-label"><span class="nav-emoji">📝</span><span>TCF Practice</span></span>
+                        <svg class="sidebar-nav-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+                    <button type="button" class="sidebar-nav-link sub" data-action="show-exam-formats">
+                        <span class="sidebar-nav-label"><span class="nav-emoji">📚</span><span>Exam formats &amp; levels</span></span>
+                        <svg class="sidebar-nav-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+                    <button type="button" class="sidebar-nav-link sub" data-action="show-test-stats">
+                        <span class="sidebar-nav-label"><span class="nav-emoji">📊</span><span>Test History</span></span>
                         <svg class="sidebar-nav-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
                     </button>
                 </div>
 
                 <div class="sidebar-section">
-                    <div class="section-header collapsible" data-target="scenarioList">
-                        <span>Practice Scenarios</span><span class="collapse-icon">▼</span>
+                    <div class="section-header collapsible" data-target="chatList">
+                        <span>Chats</span><span class="collapse-icon">▼</span>
                     </div>
-                    <div class="collapsible-content collapsed" id="scenarioList"></div>
-                </div>
-
-                <div class="sidebar-section">
-                    <div class="section-header collapsible" data-target="practiceList">
-                        <span>Quick Practice</span><span class="collapse-icon">▼</span>
-                    </div>
-                    <div class="collapsible-content collapsed" id="practiceList">
-                        <div class="practice-item" data-action="start-vocab-quiz">📝 Vocab Quiz</div>
-                        <div class="practice-item" data-action="start-conj-quiz">🔄 Conjugation Drill</div>
-                        <div class="practice-item" data-action="start-flashcard-review">🃏 Flashcard Review</div>
-                        <div class="practice-item" data-action="show-word-of-day">📅 Word of the Day</div>
-                    </div>
-                </div>
-
-                <div class="sidebar-section">
-                    <div class="section-header collapsible" data-target="ingestList">
-                        <span>Content Tools</span><span class="collapse-icon">▼</span>
-                    </div>
-                    <div class="collapsible-content collapsed" id="ingestList">
-                        <div class="practice-item" data-action="prompt-content-ingest">📄 Ingest French Content</div>
-                    </div>
-                </div>
-
-                <div class="sidebar-section">
-                    <div class="section-header collapsible" data-target="mockTestList">
-                        <span>Mock Tests</span><span class="collapse-icon">▼</span>
-                    </div>
-                    <div class="collapsible-content collapsed" id="mockTestList">
-                        <div class="practice-item" data-action="start-mock-test" data-type="TEF">📝 TEF Practice</div>
-                        <div class="practice-item" data-action="start-mock-test" data-type="TCF">📝 TCF Practice</div>
-                        <div class="practice-item" data-action="show-exam-formats">📚 Exam formats &amp; levels</div>
-                        <div class="practice-item" data-action="show-test-stats">📊 Test History</div>
-                    </div>
+                    <div class="collapsible-content collapsed" id="chatList"></div>
                 </div>
             </div>
 
