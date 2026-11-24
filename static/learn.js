@@ -239,6 +239,17 @@
             const good = /^✓/.test(fb.textContent || '') || fb.classList.contains('correct');
             feedback.className = 'session-feedback ' + (good ? 'good' : 'bad');
             feedback.textContent = fb.textContent || (good ? 'Correct' : 'Try again');
+            const ask = document.createElement('button');
+            ask.type = 'button';
+            ask.className = 'explain-button';
+            ask.dataset.action = 'learn-explain';
+            ask.textContent = 'Ask Pip why →';
+            feedback.appendChild(ask);
+            session.lastExercise = {
+                prompt: exercise.prompt || '',
+                answer: observeTarget.querySelector('.quiz-option.selected')?.textContent?.trim() ||
+                        observeTarget.querySelector('.exercise-input')?.value?.trim() || '',
+            };
             if (good) session.correct += 1;
             else { session.wrong += 1; session.mistakes.push(exercise.prompt || exercise.id); }
             saveSession();
@@ -246,6 +257,35 @@
             observer.disconnect();
         });
         observer.observe(observeTarget, { subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
+    }
+
+    // ---------------- Phase C: in-session tutor help ----------------
+
+    async function askPipWhy() {
+        if (!session?.lastExercise) return;
+        let panel = document.getElementById('learnExplainPanel');
+        if (!panel) {
+            panel = document.createElement('div');
+            panel.id = 'learnExplainPanel';
+            panel.className = 'explain-panel';
+            panel.setAttribute('role', 'dialog');
+            panel.setAttribute('aria-modal', 'true');
+            panel.innerHTML = '<div class="explain-box"><button class="explain-close" data-action="learn-close-explain" aria-label="Close">×</button><p class="session-kicker">Ask Pip</p><div class="explain-body">Thinking…</div></div>';
+            document.body.appendChild(panel);
+        }
+        const body = panel.querySelector('.explain-body');
+        try {
+            const message = `Explain this French exercise in two short sentences, then give one correct example. Exercise: ${session.lastExercise.prompt}. Learner answered: ${session.lastExercise.answer || '(no answer)'}. Stay in French-learning scope.`;
+            const r = await apiFetch('/api/chat', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message, mode: 'grammar', level: session.level || currentLevel || 'A1' }),
+            });
+            const data = await r.json();
+            if (!r.ok) throw new Error(data.detail || 'failed');
+            body.textContent = data.response;
+        } catch (e) {
+            body.textContent = 'Pip could not answer right now. Try again in a moment.';
+        }
     }
 
     // ---------------- Phase B: exam missions ----------------
@@ -412,6 +452,10 @@
             btn.classList.add('selected');
         } else if (action === 'exam-submit') {
             submitExamMission();
+        } else if (action === 'learn-explain') {
+            askPipWhy();
+        } else if (action === 'learn-close-explain') {
+            document.getElementById('learnExplainPanel')?.remove();
         } else if (action === 'learn-go-path') {
             showLearnView();
         } else if (action === 'learn-go-practice') {

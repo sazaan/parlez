@@ -38,7 +38,9 @@ Delivered: exam mission cards in the path; briefing with official-sample links; 
 - B4. Speaking task player: role-play prompts, recording/transcript, unofficial self-review.
 - B5. Versioned format facts from `/api/exam/formats`, `verified_on` dates and source links.
 
-## Phase C — AI tutor inside the session
+## Phase C — AI tutor inside the session (in progress)
+
+Shipped: "Ask Pip why" button on exercise feedback, which opens a focus-trapped overlay and requests a two-sentence explanation plus one example through the existing tutor endpoint with `mode: grammar`. Not yet shipped: post-session coach cards, speaking-mission memory/fact list, and mid-turn confusion checks.
 
 - C1. Contextual "Ask Pip" panel seeded with the current lesson/exam task.
 - C2. Hint and explanation requests that never give away the assessed answer.
