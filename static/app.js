@@ -1780,27 +1780,35 @@ async function loadCourses(level = selectedCourseLevel) {
     }
 }
 
+// One catalog only: the old separate "Courses" tool is gone. Every entry
+// point now lands on the unified interactive learning path.
 window.openCourses = function(level) {
-    const preferredLevel = level || currentLevel;
-    const isAvailable = AVAILABLE_COURSE_LEVELS.some(item => item.level === preferredLevel);
-    const firstAvailableLevel = AVAILABLE_COURSE_LEVELS[0]?.level || 'A1';
-    selectedCourseLevel = isAvailable ? preferredLevel : firstAvailableLevel;
-    showToolView('📚 Courses', spinnerHTML('Preparing the course library…', false), { section: 'courses' });
-    loadCourses(selectedCourseLevel);
+    if (typeof showLearnView !== 'function') return;
+    showLearnView().then(() => {
+        if (!level) return;
+        const select = document.getElementById('learnLevel');
+        if (select && [...select.options].some(option => option.value === level && !option.disabled)) {
+            select.value = level;
+            select.dispatchEvent(new Event('change'));
+        }
+    });
 };
 
-window.selectCourseLevel = async function(level) {
-    if (!AVAILABLE_COURSE_LEVELS.some(item => item.level === level)) return;
-    await Promise.all([
-        storage_user_level(level),
-        loadCourses(level)
-    ]);
+window.selectCourseLevel = function(level) {
+    window.openCourses(level);
 };
 
 // ============================================================
 // Lesson View — read content (vocab, grammar, conjugation, dialogue, cultural)
 // ============================================================
 window.startLessonView = async function(level, lessonId) {
+    if (typeof showLearnView === 'function') await showLearnView();
+    if (typeof window.startLearnSession === 'function') window.startLearnSession(level, lessonId);
+};
+window.startLessonPractice = function(level, lessonId) {
+    window.startLessonView(level, lessonId);
+};
+window.__legacyStartLessonView = async function(level, lessonId) {
     showToolView('📖 Lesson', spinnerHTML('Loading lesson…', false), { section: 'courses', backTarget: 'courses' });
     try {
         const r = await apiFetch(`/api/courses/${level}/lessons/${lessonId}`);
@@ -2110,7 +2118,7 @@ function renderLessonView(lesson, level) {
     });
 }
 
-window.startLessonPractice = async function(level, lessonId) {
+window.__legacyStartLessonPractice = async function(level, lessonId) {
     showToolView('📝 Lesson Practice', spinnerHTML('Loading lesson exercises...', false), { section: 'courses', backTarget: 'courses' });
     try {
         const r = await apiFetch(`/api/practice/lesson/${level}/${lessonId}`, { method: 'POST' });
@@ -2137,6 +2145,9 @@ window.startLessonPractice = async function(level, lessonId) {
     } catch(e) {
         getToolContent().innerHTML = '<div class="tool-header"><h2>📝 Lesson Practice</h2></div><p style="color:var(--incorrect);text-align:center;padding:2rem">Error loading lesson practice. Try again.</p>';
     }
+};
+window.startLessonPractice = function(level, lessonId) {
+    window.startLessonView(level, lessonId);
 };
 
 // ============================================================

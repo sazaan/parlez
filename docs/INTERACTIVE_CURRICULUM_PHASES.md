@@ -81,6 +81,10 @@ Delivered: `courses/attributed_content.py` builds **32 units × 3 lessons = 96 l
 - display a permanent "independent, unofficial practice — not an official score" disclosure;
 - never show a /699 or NCLC score for a practice set.
 
+## One catalog (2026-11-24)
+
+The old tool-based "Courses" view and the interactive "Learning Path" showed overlapping content from two different APIs. They are now one thing: the sidebar entry is **Courses & Path**, and every `openCourses` / `selectCourseLevel` / lesson-open entry point delegates to the unified Learn shell backed by `/api/learn/courses`. The legacy `/api/courses` endpoints remain only for backward compatibility and are no longer surfaced in the UI.
+
 ## Lesson checkpoints & unlocks (2026-11-24)
 
 Every lesson now ends with a **server-graded checkpoint** (`courses/checkpoints.py`, `/api/learn/.../checkpoint` and `/submit`). Questions are built from the lesson's vocabulary, grammar and exercises; answers are never sent to the browser. Passing is 70%. Results are stored in `progress.lesson_results` (score, percent, 1–3 stars), which drives a candy-crush-style sequence: every lesson is a stage, the next stage/chapter opens only after the previous lesson is passed, and the next CEFR level opens only when **all** lessons of the current level are passed. Legacy `lessons_completed` entries count as passed so existing learners are not stranded. The path shows `Stage n/24` and earned stars; the HUD shows total stars. Passing plays a lock-opening/mascot/confetti unlock animation; finishing the final lesson of a level plays a dedicated **LEVEL UP** animation (level badges ascending A1→A2, Pip climbing the steps, radiating rays, sparkles, confetti and a three-note chime).

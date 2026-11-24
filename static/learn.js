@@ -936,6 +936,9 @@
 
     levelEl?.addEventListener('change', () => loadLearnPath(levelEl.value));
 
+    window.startLearnSession = startLearnSession;
+    window.startPlacement = startPlacement;
+
     // Hook the Learn view into app startup once app.js has loaded.
     const originalInit = window.initApp;
     window.initApp = async function() {
