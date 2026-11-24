@@ -13,12 +13,26 @@ let currentUser = null;
 // mode/lesson_id/scenario_id and falls back to brittle keyword detection.
 let chatContext = {};
 
+function setAppUrl() {
+    if (window.location.pathname.replace(/\/$/, '') !== '/app') {
+        history.replaceState({}, '', '/app');
+    }
+}
+
+function setAuthUrl(signup) {
+    const path = signup ? '/signup' : '/login';
+    if (window.location.pathname.replace(/\/$/, '') !== path) {
+        history.replaceState({}, '', path);
+    }
+}
+
 async function checkAuth() {
     try {
         const r = await fetch('/api/auth/me', { credentials: 'same-origin' });
         if (r.ok) {
             currentUser = await r.json();
             showApp();
+            setAppUrl();
             initApp();
             if (typeof setupDelegatedHandlers === 'function' && !window.__parlezHandlersInstalled) {
                 setupDelegatedHandlers();
@@ -27,10 +41,12 @@ async function checkAuth() {
             return true;
         } else {
             showAuthScreen();
+            setAuthUrl(false);
             return false;
         }
     } catch(e) {
         showAuthScreen();
+        setAuthUrl(false);
         return false;
     }
 }
@@ -167,6 +183,7 @@ authForm?.addEventListener('submit', async (e) => {
         // Backend sets HttpOnly cookie; we just track the user object.
         currentUser = data.user;
         showApp();
+        setAppUrl();
         // Install delegated event handlers if this is the first successful auth
         // (they are normally installed only by checkAuth on an existing session).
         if (typeof setupDelegatedHandlers === 'function' && !window.__parlezHandlersInstalled) {
@@ -395,6 +412,7 @@ async function logout() {
     } catch(e) { showToast('Could not load user (network error).', { retry: loadUser }); }
     currentUser = null;
     showAuthScreen();
+    setAuthUrl(false);
 }
 
 // ============================================================

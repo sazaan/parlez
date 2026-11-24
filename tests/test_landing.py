@@ -61,6 +61,12 @@ def test_signup_page_and_legacy_redirect(client):
     assert legacy.headers["location"] == "/signup"
 
 
+def test_app_shell_route(client):
+    r = client.get("/app")
+    assert r.status_code == 200
+    assert 'rel="canonical" href="http://testserver/app"' in r.text
+
+
 def test_landing_canonical_is_absolute(client):
     r = client.get("/")
     assert 'rel="canonical" href="http://testserver/"' in r.text

@@ -2196,6 +2196,13 @@ async def signup_page(request: Request):
     return Response(content=html, media_type="text/html", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
 
+@app.get("/app", response_class=HTMLResponse)
+async def app_shell(request: Request):
+    """Canonical in-app URL after sign-in / sign-up."""
+    html = _page_with_absolute_meta(_INDEX_HTML, "/app", request)
+    return Response(content=html, media_type="text/html", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+
+
 @app.get("/health")
 async def health(response: Response):
     """Public health check including database connectivity."""
