@@ -169,6 +169,7 @@ from mock_tests.data import (
     PRACTICE_SETS_COUNT,
 )
 from mock_tests.preparation import get_exam_preparation, get_exam_study_plan
+from courses.attributed_content import ATTRIBUTED_CATALOG
 from mock_tests.formats import EXAM_FORMATS, public_format
 from mock_tests.original_items import get_items as get_practice_items, grade as grade_practice, SPEC_SOURCES
 from mock_tests.resources import public_resources as public_practice_resources
@@ -2320,6 +2321,76 @@ async def my_referral(user=Depends(require_auth)):
         "referredCount": storage.count_referrals(code) if code else 0,
         "reward": "A reward is granted when a referred learner completes their first lesson.",
     }
+
+
+# --- Attributed mission-led curriculum (Phase D) ---
+
+@app.get("/api/learn/courses")
+async def get_learn_courses():
+    return {
+        "levels": [
+            {
+                "level": level, "title": course.title,
+                "description": course.description, "version": course.version,
+                "contentStatus": course.contentStatus,
+                "unitCount": len(course.units),
+                "lessonCount": sum(len(unit.lessons) for unit in course.units),
+                "provenance": {
+                    "reviewState": course.provenance.review_state,
+                    "attribution": course.provenance.attribution,
+                    "sourceLinks": course.provenance.source_links,
+                },
+            }
+            for level, course in ATTRIBUTED_CATALOG.items()
+        ],
+        "notice": "Practice pathways built from attributed published materials. Not CEFR/NCLC certification.",
+    }
+
+
+@app.get("/api/learn/courses/{level}")
+async def get_learn_course(level: str):
+    course = ATTRIBUTED_CATALOG.get(level.upper())
+    if not course:
+        raise HTTPException(status_code=404, detail="Course level not found")
+    return {
+        "level": course.level, "title": course.title, "description": course.description,
+        "version": course.version, "contentStatus": course.contentStatus,
+        "units": [{
+            "id": u.id, "title": u.title, "titleFr": u.titleFr, "theme": u.theme,
+            "description": u.description, "outcomes": u.outcomes, "capstone": u.capstone,
+            "capstoneCriteria": u.capstoneCriteria, "descriptorIds": u.descriptor_ids,
+            "modes": u.communicative_modes,
+            "lessons": [{
+                "id": l.id, "title": l.title, "titleFr": l.titleFr,
+                "description": l.description, "objectives": l.objectives,
+                "estimatedMinutes": l.estimatedMinutes, "skillTags": l.skillTags,
+                "transferTask": l.transferTask, "selfCheck": l.selfCheck,
+            } for l in u.lessons],
+        } for u in course.units],
+    }
+
+
+@app.get("/api/learn/courses/{level}/lessons/{lesson_id}")
+async def get_learn_lesson(level: str, lesson_id: str):
+    course = ATTRIBUTED_CATALOG.get(level.upper())
+    if not course:
+        raise HTTPException(status_code=404, detail="Course level not found")
+    for unit in course.units:
+        for lesson in unit.lessons:
+            if lesson.id == lesson_id:
+                return {
+                    **serialize_lesson(lesson, course, unit),
+                    "descriptorIds": lesson.descriptor_ids,
+                    "modes": lesson.communicative_modes,
+                    "skillEvidence": lesson.skill_evidence,
+                    "provenance": {
+                        "reviewState": lesson.provenance.review_state,
+                        "version": lesson.provenance.version,
+                        "attribution": lesson.provenance.attribution,
+                        "sourceLinks": lesson.provenance.source_links,
+                    },
+                }
+    raise HTTPException(status_code=404, detail="Lesson not found")
 
 
 # --- Course API ---

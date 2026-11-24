@@ -47,7 +47,9 @@ Shipped: "Ask Pip why" button on exercise feedback, which opens a focus-trapped 
 - C3. Post-session conversation mission with transcript and feedback.
 - C4. Guardrails: no raw exam answers, no score prediction, moderation on output.
 
-## Phase D — Content at scale (real materials, attributed)
+## Phase D — Content at scale (real materials, attributed) ✅ SHIPPED 2026-11-24
+
+Delivered: `courses/attributed_content.py` builds **32 units × 3 lessons = 96 lessons** across A1–B2 from a compact, original, attributed spec table; all pass `validate_catalog()`. Exposed at `/api/learn/courses`, `/api/learn/courses/{level}` and `/api/learn/courses/{level}/lessons/{id}`; the Learn shell now reads them. Review state is `practice` (no attestation). D5 evidence: `docs/CLAIMS_REGISTER.md` and `docs/SOURCE_REGISTER.md`. Next: qualified FLE review + pilot before any `reviewed` claim.
 
 - D1. Resource register: publisher series and open/licensed materials with exact reuse terms.
 - D2. Authoring templates derived from real course patterns (Inspire/Édito/Cosmopolite/etc.) with provenance fields.

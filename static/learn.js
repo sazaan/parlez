@@ -50,8 +50,8 @@
 
     async function loadLearnLevels() {
         try {
-            const r = await apiFetch('/api/courses');
-            const levels = await r.json();
+            const r = await apiFetch('/api/learn/courses');
+            const levels = (await r.json()).levels;
             const preferred = currentLevel || 'A1';
             levelEl.innerHTML = levels.map(l =>
                 `<option value="${h(l.level)}">${h(l.level)} · ${h(l.name || l.title || '')}</option>`
@@ -67,7 +67,7 @@
         pathEl.innerHTML = '<p class="path-empty">Loading your path…</p>';
         try {
             const [courseRes, progressRes] = await Promise.all([
-                apiFetch(`/api/courses/${encodeURIComponent(level)}`),
+                apiFetch(`/api/learn/courses/${encodeURIComponent(level)}`),
                 apiFetch('/api/progress'),
             ]);
             course = await courseRes.json();
@@ -144,7 +144,7 @@
 
     async function startLearnSession(level, lessonId, savedSteps) {
         try {
-            const r = await apiFetch(`/api/courses/${encodeURIComponent(level)}/lessons/${encodeURIComponent(lessonId)}`);
+            const r = await apiFetch(`/api/learn/courses/${encodeURIComponent(level)}/lessons/${encodeURIComponent(lessonId)}`);
             const lesson = await r.json();
             session = {
                 level, lessonId,

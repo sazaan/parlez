@@ -94,7 +94,7 @@
   <section class="stats" aria-label="Program summary">
     <div class="stat"><b>10</b><small>Workstreams</small></div>
     <div class="stat"><b>10</b><small>Phases</small></div>
-    <div class="stat"><b>41 / 53</b><small>Sub-phases done</small></div>
+    <div class="stat"><b>45 / 54</b><small>Sub-phases done</small></div>
     <div class="stat"><b>12 / 12</b><small>Defects fixed</small></div>
   </section>
 
@@ -378,6 +378,7 @@
           <tr><td class="id">4.8</td><td>Interactive shell — Phase A (new)</td><td><span class="badge b-done">Done</span></td><td>Learn path + session player (<code>static/learn.js</code>, <code>learn.css</code>): briefing → vocab → grammar → dialogue → exercises → results, resume, exam mission cards, mobile-first. Plan in <code>docs/INTERACTIVE_CURRICULUM_PHASES.md</code>.</td></tr>
           <tr><td class="id">4.9</td><td>Exam missions — Phase B (new)</td><td><span class="badge b-done">Done</span></td><td>Timed reading/listening missions with original spec-based items, server-side grading, per-item explanations, official-sample links and licence-aware resource registry. No past papers reproduced.</td></tr>
           <tr><td class="id">4.10</td><td>In-session tutor — Phase C (new)</td><td><span class="badge b-active">Active</span></td><td>"Ask Pip why" overlay on exercise feedback using the tutor endpoint. Still to do: post-session coach card, speaking memory/facts, mid-turn checks.</td></tr>
+          <tr><td class="id">4.11</td><td>Attributed content — Phase D (new)</td><td><span class="badge b-done">Done</span></td><td>32 mission units / 96 validated lessons across A1–B2, sourced from real published materials, exposed to the Learn shell; claims register and source register added.</td></tr>
         </tbody>
       </table>
     </div>
@@ -475,6 +476,7 @@
 
   <h2><span class="num">04</span>Activity log</h2>
   <ul class="log">
+    <li><time>2026-11-24</time> Phase D shipped: 32 attributed mission units / 96 validated lessons, Learn API + shell integration, source and claims registers. 173 tests pass.</li>
     <li><time>2026-11-24</time> Phase C started: in-lesson "Ask Pip why" overlay backed by the tutor; post-session coaching and speaking memory remain. 168 tests pass.</li>
     <li><time>2026-11-24</time> Phase B shipped: original TEF/TCF item bank, timed mission player, server-side grading, official-sample and open-question-bank registry. Sandbox credentials added to local <code>.env</code> (eSewa public test keys; Khalti test key pending). 168 tests pass.</li>
     <li><time>2026-11-24</time> Fixed the local venv (Python 3.12, 163 tests pass), added <code>/admin</code> alias, signup T&amp;C checkbox with disclaimers, eSewa/Khalti sandbox tests, and began the interactive curriculum restructure: Phase A path + session shell with exam mission cards. Content will be original/legally sourced — real past papers cannot be reproduced.</li>
