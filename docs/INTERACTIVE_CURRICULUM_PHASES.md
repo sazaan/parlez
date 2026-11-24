@@ -81,6 +81,12 @@ Delivered: `courses/attributed_content.py` builds **32 units × 3 lessons = 96 l
 - display a permanent "independent, unofficial practice — not an official score" disclosure;
 - never show a /699 or NCLC score for a practice set.
 
+## Late additions (2026-11-24)
+
+- **Speaking missions**: dedicated Learn-shell session with browser STT, typed fallback, listen-first prompt, tutor follow-up, self-rating and saved transcripts (`/api/speaking/attempts`). No audio is stored; no pronunciation score is claimed.
+- **Checkout UX**: `/checkout` page with plan/provider choice, eSewa form-POST and redirect flows, `/payment-result` polling page, provider callbacks redirecting there; Paddle sandbox adapter added for international MoR.
+- **Admin roles**: named accounts with owner/editor/viewer roles, owner-only management endpoints and an Accounts tab.
+
 ## Definition of done for a phase
 
 Working on web + mobile, tests green, no regression to auth/security, `progress.html` updated, and a short note in this file describing what shipped.

@@ -130,6 +130,9 @@
             }
             html += '</div></section>';
         }
+        html += `<section class="path-unit"><div class="path-unit-head"><h3>Speaking missions</h3><small>Falou-style · listen, say, review</small></div>
+            <p class="session-text">Short conversations with Pip. Your words are transcribed in the browser; audio is not stored by Parlez.</p>
+            <div class="path-node-list"><button class="path-node" data-action="learn-speaking"><span class="path-node-icon">🎙️</span><span><strong>Start a speaking mission</strong><small>Pick a prompt, speak, then review with Pip</small></span><span class="path-node-status">Practice</span></button></div></section>`;
         html += `<section class="path-unit exam-missions"><div class="path-unit-head"><h3>Exam missions</h3><small>TEF / TCF Canada · original practice</small></div>
             <p class="session-text">Timed, format-based practice. Results are practice accuracy — not official scores, CEFR/NCLC levels, or immigration evidence.</p>
             <div class="path-node-list">
@@ -278,6 +281,101 @@
             observer.disconnect();
         });
         observer.observe(observeTarget, { subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
+    }
+
+    // ---------------- Dedicated speaking mission (Phase B/P6) ----------------
+
+    const SPEAKING_PROMPTS_LEARN = [
+        "Bonjour ! Comment t'appelles-tu ?",
+        "D'où viens-tu et pourquoi apprends-tu le français ?",
+        "Qu'est-ce que tu aimes faire le week-end ?",
+        "Commande un café au lait dans un café.",
+        "Explique en une minute pourquoi tu veux passer le TEF ou le TCF."
+    ];
+    let speakingMission = null;
+
+    function startSpeakingMission() {
+        const prompt = SPEAKING_PROMPTS_LEARN[Math.floor(Math.random() * SPEAKING_PROMPTS_LEARN.length)];
+        speakingMission = { prompt, transcript: '', rating: 0 };
+        showSession();
+        shell(`<p class="session-kicker">Speaking mission · unofficial practice</p>
+            <h2 class="session-title">Say it out loud</h2>
+            <p class="session-text"><strong>${h(prompt)}</strong></p>
+            <p class="session-text">Listen first, then say your answer. Your browser transcribes it; Parlez stores only the text you choose to save. This is not pronunciation scoring.</p>
+            <div class="speaking-controls">
+                <button data-action="speak" data-text="${h(prompt)}">🔊 Listen to the prompt</button>
+                <button data-action="speaking-listen" id="speakingMic">🎙️ Speak your answer</button>
+            </div>
+            <label class="speaking-label" for="speakingAnswerLearn">Transcript (edit it before sending)</label>
+            <textarea id="speakingAnswerLearn" class="speaking-textarea" rows="4" aria-label="Your answer as text">${h(speakingMission.transcript)}</textarea>
+            <div id="speakingTutorReply" class="speaking-reply" aria-live="polite" hidden></div>
+            <p class="session-text">How well did you manage? <span class="rating-row">${[1,2,3,4,5].map(n => `<button data-action="speaking-rate" data-rating="${n}">${n}</button>`).join('')}</span></p>`,
+            '<button data-action="speaking-send">Send to Pip →</button><button data-action="speaking-save">Save attempt</button><button class="ghost" data-action="learn-quit">Back to path</button>');
+    }
+
+    window.startSpeakingListenLearn = function(button) {
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SR) { showToast('Speech recognition is not supported here. Type your answer instead.'); return; }
+        if (speakingMission?.recognition) { speakingMission.recognition.stop(); return; }
+        const field = document.getElementById('speakingAnswerLearn');
+        try {
+            const recognition = new SR();
+            speakingMission.recognition = recognition;
+            recognition.lang = 'fr-FR'; recognition.continuous = false; recognition.interimResults = true;
+            recognition.onstart = () => { button.textContent = '🎙️ Listening… tap to stop'; };
+            recognition.onresult = (event) => {
+                if (field) field.value = Array.from(event.results).map(r => r[0].transcript).join('');
+            };
+            const finish = () => { button.textContent = '🎙️ Speak your answer'; speakingMission.recognition = null; };
+            recognition.onend = finish;
+            recognition.onerror = (event) => {
+                finish();
+                if (event.error !== 'aborted') showToast('Microphone unavailable — type your answer instead.');
+            };
+            recognition.start();
+        } catch (e) {
+            speakingMission.recognition = null;
+            showToast('Could not start the microphone. Type your answer instead.');
+        }
+    };
+
+    async function sendSpeakingToPip() {
+        const field = document.getElementById('speakingAnswerLearn');
+        const reply = document.getElementById('speakingTutorReply');
+        const text = (field?.value || '').trim();
+        if (!text) { showToast('Say or type an answer first.'); return; }
+        speakingMission.transcript = text;
+        reply.hidden = false;
+        reply.textContent = 'Pip is listening…';
+        try {
+            const r = await apiFetch('/api/chat', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: `Speaking practice prompt: ${speakingMission.prompt}. My answer: ${text}. Reply in French with one natural follow-up question and one gentle correction if needed.`,
+                    mode: 'conversation', level: currentLevel || 'A1' }),
+            });
+            const data = await r.json();
+            if (!r.ok) throw new Error(data.detail || 'failed');
+            reply.innerHTML = parseMarkdown(data.response);
+            if (typeof speakText === 'function') speakText(data.response);
+        } catch (e) {
+            reply.textContent = 'Pip could not reply right now. Try again in a moment.';
+        }
+    }
+
+    async function saveSpeakingAttempt() {
+        const field = document.getElementById('speakingAnswerLearn');
+        speakingMission.transcript = (field?.value || '').trim();
+        if (!speakingMission.transcript) { showToast('Nothing to save yet.'); return; }
+        try {
+            await apiFetch('/api/speaking/attempts', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ scenario: speakingMission.prompt,
+                    transcript: speakingMission.transcript, self_rating: speakingMission.rating }),
+            });
+            showToast('Speaking attempt saved.');
+        } catch (e) {
+            showToast('Could not save this attempt.');
+        }
     }
 
     // ---------------- Informal placement check ----------------
@@ -531,6 +629,18 @@
             btn.classList.toggle('flipped');
             const text = btn.querySelector('small');
             if (text) text.textContent = btn.classList.contains('flipped') ? 'Tap to hide' : text.dataset.original || text.textContent;
+        } else if (action === 'learn-speaking') {
+            startSpeakingMission();
+        } else if (action === 'speaking-listen') {
+            if (typeof window.startSpeakingListenLearn === 'function') window.startSpeakingListenLearn(btn);
+        } else if (action === 'speaking-rate') {
+            speakingMission.rating = parseInt(btn.dataset.rating, 10);
+            btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+        } else if (action === 'speaking-send') {
+            sendSpeakingToPip();
+        } else if (action === 'speaking-save') {
+            saveSpeakingAttempt();
         } else if (action === 'learn-placement') {
             startPlacement();
         } else if (action === 'placement-select') {

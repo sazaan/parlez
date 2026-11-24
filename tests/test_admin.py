@@ -130,6 +130,31 @@ def test_admin_login_starts_with_username_password_only_and_rejects_cross_origin
     assert cross_origin.status_code == 403
 
 
+def test_admin_accounts_are_owner_only(signed_admin):
+    client, csrf = signed_admin
+    created = client.post("/api/admin/accounts", headers={"X-CSRF-Token": csrf}, json={
+        "username": "editor1", "password": "a-long-password-2026", "role": "editor",
+    })
+    assert created.status_code == 200
+    accounts = client.get("/api/admin/accounts").json()["accounts"]
+    assert any(a["username"] == "editor1" and a["role"] == "editor" for a in accounts)
+
+    updated = client.put("/api/admin/accounts/editor1", headers={"X-CSRF-Token": csrf}, json={"active": False})
+    assert updated.status_code == 200
+    assert client.get("/api/admin/accounts").json()["accounts"][-1]["active"] is False
+
+    deleted = client.delete("/api/admin/accounts/editor1", headers={"X-CSRF-Token": csrf})
+    assert deleted.status_code == 200
+
+
+def test_admin_account_creation_validates_input(signed_admin):
+    client, csrf = signed_admin
+    r = client.post("/api/admin/accounts", headers={"X-CSRF-Token": csrf}, json={
+        "username": "x!", "password": "a-long-password-2026", "role": "viewer",
+    })
+    assert r.status_code == 400
+
+
 def test_admin_can_list_and_revoke_sessions(signed_admin):
     client, csrf = signed_admin
 

@@ -65,6 +65,25 @@ def test_chat_fact_memory_and_mid_turn_guidance(auth_client, monkeypatch):
     assert "TEF Canada" in system
 
 
+def test_speaking_attempts_are_saved_without_audio(auth_client):
+    saved = auth_client.post("/api/speaking/attempts", json={
+        "scenario": "Bonjour ! Comment t'appelles-tu ?",
+        "transcript": "Je m'appelle Noah et je viens du Népal.",
+        "self_rating": 4,
+    })
+    assert saved.status_code == 200
+    attempts = auth_client.get("/api/speaking/attempts").json()["attempts"]
+    assert attempts[0]["self_rating"] == 4
+    assert attempts[0]["transcript"].startswith("Je m'appelle")
+    assert "audio" not in attempts[0]
+
+
+def test_speaking_attempt_requires_transcript(auth_client):
+    assert auth_client.post("/api/speaking/attempts", json={
+        "scenario": "Bonjour", "transcript": "   ",
+    }).status_code == 400
+
+
 def test_experiment_assignment_is_stable(auth_client):
     first = auth_client.get("/api/experiments/onboarding-copy").json()["variant"]
     second = auth_client.get("/api/experiments/onboarding-copy").json()["variant"]

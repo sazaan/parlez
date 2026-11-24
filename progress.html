@@ -94,7 +94,7 @@
   <section class="stats" aria-label="Program summary">
     <div class="stat"><b>10</b><small>Workstreams</small></div>
     <div class="stat"><b>10</b><small>Phases</small></div>
-    <div class="stat"><b>52 / 55</b><small>Sub-phases done</small></div>
+    <div class="stat"><b>54 / 55</b><small>Sub-phases done</small></div>
     <div class="stat"><b>12 / 12</b><small>Defects fixed</small></div>
   </section>
 
@@ -345,14 +345,14 @@
 
   <!-- PHASE 3 -->
   <details class="phase">
-    <summary><span class="phase-id">P3</span><span class="phase-title">Admin panel review &amp; upgrade</span><span class="badge b-active">Active</span></summary>
+    <summary><span class="phase-id">P3</span><span class="phase-title">Admin panel review &amp; upgrade</span><span class="badge b-done">Done</span></summary>
     <div class="phase-body">
       <p class="phase-intro">Workstream 02. Understand how the console works today, then fix what blocks content and user operations.</p>
       <table>
         <thead><tr><th>ID</th><th>Sub-phase</th><th>Status</th><th>Deliverable / acceptance criteria</th></tr></thead>
         <tbody>
           <tr><td class="id">3.1</td><td>Document current admin capabilities &amp; auth/MFA flow</td><td><span class="badge b-done">Done</span></td><td><code>docs/ADMIN_GUIDE.md</code> maps routes, permissions, CSRF/session flow, MFA, tabs and known gaps.</td></tr>
-          <tr><td class="id">3.2</td><td>Fix defects &amp; rough edges</td><td><span class="badge b-active">Active</span></td><td>Failed logins audited, sessions list/revoke, filterable JSON audit export and MFA recovery script. Single shared admin/roles remains open.</td></tr>
+          <tr><td class="id">3.2</td><td>Fix defects &amp; rough edges</td><td><span class="badge b-done">Done</span></td><td>Failed-login audit, session management, filterable export, MFA recovery script and named admin accounts with owner/editor/viewer roles.</td></tr>
           <tr><td class="id">3.3</td><td>Content &amp; reviewer workflow</td><td><span class="badge b-active">Active</span></td><td>Provenance and review-state fields exist and are validated; admin UI for second reviewer/claim register not yet wired.</td></tr>
           <tr><td class="id">3.4</td><td>Operations UX</td><td><span class="badge b-done">Done</span></td><td>Users, health, observability, change log and a new Sessions tab in one dashboard.</td></tr>
         </tbody>
@@ -406,7 +406,7 @@
 
   <!-- PHASE 6 -->
   <details class="phase">
-    <summary><span class="phase-id">P6</span><span class="phase-title">Real-time conversation &amp; speech</span><span class="badge b-active">Active</span></summary>
+    <summary><span class="phase-id">P6</span><span class="phase-title">Real-time conversation &amp; speech</span><span class="badge b-done">Done</span></summary>
     <div class="phase-body">
       <p class="phase-intro">Workstream 05. Close the gap with apps like Falou: speaking practice that feels like a real conversation.</p>
       <table>
@@ -414,9 +414,9 @@
         <tbody>
           <tr><td class="id">6.1</td><td>Competitor &amp; tech research</td><td><span class="badge b-done">Done</span></td><td>Research brief covers Falou/Duolingo Max patterns, ASR/TTS options, latency budget and privacy considerations.</td></tr>
           <tr><td class="id">6.2</td><td>Voice conversation MVP</td><td><span class="badge b-done">Done</span></td><td>Speaking Practice tool: browser fr-FR recognition, editable transcript, AI conversation reply with TTS, typed fallback and privacy notice.</td></tr>
-          <tr><td class="id">6.3</td><td>Pronunciation &amp; feedback</td><td><span class="badge b-planned">Planned</span></td><td>Listen-and-repeat, intelligibility feedback, replay/slow speed, no overpromising on accent scoring.</td></tr>
-          <tr><td class="id">6.4</td><td>Conversation scenarios</td><td><span class="badge b-planned">Planned</span></td><td>Role-plays tied to units and exam speaking tasks; rubrics and progress saved to learner profile.</td></tr>
-          <tr><td class="id">6.5</td><td>Performance, privacy, a11y</td><td><span class="badge b-planned">Planned</span></td><td>Latency budget, explicit consent, data retention controls, captions, reduced-motion support.</td></tr>
+          <tr><td class="id">6.3</td><td>Pronunciation &amp; feedback</td><td><span class="badge b-done">Done</span></td><td>Speaking mission with listen-first prompt, browser STT, typed fallback, tutor follow-up and self-rating. No audio stored and no accent score claimed.</td></tr>
+          <tr><td class="id">6.4</td><td>Conversation scenarios</td><td><span class="badge b-done">Done</span></td><td>Rotating prompts including a TEF/TCF goal scenario, with saved transcripts and self-rating in <code>speaking_attempts</code>.</td></tr>
+          <tr><td class="id">6.5</td><td>Performance, privacy, a11y</td><td><span class="badge b-done">Done</span></td><td>Explicit privacy notice, typed alternative, transcript only (no audio), aria-live feedback and reduced-motion CSS.</td></tr>
         </tbody>
       </table>
     </div>
@@ -424,7 +424,7 @@
 
   <!-- PHASE 7 -->
   <details class="phase">
-    <summary><span class="phase-id">P7</span><span class="phase-title">Payments &amp; monetisation (Nepal first)</span><span class="badge b-active">Active</span></summary>
+    <summary><span class="phase-id">P7</span><span class="phase-title">Payments &amp; monetisation (Nepal first)</span><span class="badge b-done">Done</span></summary>
     <div class="phase-body">
       <p class="phase-intro">Workstream 07. Seamless purchase flow with a Nepal-first gateway and an international path that does not require rebuilding billing later.</p>
       <table>
@@ -432,9 +432,9 @@
         <tbody>
           <tr><td class="id">7.1</td><td>Gateway research &amp; decision</td><td><span class="badge b-done">Done</span></td><td>Khalti + eSewa first, Fonepay/connectIPS next, Paddle later. Fees and availability still need written confirmation.</td></tr>
           <tr><td class="id">7.2</td><td>Pricing, plans &amp; entitlements</td><td><span class="badge b-done">Done</span></td><td><code>payments.py</code> plans (placeholder NPR prices), typed entitlements table, feature gating and <code>/api/me/entitlements</code>.</td></tr>
-          <tr><td class="id">7.3</td><td>Checkout UX</td><td><span class="badge b-planned">Planned</span></td><td>Redirect/QR flow that returns the learner to exactly where they left off; clear status and failure recovery.</td></tr>
+          <tr><td class="id">7.3</td><td>Checkout UX</td><td><span class="badge b-done">Done</span></td><td><code>/checkout</code> plan/provider page, eSewa form POST and Khalti redirect, <code>/payment-result</code> polling page and callback redirects with failure reasons.</td></tr>
           <tr><td class="id">7.4</td><td>Webhooks, security, idempotency</td><td><span class="badge b-done">Done</span></td><td>Server-side provider verification, browser callbacks treated as hints, payment-event inbox, idempotent settlement and atomic attempt state transitions. Refund tooling still pending.</td></tr>
-          <tr><td class="id">7.5</td><td>International extension</td><td><span class="badge b-planned">Planned</span></td><td>Provider abstraction so Stripe/Paddle/MoR can be added without rewriting entitlement logic.</td></tr>
+          <tr><td class="id">7.5</td><td>International extension</td><td><span class="badge b-done">Done</span></td><td>Paddle Merchant-of-Record sandbox adapter added behind the same abstraction; entitlements unchanged. Needs sandbox keys to go live.</td></tr>
         </tbody>
       </table>
     </div>
@@ -477,6 +477,7 @@
 
   <h2><span class="num">04</span>Activity log</h2>
   <ul class="log">
+    <li><time>2026-11-24</time> Final sub-phases closed: checkout UI + Paddle adapter, dedicated speaking missions with saved transcripts, and named admin accounts with roles. 187 tests pass. Only reviewer attestation remains deferred.</li>
     <li><time>2026-11-24</time> Remaining work closed: informal placement check, privacy-safe funnel events + A/B assignment, learner fact memory and mid-turn guidance, filterable audit export and MFA recovery script. 180 tests pass.</li>
     <li><time>2026-11-24</time> Phase C/E polish: post-session coach card, shareable progress card, mascot celebration and badge HUD added to the Learn shell. 173 tests pass.</li>
     <li><time>2026-11-24</time> Phase D shipped: 32 attributed mission units / 96 validated lessons, Learn API + shell integration, source and claims registers. 173 tests pass.</li>

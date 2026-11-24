@@ -17,7 +17,7 @@ from typing import Optional
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Depends, Response, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
@@ -195,6 +195,8 @@ async def lifespan(app: FastAPI):
     # Uvicorn's CLI configures logging after importing this module; reapply the
     # privacy-safe JSON formatter at startup for the python main.py entrypoint.
     configure_json_logging()
+    if ADMIN_AUTH_CONFIGURED:
+        storage.seed_admin_account(ADMIN_USERNAME, ADMIN_PASSWORD_HASH, "owner")
     log_event("application.startup", service="parlez")
     try:
         yield
@@ -986,12 +988,28 @@ def _valid_admin_totp(secret: Optional[str], code: Optional[str]) -> bool:
 
 
 def _admin_password_matches(username: str, password: str) -> bool:
-    username_ok = secrets.compare_digest(username.strip(), ADMIN_USERNAME)
+    """Check a named admin account first, then the env owner as fallback."""
+    name = username.strip()
+    account = storage.get_admin_account(name)
+    if account and account["active"]:
+        try:
+            return bcrypt.checkpw(password.encode("utf-8"), account["password_hash"].encode("utf-8"))
+        except (ValueError, TypeError, AttributeError):
+            return False
+    username_ok = secrets.compare_digest(name, ADMIN_USERNAME)
     try:
         password_ok = bcrypt.checkpw(password.encode("utf-8"), ADMIN_PASSWORD_HASH.encode("utf-8"))
     except (ValueError, TypeError, AttributeError):
         password_ok = False
     return username_ok and password_ok
+
+
+def _admin_role(username: str) -> str:
+    """Env-configured owner remains an owner when no DB account exists."""
+    account = storage.get_admin_account(username)
+    if account and account["active"]:
+        return account["role"]
+    return "owner" if secrets.compare_digest(username, ADMIN_USERNAME) else "viewer"
 
 
 def _admin_mfa_qr_data_uri(otpauth_uri: str) -> str:
@@ -1037,7 +1055,19 @@ def require_admin(request: Request):
         if not _admin_origin_is_same(request):
             log_event("auth.admin_session.failure", logging.WARNING, outcome="failure", reason_code="origin_rejected")
             raise HTTPException(status_code=403, detail="Cross-origin admin requests are not allowed.")
-    return {"username": ADMIN_USERNAME, "csrf": payload["csrf"], "session_id": payload["jti"]}
+    username = payload.get("sub") or ADMIN_USERNAME
+    return {
+        "username": username,
+        "role": _admin_role(username),
+        "csrf": payload["csrf"],
+        "session_id": payload["jti"],
+    }
+
+
+def require_owner(admin=Depends(require_admin)):
+    if admin.get("role") != "owner":
+        raise HTTPException(status_code=403, detail="Owner role required.")
+    return admin
 
 
 DAILY_LLM_BUDGET = 100  # per-user LLM request cap, keyed by UTC date
@@ -1468,6 +1498,7 @@ async def stream_chat(messages, max_tokens=CHAT_MAX_TOKENS):
 # revalidate, but the server-side cost is now a single file read at boot.
 _LANDING_HTML = open("static/landing.html").read()
 _LEGAL_HTML = open("static/legal.html").read()
+_CHECKOUT_HTML = open("static/checkout.html").read()
 _GUIDE_HTML = open("static/guide.html").read()
 _INDEX_HTML = open("static/index.html").read()
 _ADMIN_HTML = open("static/admin.html").read()
@@ -1589,6 +1620,58 @@ async def admin_revoke_session(session_id: str, admin=Depends(require_admin)):
 async def admin_revoke_all_sessions(admin=Depends(require_admin)):
     storage.revoke_all_admin_sessions(ADMIN_USERNAME)
     storage.add_admin_audit(admin["username"], "admin_sessions_revoked_all", {})
+    return {"ok": True}
+
+
+@app.get("/api/admin/accounts", include_in_schema=False)
+async def admin_accounts(owner=Depends(require_owner)):
+    return {"accounts": storage.list_admin_accounts()}
+
+
+@app.post("/api/admin/accounts", include_in_schema=False)
+async def admin_create_account(data: dict, owner=Depends(require_owner)):
+    username = str(data.get("username") or "").strip()
+    password = str(data.get("password") or "")
+    role = str(data.get("role") or "viewer").strip().lower()
+    if not re.fullmatch(r"[A-Za-z0-9_-]{3,40}", username):
+        raise HTTPException(status_code=400, detail="Invalid username.")
+    if len(password) < 12:
+        raise HTTPException(status_code=400, detail="Password must be at least 12 characters.")
+    hashed = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    try:
+        account = storage.create_admin_account(username, hashed, role)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    storage.add_admin_audit(owner["username"], "admin_account_created", {"username": username, "role": role})
+    return account
+
+
+@app.put("/api/admin/accounts/{username}", include_in_schema=False)
+async def admin_update_account(username: str, data: dict, owner=Depends(require_owner)):
+    role = data.get("role")
+    active = data.get("active")
+    if role is not None:
+        role = str(role).strip().lower()
+    if active is not None:
+        active = bool(active)
+    try:
+        changed = storage.set_admin_account(username, role=role, active=active)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    if not changed:
+        raise HTTPException(status_code=404, detail="Account not found")
+    storage.add_admin_audit(owner["username"], "admin_account_updated", {"username": username})
+    return {"ok": True}
+
+
+@app.delete("/api/admin/accounts/{username}", include_in_schema=False)
+async def admin_delete_account(username: str, owner=Depends(require_owner)):
+    if username == owner["username"]:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account.")
+    if not storage.delete_admin_account(username):
+        raise HTTPException(status_code=404, detail="Account not found")
+    storage.revoke_all_admin_sessions(username)
+    storage.add_admin_audit(owner["username"], "admin_account_deleted", {"username": username})
     return {"ok": True}
 
 
@@ -2060,6 +2143,16 @@ async def legal_page():
     return Response(content=_LEGAL_HTML, media_type="text/html", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
 
+@app.get("/checkout", response_class=HTMLResponse)
+async def checkout_page():
+    return Response(content=_CHECKOUT_HTML, media_type="text/html", headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/payment-result", response_class=HTMLResponse)
+async def payment_result_page():
+    return Response(content=_CHECKOUT_HTML, media_type="text/html", headers={"Cache-Control": "no-cache"})
+
+
 @app.get("/learn/french-for-canada", response_class=HTMLResponse)
 async def french_for_canada_guide():
     return Response(content=_GUIDE_HTML, media_type="text/html", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
@@ -2247,7 +2340,7 @@ async def create_checkout(data: dict, user=Depends(require_auth)):
     provider = str(data.get("provider") or "khalti").strip().lower()
     if plan_id not in payments.PLANS or payments.PLANS[plan_id]["price_npr"] <= 0:
         raise HTTPException(status_code=400, detail="Unknown or free plan.")
-    if provider not in {"khalti", "esewa"}:
+    if provider not in {"khalti", "esewa", "paddle"}:
         raise HTTPException(status_code=400, detail="Unsupported payment provider.")
     attempt_id = payments.new_attempt_id()
     storage.create_payment_attempt(
@@ -2294,16 +2387,19 @@ async def payment_return(provider: str, data: dict):
                 attempt = storage.get_payment_attempt(str(decoded.get("transaction_uuid") or ""))
             except (ValueError, UnicodeDecodeError):
                 attempt = None
+    attempt_id = attempt["id"] if attempt else ""
     if not attempt or attempt["status"] != "pending":
-        return {"ok": False, "reason": "unknown_or_settled_attempt"}
+        return RedirectResponse(f"/payment-result?attempt={attempt_id}&ok=0&reason=unknown", status_code=303)
     try:
         verification = await payments.verify(provider, attempt, data)
     except payments.PaymentVerificationFailed as exc:
         log_event("payment.verification.failed", logging.WARNING, provider=provider, reason=str(exc)[:80])
-        return {"ok": False, "reason": "verification_failed"}
+        return RedirectResponse(f"/payment-result?attempt={attempt_id}&ok=0&reason=verification", status_code=303)
     result = payments.grant_from_attempt(storage, attempt, verification)
     log_event("payment.settled", logging.INFO, provider=provider, attempt_id=attempt["id"], settled=result["settled"])
-    return {"ok": result["settled"], "plan": result.get("plan")}
+    return RedirectResponse(
+        f"/payment-result?attempt={attempt_id}&ok={1 if result['settled'] else 0}", status_code=303
+    )
 
 
 @app.get("/api/me/entitlements")
@@ -2342,6 +2438,25 @@ async def get_experiment(key: str, user=Depends(require_auth)):
 @app.get("/api/admin/metrics/funnel", include_in_schema=False)
 async def admin_funnel(admin=Depends(require_admin)):
     return {"counts": storage.funnel_counts()}
+
+
+@app.post("/api/speaking/attempts")
+async def save_speaking_attempt(data: dict, user=Depends(require_auth)):
+    """Save a speaking transcript and self-rating. No audio is stored."""
+    scenario = str(data.get("scenario") or "")
+    transcript = str(data.get("transcript") or "")
+    if not scenario.strip() or not transcript.strip():
+        raise HTTPException(status_code=400, detail="Scenario and transcript are required.")
+    saved = storage.add_speaking_attempt(
+        user["id"], scenario, transcript, int(data.get("self_rating") or 0)
+    )
+    storage.record_event(user["id"], "speaking_practice", {"source": "learn_shell"})
+    return {"ok": True, **saved}
+
+
+@app.get("/api/speaking/attempts")
+async def get_speaking_attempts(user=Depends(require_auth)):
+    return {"attempts": storage.list_speaking_attempts(user["id"])}
 
 
 @app.get("/api/chat/facts")

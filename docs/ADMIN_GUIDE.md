@@ -38,7 +38,7 @@ MFA secrets are Fernet-encrypted with a key derived from `ADMIN_SESSION_SECRET`.
 
 ## Known gaps
 
-- Single shared administrator; no roles or individual attribution beyond the audit actor field.
+- Named admin accounts with roles now exist (`owner`, `editor`, `viewer`) under the **Accounts** tab or `/api/admin/accounts`. The env-configured account is seeded as owner; individual actions are attributed in the audit log. Role enforcement is present for account management; finer per-endpoint editor/viewer restrictions are a follow-up.
 - No in-panel password rotation (edit `.env` and restart).
 - Audit log is capped at 1000 rows; `GET /api/admin/audit?limit=&offset=&action=` now supports filtering and JSON export (a UI is still pending).
 - MFA recovery: `python scripts/admin_recovery.py --status` shows stored MFA keys; `--confirm RESET-MFA` clears them, revokes admin sessions and writes an audit entry. Use only if MFA became undecryptable after a secret rotation, then re-enrol.

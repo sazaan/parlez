@@ -77,6 +77,7 @@
                 <button class="tab" type="button" data-section="users">Users</button>
                 <button class="tab" type="button" data-section="security">Security</button>
                 <button class="tab" type="button" data-section="sessions">Sessions</button>
+                <button class="tab" type="button" data-section="accounts">Accounts</button>
                 <button class="tab" type="button" data-section="observability">Observability</button>
                 <button class="tab" type="button" data-section="audit">Change log</button>
             </nav>
@@ -208,6 +209,23 @@
                     <div class="card-actions"><button class="button button-primary" id="revokeAllSessionsButton" type="button">Revoke all sessions</button></div>
                     <div class="observability-table-wrap"><table class="observability-table"><thead><tr><th scope="col">Session</th><th scope="col">Expires</th><th scope="col">Action</th></tr></thead><tbody id="adminSessionRows"><tr><td colspan="3" class="users-empty">Loading sessions…</td></tr></tbody></table></div>
                     <p class="inline-message" id="sessionsMessage" role="status" aria-live="polite"></p>
+                </div>
+            </section>
+
+            <section class="panel-section" id="section-accounts" hidden>
+                <div class="section-heading">
+                    <div><p class="eyebrow">SECURITY</p><h2>Admin accounts</h2><p>Named accounts with roles: owner (full access), editor (content), viewer (read-only). The environment-configured account is the owner.</p></div>
+                    <span class="section-icon" aria-hidden="true">♙</span>
+                </div>
+                <div class="card">
+                    <div class="card-actions">
+                        <input id="newAdminUsername" aria-label="New username" placeholder="username" autocomplete="off">
+                        <input id="newAdminPassword" type="password" aria-label="New password" placeholder="password (12+ chars)" autocomplete="new-password">
+                        <select id="newAdminRole" aria-label="New role"><option value="viewer">viewer</option><option value="editor">editor</option><option value="owner">owner</option></select>
+                        <button class="button button-primary" id="createAdminButton" type="button">Add account</button>
+                    </div>
+                    <div class="observability-table-wrap"><table class="observability-table"><thead><tr><th scope="col">Username</th><th scope="col">Role</th><th scope="col">Active</th><th scope="col">Actions</th></tr></thead><tbody id="adminAccountRows"><tr><td colspan="4" class="users-empty">Loading accounts…</td></tr></tbody></table></div>
+                    <p class="inline-message" id="accountsMessage" role="status" aria-live="polite"></p>
                 </div>
             </section>
 

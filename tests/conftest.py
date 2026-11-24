@@ -26,9 +26,10 @@ import main
 def reset_storage_and_limits():
     """Clear storage and slowapi rate-limit counters before each test."""
     from db import (
-        User, SharedLink, CommentGroup, SystemSetting, AdminAudit, AdminSession,
+        User, SharedLink, CommentGroup, SystemSetting, AdminAudit, AdminSession, AdminAccount,
         LlmUsage, RewardEvent, XpLedger, StreakState, UserBadge,
         PaymentAttempt, Entitlement, PaymentEvent, LearningEvent, ExperimentAssignment, ChatFact,
+        SpeakingAttempt,
     )
     with main.storage.Session() as session:
         with session.begin():
@@ -38,6 +39,7 @@ def reset_storage_and_limits():
             session.query(SystemSetting).delete()
             session.query(AdminAudit).delete()
             session.query(AdminSession).delete()
+            session.query(AdminAccount).delete()
             session.query(LlmUsage).delete()
             session.query(RewardEvent).delete()
             session.query(XpLedger).delete()
@@ -49,6 +51,7 @@ def reset_storage_and_limits():
             session.query(LearningEvent).delete()
             session.query(ExperimentAssignment).delete()
             session.query(ChatFact).delete()
+            session.query(SpeakingAttempt).delete()
     # Reset in-memory rate limit counters so tests don't trip each other.
     if hasattr(main.app.state, "limiter"):
         main.app.state.limiter.reset()

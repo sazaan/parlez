@@ -65,7 +65,17 @@ def provider_configured(provider: str) -> bool:
         return bool(_env("KHALTI_SECRET_KEY"))
     if provider == "esewa":
         return bool(_env("ESEWA_SECRET_KEY") and _env("ESEWA_PRODUCT_CODE"))
+    if provider == "paddle":
+        return bool(_env("PADDLE_API_KEY") and (
+            _env("PADDLE_PRICE_MONTHLY") or _env("PADDLE_PRICE_YEARLY")
+        ))
     return False
+
+
+_PADDLE_PRICE_ENVS = {
+    "plus_monthly": "PADDLE_PRICE_MONTHLY",
+    "plus_yearly": "PADDLE_PRICE_YEARLY",
+}
 
 
 async def initiate(provider: str, attempt_id: str, plan_id: str, *, client=None) -> dict:
@@ -83,10 +93,46 @@ async def initiate(provider: str, attempt_id: str, plan_id: str, *, client=None)
             return await _khalti_initiate(client, attempt_id, plan)
         if provider == "esewa":
             return _esewa_initiate(attempt_id, plan)
+        if provider == "paddle":
+            return await _paddle_initiate(client, attempt_id, plan_id)
         raise ValueError(f"Unsupported provider: {provider}")
     finally:
         if owns_client:
             await client.aclose()
+
+
+async def _paddle_initiate(client, attempt_id, plan_id):
+    """International Merchant-of-Record checkout (Paddle Billing).
+
+    Paddle returns a hosted checkout URL; the webhook is handled by the same
+    event-inbox pattern as the Nepal providers. Enable only with a sandbox key.
+    """
+    price_id = _env(_PADDLE_PRICE_ENVS.get(plan_id, ""))
+    if not price_id:
+        raise PaymentNotConfigured(f"No Paddle price configured for {plan_id}")
+    base = _env("PADDLE_BASE_URL", "https://sandbox-api.paddle.com").rstrip("/")
+    response = await client.post(
+        f"{base}/transactions",
+        headers={
+            "Authorization": f"Bearer {_env('PADDLE_API_KEY')}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "items": [{"priceId": price_id, "quantity": 1}],
+            "successUrl": f"{_env('APP_BASE_URL', 'http://localhost:8000')}/payment-result?attempt={attempt_id}",
+            "customData": {"attempt_id": attempt_id},
+        },
+    )
+    if response.status_code not in (200, 201):
+        raise PaymentVerificationFailed(f"Paddle initiation failed ({response.status_code})")
+    data = response.json().get("data") or {}
+    url = data.get("checkoutUrl") or data.get("checkout_url")
+    if not url:
+        raise PaymentVerificationFailed("Paddle returned no checkout URL")
+    return {
+        "provider": "paddle", "method": "redirect",
+        "checkout_url": url, "provider_ref": data.get("id", attempt_id),
+    }
 
 
 async def _khalti_initiate(client, attempt_id, plan):

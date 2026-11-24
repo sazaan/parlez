@@ -88,6 +88,16 @@ class AdminSession(Base):
     expires_at = Column(Float, nullable=False, index=True)
 
 
+class AdminAccount(Base):
+    """Named admin accounts with roles. The env account is seeded as owner."""
+    __tablename__ = "admin_accounts"
+    username = Column(String, primary_key=True)
+    password_hash = Column(String, nullable=False)
+    role = Column(String, nullable=False, default="viewer")
+    active = Column(Integer, nullable=False, default=1)
+    created_at = Column(Float, nullable=False)
+
+
 class LlmUsage(Base):
     """Atomic per-user, per-UTC-day LLM request counter.
 
@@ -182,6 +192,17 @@ class LearningEvent(Base):
     user_id = Column(String, nullable=False, index=True)
     name = Column(String, nullable=False, index=True)
     props = Column(JSON, nullable=False, default=dict)
+    created_at = Column(Float, nullable=False)
+
+
+class SpeakingAttempt(Base):
+    """A saved speaking practice turn. No audio is stored by default."""
+    __tablename__ = "speaking_attempts"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String, nullable=False, index=True)
+    scenario = Column(String, nullable=False)
+    transcript = Column(Text, nullable=False)
+    self_rating = Column(Integer, nullable=False, default=0)
     created_at = Column(Float, nullable=False)
 
 
@@ -594,6 +615,33 @@ class Storage:
     # Privacy-safe learning events and A/B assignment
     # ------------------------------------------------------------------
 
+    def add_speaking_attempt(self, user_id: str, scenario: str, transcript: str, self_rating: int) -> dict:
+        with self.Session() as session:
+            with session.begin():
+                row = SpeakingAttempt(
+                    user_id=user_id, scenario=" ".join(str(scenario).split())[:200],
+                    transcript=" ".join(str(transcript).split())[:2000],
+                    self_rating=max(0, min(5, int(self_rating or 0))), created_at=time.time(),
+                )
+                session.add(row)
+                session.flush()
+                return {"id": row.id, "created_at": row.created_at}
+
+    def list_speaking_attempts(self, user_id: str, limit: int = 10) -> list[dict]:
+        with self.Session() as session:
+            rows = (
+                session.query(SpeakingAttempt)
+                .filter_by(user_id=user_id)
+                .order_by(SpeakingAttempt.id.desc())
+                .limit(max(1, min(limit, 50)))
+                .all()
+            )
+            return [
+                {"scenario": r.scenario, "transcript": r.transcript,
+                 "self_rating": r.self_rating, "created_at": r.created_at}
+                for r in rows
+            ]
+
     def add_chat_fact(self, user_id: str, fact: str, source: str = "learner") -> dict:
         clean = " ".join(str(fact).split())[:300]
         if not clean:
@@ -678,6 +726,66 @@ class Storage:
         with self.Session() as session:
             with session.begin():
                 session.query(SystemSetting).filter_by(key=key).delete(synchronize_session=False)
+
+    def seed_admin_account(self, username: str, password_hash: str, role: str = "owner") -> None:
+        with self.Session() as session:
+            with session.begin():
+                if session.query(AdminAccount).filter_by(username=username).first():
+                    return
+                session.add(AdminAccount(
+                    username=username, password_hash=password_hash, role=role,
+                    active=1, created_at=time.time(),
+                ))
+
+    def get_admin_account(self, username: str) -> Optional[dict]:
+        with self.Session() as session:
+            row = session.query(AdminAccount).filter_by(username=username).first()
+            if not row:
+                return None
+            return {
+                "username": row.username, "password_hash": row.password_hash,
+                "role": row.role, "active": bool(row.active), "created_at": row.created_at,
+            }
+
+    def list_admin_accounts(self) -> list[dict]:
+        with self.Session() as session:
+            return [
+                {"username": r.username, "role": r.role, "active": bool(r.active), "created_at": r.created_at}
+                for r in session.query(AdminAccount).order_by(AdminAccount.username).all()
+            ]
+
+    def create_admin_account(self, username: str, password_hash: str, role: str) -> dict:
+        with self.Session() as session:
+            with session.begin():
+                if session.query(AdminAccount).filter_by(username=username).first():
+                    raise ValueError("Account already exists")
+                if role not in {"owner", "editor", "viewer"}:
+                    raise ValueError("Invalid role")
+                session.add(AdminAccount(
+                    username=username, password_hash=password_hash, role=role,
+                    active=1, created_at=time.time(),
+                ))
+        return {"username": username, "role": role, "active": True}
+
+    def set_admin_account(self, username: str, *, role=None, active=None) -> bool:
+        with self.Session() as session:
+            with session.begin():
+                row = session.query(AdminAccount).filter_by(username=username).first()
+                if not row:
+                    return False
+                if role is not None:
+                    if role not in {"owner", "editor", "viewer"}:
+                        raise ValueError("Invalid role")
+                    row.role = role
+                if active is not None:
+                    row.active = 1 if active else 0
+                return True
+
+    def delete_admin_account(self, username: str) -> bool:
+        with self.Session() as session:
+            with session.begin():
+                deleted = session.query(AdminAccount).filter_by(username=username).delete(synchronize_session=False)
+                return bool(deleted)
 
     def create_admin_session(self, session_id: str, username: str, expires_at: float) -> None:
         import time

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Parlez — Checkout</title>
+<meta name="robots" content="noindex, nofollow">
+<style>
+:root{--paper:#FBF8F3;--card:#FFFDFA;--ink:#1D1815;--muted:#6F645B;--wine:#7C2D3F;--gold:#C0934A;--sage:#6E8574;--line:rgba(29,24,21,.1)}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.6 'Inter',system-ui,sans-serif}
+.wrap{max-width:760px;margin:0 auto;padding:0 20px}
+header{padding:36px 0 16px}header h1{font-family:Georgia,serif;font-size:2rem;margin:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;margin-bottom:16px}
+.plan{display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap}
+.price{font-family:Georgia,serif;font-size:1.6rem;color:var(--wine)}
+.providers{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.5rem}
+button{min-height:44px;padding:0 1rem;border-radius:10px;border:0;background:var(--wine);color:#fff;cursor:pointer;font-weight:600}
+button.alt{background:transparent;color:var(--wine);border:1px solid var(--wine)}
+button:disabled{opacity:.5;cursor:wait}
+.note{font-size:.82rem;color:var(--muted)}
+.status{font-size:1.2rem;font-weight:700}
+.status.paid{color:var(--sage)}.status.failed{color:#a44444}
+a{color:var(--wine)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header><h1>Parlez checkout</h1><p class="note">Sandbox payments only. Prices are placeholders until confirmed and disclosed.</p></header>
+<main>
+<div id="plansView"><p class="note">Loading plans…</p></div>
+<div id="resultView" hidden></div>
+<div class="card"><p class="note">Payments are processed by the selected provider. Parlez never sees your card or wallet PIN. By paying you accept the <a href="/legal">terms and refund policy</a>.</p></div>
+</main>
+</div>
+<script>
+(async () => {
+  const params = new URLSearchParams(window.location.search);
+  const attemptId = params.get('attempt');
+  const resultView = document.getElementById('resultView');
+  const plansView = document.getElementById('plansView');
+
+  async function api(url, options = {}) {
+    const r = await fetch(url, { credentials: 'same-origin', ...options,
+      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) } });
+    return { ok: r.ok, status: r.status, data: await r.json().catch(() => ({})) };
+  }
+
+  if (attemptId) {
+    plansView.hidden = true;
+    resultView.hidden = false;
+    async function poll() {
+      const r = await api('/api/payments/attempt/' + encodeURIComponent(attemptId));
+      if (!r.ok) { resultView.innerHTML = '<div class="card"><p class="status failed">Could not find that payment attempt.</p><a href="/">Back to Parlez</a></div>'; return; }
+      const status = r.data.status;
+      let label = 'Waiting for the provider to confirm your payment…';
+      let cls = '';
+      if (status === 'paid') { label = 'Payment confirmed — thank you!'; cls = 'paid'; }
+      if (status === 'failed') { label = 'Payment failed. You can try again.'; cls = 'failed'; }
+      resultView.innerHTML = '<div class="card"><p class="status ' + cls + '" role="status">' + label + '</p>' +
+        '<p class="note">Attempt ' + escapeHtml(attemptId) + ' · ' + escapeHtml(r.data.provider || '') + '</p>' +
+        '<a href="/">Continue to Parlez →</a></div>';
+      if (status === 'initiated' || status === 'pending') setTimeout(poll, 2000);
+    }
+    poll();
+    return;
+  }
+
+  const plans = await api('/api/plans');
+  if (!plans.ok) { plansView.textContent = 'Could not load plans.'; return; }
+  plansView.innerHTML = plans.data.plans.filter(p => p.price_npr > 0).map(p => `
+    <section class="card">
+      <div class="plan"><div><strong>${escapeHtml(p.name)}</strong><div class="note">${p.features.map(escapeHtml).join(' · ')}</div></div>
+      <div class="price">NPR ${p.price_npr}</div></div>
+      <div class="providers">
+        <button data-provider="esewa" data-plan="${escapeHtml(p.id)}">eSewa sandbox</button>
+        <button class="alt" data-provider="khalti" data-plan="${escapeHtml(p.id)}">Khalti sandbox</button>
+        <button class="alt" data-provider="paddle" data-plan="${escapeHtml(p.id)}">Card (international)</button>
+      </div>
+      <p class="note" data-msg="${escapeHtml(p.id)}"></p>
+    </section>`).join('');
+
+  plansView.addEventListener('click', async (event) => {
+    const btn = event.target.closest('button[data-provider]');
+    if (!btn) return;
+    btn.disabled = true;
+    const msg = plansView.querySelector('[data-msg="' + btn.dataset.plan + '"]');
+    msg.textContent = 'Starting checkout…';
+    const r = await api('/api/payments/checkout', { method: 'POST',
+      body: JSON.stringify({ plan_id: btn.dataset.plan, provider: btn.dataset.provider }) });
+    if (!r.ok) { msg.textContent = r.data.detail || 'Could not start checkout.'; btn.disabled = false; return; }
+    if (r.data.method === 'form_post' && r.data.fields) {
+      const form = document.createElement('form');
+      form.method = 'POST'; form.action = r.data.checkout_url;
+      for (const [key, value] of Object.entries(r.data.fields)) {
+        const input = document.createElement('input'); input.type = 'hidden'; input.name = key; input.value = value; form.appendChild(input);
+      }
+      document.body.appendChild(form); form.submit();
+    } else {
+      window.location.assign(r.data.checkout_url);
+    }
+  });
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+})();
+</script>
+</body>
+</html>

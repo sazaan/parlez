@@ -90,6 +90,11 @@
 .explain-box { position: relative; width: min(100%, 520px); padding: 1.4rem; border-radius: 18px; background: var(--card); border: 1px solid var(--border); box-shadow: 0 24px 70px -30px rgba(0,0,0,.55); }
 .explain-close { position: absolute; top: 0.6rem; right: 0.8rem; border: 0; background: transparent; font-size: 1.4rem; cursor: pointer; color: var(--muted-foreground); }
 .explain-body { font-size: 0.92rem; line-height: 1.55; white-space: pre-wrap; }
+.speaking-controls { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.speaking-controls button { min-height: 46px; }
+.rating-row { display: inline-flex; gap: 0.3rem; }
+.rating-row button { min-height: 36px; min-width: 36px; padding: 0; background: transparent; color: var(--wine); border: 1px solid var(--border); }
+.rating-row button.selected { background: var(--gold); color: #fff; border-color: var(--gold); }
 
 @media (min-width: 1024px) {
     .learn-path { padding-left: 2rem; padding-right: 2rem; }

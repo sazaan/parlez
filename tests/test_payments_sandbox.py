@@ -127,6 +127,50 @@ def test_esewa_sandbox_verify_decodes_callback_and_checks_status(sandbox_env):
         ))
 
 
+def test_checkout_and_result_pages(client):
+    assert client.get("/checkout").status_code == 200
+    r = client.get("/payment-result?attempt=pay_test")
+    assert r.status_code == 200
+    assert "Payment" in r.text
+
+
+def test_paddle_sandbox_initiate(monkeypatch):
+    monkeypatch.setenv("APP_BASE_URL", "http://localhost:8000")
+    monkeypatch.setenv("PADDLE_API_KEY", "test-paddle-key")
+    monkeypatch.setenv("PADDLE_PRICE_MONTHLY", "pri_monthly")
+    monkeypatch.setenv("PADDLE_BASE_URL", "https://sandbox-api.paddle.com")
+    client = _Client(post_response=_Response(201, {
+        "data": {"id": "txn_1", "checkoutUrl": "https://sandbox-checkout.paddle.com/txn_1"},
+    }))
+    result = asyncio.run(payments.initiate("paddle", "pay_paddle", "plus_monthly", client=client))
+
+    assert result["checkout_url"].endswith("txn_1")
+    assert client.post_calls[0]["url"] == "https://sandbox-api.paddle.com/transactions"
+    assert client.post_calls[0]["json"]["items"][0]["priceId"] == "pri_monthly"
+
+
+def test_provider_return_redirects_to_result_page(sandbox_env, auth_client, monkeypatch):
+    async def fake_initiate(provider, attempt_id, plan_id, client=None):
+        return {
+            "provider": provider, "method": "redirect",
+            "checkout_url": "https://dev.khalti.com/x", "provider_ref": "pidx-1",
+        }
+
+    async def fake_verify(provider, attempt, params, client=None):
+        return payments.Verification("paid", "txn-1", 499)
+
+    monkeypatch.setattr(payments, "initiate", fake_initiate)
+    monkeypatch.setattr(payments, "verify", fake_verify)
+    created = auth_client.post("/api/payments/checkout", json={"plan_id": "plus_monthly", "provider": "khalti"})
+    assert created.status_code == 200
+
+    r = auth_client.post(
+        "/api/payments/return/khalti", json={"pidx": "pidx-1"}, follow_redirects=False,
+    )
+    assert r.status_code == 303
+    assert "/payment-result" in r.headers["location"]
+
+
 def test_checkout_endpoint_returns_sandbox_url(sandbox_env, auth_client, monkeypatch):
     async def fake_initiate(provider, attempt_id, plan_id, client=None):
         return {

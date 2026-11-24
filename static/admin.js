@@ -329,6 +329,64 @@
         }
     });
 
+    async function loadAdminAccounts() {
+        const rows = document.getElementById('adminAccountRows');
+        const message = document.getElementById('accountsMessage');
+        try {
+            const data = await adminRequest('/api/admin/accounts');
+            rows.innerHTML = (data.accounts || []).map(account => `<tr>
+                <td><strong>${escapeHTML(account.username)}</strong></td>
+                <td>${escapeHTML(account.role)}</td>
+                <td>${account.active ? 'yes' : 'no'}</td>
+                <td>
+                    <button class="button button-quiet" type="button" data-account-toggle="${escapeHTML(account.username)}" data-active="${account.active ? '0' : '1'}">${account.active ? 'Disable' : 'Enable'}</button>
+                    <button class="button button-quiet" type="button" data-account-delete="${escapeHTML(account.username)}">Delete</button>
+                </td></tr>`).join('') || '<tr><td colspan="4" class="users-empty">No accounts.</td></tr>';
+            setMessage(message, '');
+        } catch (error) {
+            setMessage(message, error.message || 'Could not load accounts.');
+        }
+    }
+
+    document.getElementById('createAdminButton')?.addEventListener('click', async () => {
+        const message = document.getElementById('accountsMessage');
+        try {
+            await adminRequest('/api/admin/accounts', {
+                method: 'POST',
+                body: JSON.stringify({
+                    username: document.getElementById('newAdminUsername').value.trim(),
+                    password: document.getElementById('newAdminPassword').value,
+                    role: document.getElementById('newAdminRole').value,
+                }),
+            });
+            document.getElementById('newAdminUsername').value = '';
+            document.getElementById('newAdminPassword').value = '';
+            await loadAdminAccounts();
+            setMessage(message, 'Account created.', 'success');
+        } catch (error) {
+            setMessage(message, error.message || 'Could not create account.');
+        }
+    });
+
+    document.addEventListener('click', async (event) => {
+        const toggle = event.target.closest('[data-account-toggle]');
+        const remove = event.target.closest('[data-account-delete]');
+        const message = document.getElementById('accountsMessage');
+        if (toggle) {
+            try {
+                await adminRequest(`/api/admin/accounts/${encodeURIComponent(toggle.dataset.accountToggle)}`, {
+                    method: 'PUT', body: JSON.stringify({ active: toggle.dataset.active === '1' }),
+                });
+                await loadAdminAccounts();
+            } catch (error) { setMessage(message, error.message || 'Could not update account.'); }
+        } else if (remove) {
+            try {
+                await adminRequest(`/api/admin/accounts/${encodeURIComponent(remove.dataset.accountDelete)}`, { method: 'DELETE' });
+                await loadAdminAccounts();
+            } catch (error) { setMessage(message, error.message || 'Could not delete account.'); }
+        }
+    });
+
     function startObservabilityRefresh() {
         if (observabilityTimer !== null) return;
         observabilityTimer = setInterval(() => {
@@ -745,6 +803,7 @@
             if (tab.dataset.section === 'users') loadAdminUsers(0);
             if (tab.dataset.section === 'observability') loadObservability();
             if (tab.dataset.section === 'sessions') loadAdminSessions();
+            if (tab.dataset.section === 'accounts') loadAdminAccounts();
         });
     });
 
