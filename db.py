@@ -329,6 +329,19 @@ class Storage:
         with self.Session() as session:
             return session.query(User.id).filter_by(username=username).first() is not None
 
+    def get_user_by_email(self, email: str) -> Optional[dict]:
+        normalized = str(email or "").strip().casefold()
+        if not normalized:
+            return None
+        with self.Session() as session:
+            row = session.query(User).filter(func.lower(User.email) == normalized).first()
+            return self._user_from_row(row) if row else None
+
+    def get_user_by_login(self, identifier: str) -> Optional[dict]:
+        """Accept a username or an email address at sign-in."""
+        value = str(identifier or "").strip()
+        return self.get_user_by_username(value) or self.get_user_by_email(value)
+
     def email_exists(self, email: str) -> bool:
         with self.Session() as session:
             return session.query(User.id).filter_by(email=email).first() is not None
@@ -386,7 +399,7 @@ class Storage:
         return {"total": total, "users": users, "limit": limit, "offset": offset}
 
     def verify_user(self, username: str, password: str) -> Optional[str]:
-        user = self.get_user_by_username(username)
+        user = self.get_user_by_login(username)
         if not user:
             return None
         stored = user.get("password_hash", "").encode("utf-8")

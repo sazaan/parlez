@@ -36,6 +36,17 @@ def test_signup_password_too_short(client):
     assert "8" in r.json()["detail"]
 
 
+def test_login_accepts_email_or_username(client):
+    client.post("/api/auth/signup", json={
+        "email": "email.login@example.com", "username": "emaillogin",
+        "password": "password123", "name": "Email Login", "accept_terms": True,
+    })
+    r = client.post("/api/auth/login", json={
+        "username": "EMAIL.LOGIN@example.com", "password": "password123",
+    })
+    assert r.status_code == 200
+
+
 def test_login_invalid_credentials(client):
     client.post("/api/auth/signup", json={
         "email": "person@example.com",

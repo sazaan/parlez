@@ -265,6 +265,13 @@ parent directory; this initializer only manages `/app/data`. For the default
 SQLite database, omit `DATABASE_URL` or use
 `DATABASE_URL=sqlite:////app/data/parlez.db`.
 
+**Resetting the database:** `./data` is a host **bind mount**, so
+`docker compose down -v` removes named volumes but **keeps `./data/parlez.db`**.
+Accounts therefore survive that command. To start clean locally, run
+`bash scripts/reset_local_db.sh RESET-DB` (it stops Compose and deletes the DB
+and its WAL/SHM files). On EC2, remove the database on the host before
+recreating the stack if you intend to wipe accounts.
+
 The obsolete Compose `version` warning is removed. A missing Buildx/Bake warning
 is separate from the SQLite crash; install Docker's Buildx plugin if needed.
 
