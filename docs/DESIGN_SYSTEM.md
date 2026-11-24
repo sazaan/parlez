@@ -2,6 +2,19 @@
 
 Status: living document · updated 2026-11-23
 
+## Visual refresh (2026-11-24)
+
+Reference apps studied: **Newa Bhaye** (warm cream gradients, dotted texture, mascot Diyo, top stat pills, bottom nav, confetti), **Duolingo** (single clear path, tactile oversized options, instant feedback, streak/XP HUD), **Falou** (short speaking-first missions, listen → repeat → playback). Applied in `static/parlez-polish.css` (loaded last so it overrides legacy tokens):
+
+- warm cream/saffron/wine palette, radial gradient washes and subtle dotted texture;
+- glass sidebar/topbar, rounded cards, deeper layered shadows;
+- global mobile bottom nav (Path / Practice / Speak / Tutor / Rewards) with an active pill;
+- larger tactile exercise options with hover/press/correct/incorrect animation;
+- Pip mascot on login, welcome, sessions and results with float/jump states;
+- confetti on lesson completion; `prefers-reduced-motion` disables all of it.
+
+**Bug fixed:** the Learn view stayed visible when opening Chat/Tool views, pushing chat halfway down the page. View switches now hide all other primary views.
+
 ## Principles
 
 1. **Calm, not loud.** Ivory paper, wine, gold and sage — a study space, not a casino.

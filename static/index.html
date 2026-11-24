@@ -17,15 +17,17 @@
     <meta name="twitter:title" content="Parlez — French AI Tutor">
     <meta name="twitter:description" content="A1–B2 French courses and separate TEF Canada/TCF Canada practice across all four skills.">
     <link rel="stylesheet" href="/static/styles.css?v=5">
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/app-theme.css?v=3">
     <link rel="stylesheet" href="/static/learn.css?v=1">
+    <link rel="stylesheet" href="/static/parlez-polish.css?v=1">
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%237C2D3F'/%3E%3Ctext x='50' y='68' font-size='58' font-family='Georgia,serif' fill='%23C19A4B' text-anchor='middle' font-style='italic'%3EP%3C/text%3E%3C/svg%3E">
 </head>
 <body>
     <!-- Auth Screen -->
     <div class="auth-screen" id="authScreen">
         <div class="auth-card">
+            <img class="auth-mascot" src="/static/mascot.svg" alt="" aria-hidden="true">
             <div class="auth-logo">
                 <span class="logo-p">P</span>
                 <span class="logo-text">Parlez</span>
@@ -204,12 +206,6 @@
                 </div>
                 <div id="learnPath" class="learn-path" aria-live="polite"></div>
                 <div id="sessionHost" class="session-host" hidden></div>
-                <nav class="learn-bottom-nav" aria-label="Learning sections">
-                    <button type="button" data-action="learn-go-path">Path</button>
-                    <button type="button" data-action="learn-go-practice">Practice</button>
-                    <button type="button" data-action="learn-go-tutor">Tutor</button>
-                    <button type="button" data-action="learn-go-rewards">Rewards</button>
-                </nav>
             </div>
 
             <!-- Chat View -->
@@ -251,6 +247,15 @@
             <div id="toolView" class="main-view" style="display:none">
                 <div id="toolContent" class="tool-content"></div>
             </div>
+
+            <!-- Global bottom navigation (mobile-first, like Duolingo/Falou) -->
+            <nav class="app-bottom-nav" aria-label="Main sections">
+                <button type="button" data-nav="learn" data-action="learn-go-path"><span class="nav-glyph">🛤️</span><span>Path</span></button>
+                <button type="button" data-nav="practice" data-action="learn-go-practice"><span class="nav-glyph">🏋️</span><span>Practice</span></button>
+                <button type="button" data-nav="speak" data-action="learn-speaking"><span class="nav-glyph">🎙️</span><span>Speak</span></button>
+                <button type="button" data-nav="tutor" data-action="learn-go-tutor"><span class="nav-glyph">💬</span><span>Tutor</span></button>
+                <button type="button" data-nav="rewards" data-action="learn-go-rewards"><span class="nav-glyph">🏅</span><span>Rewards</span></button>
+            </nav>
         </main>
     </div>
     <div class="modal" id="settingsModal" style="display: none;">

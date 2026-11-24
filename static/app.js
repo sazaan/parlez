@@ -1273,6 +1273,12 @@ function updateXP(xp) {
 // ============================================================
 // View Management
 // ============================================================
+function setBottomNav(key) {
+    document.querySelectorAll('.app-bottom-nav button').forEach(b => {
+        b.classList.toggle('active', b.dataset.nav === key);
+    });
+}
+
 function getToolContent() { return document.getElementById('toolContent'); }
 
 function setCoursesNavActive(active) {
@@ -1295,6 +1301,9 @@ function showToolView(title, html, options = {}) {
     }
     if (typeof stopExamWritingSectionTimer === 'function') stopExamWritingSectionTimer();
     courseLoadRequestId += 1;
+    // Only one primary view may be visible at a time.
+    document.getElementById('learnView').style.display = 'none';
+    setBottomNav(options.section === 'courses' ? 'learn' : 'practice');
     activeMainSection = options.section || 'tool';
     setCoursesNavActive(activeMainSection === 'courses');
     setToolViewBackTarget(options.backTarget || 'chat');
@@ -1314,6 +1323,9 @@ function showChatView() {
     }
     if (typeof stopExamWritingSectionTimer === 'function') stopExamWritingSectionTimer();
     courseLoadRequestId += 1;
+    // Bug fix: the Learn view used to stay visible, pushing chat halfway down.
+    document.getElementById('learnView').style.display = 'none';
+    setBottomNav('tutor');
     activeMainSection = 'chat';
     setCoursesNavActive(false);
     setToolViewBackTarget('chat');

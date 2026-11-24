@@ -34,8 +34,8 @@
         if (!sessionEl) return;
         sessionEl.hidden = true;
         if (pathEl) pathEl.style.display = '';
-        document.querySelectorAll('.learn-bottom-nav button').forEach(b => b.classList.remove('active'));
-        document.querySelector('[data-action="learn-go-path"]')?.classList.add('active');
+        document.querySelectorAll('.app-bottom-nav button').forEach(b => b.classList.remove('active'));
+        document.querySelector('.app-bottom-nav [data-nav="learn"]')?.classList.add('active');
     }
 
     function showSession() {
@@ -295,6 +295,7 @@
     let speakingMission = null;
 
     function startSpeakingMission() {
+        if (typeof setBottomNav === 'function') setBottomNav('speak');
         const prompt = SPEAKING_PROMPTS_LEARN[Math.floor(Math.random() * SPEAKING_PROMPTS_LEARN.length)];
         speakingMission = { prompt, transcript: '', rating: 0 };
         showSession();
@@ -578,6 +579,20 @@
         }
     }
 
+    function celebrate() {
+        const colors = ['#a11b36', '#f2a93b', '#e8b64b', '#0f7a6c', '#2f8f5b', '#c33a4e'];
+        for (let i = 0; i < 36; i += 1) {
+            const piece = document.createElement('span');
+            piece.className = 'confetti-piece';
+            piece.style.left = `${Math.random() * 100}%`;
+            piece.style.background = colors[i % colors.length];
+            piece.style.animationDelay = `${Math.random() * 0.5}s`;
+            piece.style.animationDuration = `${1.8 + Math.random()}s`;
+            document.body.appendChild(piece);
+            setTimeout(() => piece.remove(), 3200);
+        }
+    }
+
     function renderLearnResults() {
         const total = session.correct + session.wrong || 1;
         const accuracy = Math.round((session.correct / total) * 100);
@@ -593,6 +608,7 @@
             mascot.classList.add('mascot-celebrate');
             setTimeout(() => mascot.classList.remove('mascot-celebrate'), 700);
         }
+        celebrate();
         clearSession();
         recordEvent('lesson_complete', { level: session.level });
         fetch('/api/progress/complete-lesson', {
@@ -630,7 +646,9 @@
             const text = btn.querySelector('small');
             if (text) text.textContent = btn.classList.contains('flipped') ? 'Tap to hide' : text.dataset.original || text.textContent;
         } else if (action === 'learn-speaking') {
-            startSpeakingMission();
+            if (typeof setBottomNav === 'function') setBottomNav('speak');
+            if (typeof showLearnView === 'function') showLearnView().then(() => startSpeakingMission());
+            else startSpeakingMission();
         } else if (action === 'speaking-listen') {
             if (typeof window.startSpeakingListenLearn === 'function') window.startSpeakingListenLearn(btn);
         } else if (action === 'speaking-rate') {
@@ -679,11 +697,13 @@
         } else if (action === 'learn-go-path') {
             showLearnView();
         } else if (action === 'learn-go-practice') {
+            if (typeof setBottomNav === 'function') setBottomNav('practice');
             if (typeof window.reviewCurrentCard === 'function') window.startFlashcardReview?.();
             else showToast('Practice tools are in the Quick Practice menu.');
         } else if (action === 'learn-go-tutor') {
             if (typeof showChatView === 'function') showChatView();
         } else if (action === 'learn-go-rewards') {
+            if (typeof setBottomNav === 'function') setBottomNav('rewards');
             if (typeof window.showRewards === 'function') window.showRewards();
         }
     });
