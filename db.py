@@ -175,6 +175,34 @@ class PaymentEvent(Base):
     created_at = Column(Float, nullable=False)
 
 
+class LearningEvent(Base):
+    """Privacy-safe funnel event: name + coarse properties, no text answers."""
+    __tablename__ = "learning_events"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String, nullable=False, index=True)
+    name = Column(String, nullable=False, index=True)
+    props = Column(JSON, nullable=False, default=dict)
+    created_at = Column(Float, nullable=False)
+
+
+class ChatFact(Base):
+    """Small, user-visible memory of learning preferences and goals."""
+    __tablename__ = "chat_facts"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String, nullable=False, index=True)
+    fact = Column(String(300), nullable=False)
+    source = Column(String, nullable=False, default="learner")
+    created_at = Column(Float, nullable=False)
+
+
+class ExperimentAssignment(Base):
+    __tablename__ = "experiment_assignments"
+    user_id = Column(String, nullable=False, primary_key=True)
+    experiment = Column(String, nullable=False, primary_key=True)
+    variant = Column(String, nullable=False)
+    assigned_at = Column(Float, nullable=False)
+
+
 class Storage:
     """Stateless SQLite-backed storage with the same interface as the old JSON Storage."""
 
@@ -563,6 +591,64 @@ class Storage:
             }
 
     # ------------------------------------------------------------------
+    # Privacy-safe learning events and A/B assignment
+    # ------------------------------------------------------------------
+
+    def add_chat_fact(self, user_id: str, fact: str, source: str = "learner") -> dict:
+        clean = " ".join(str(fact).split())[:300]
+        if not clean:
+            raise ValueError("Fact cannot be empty")
+        with self.Session() as session:
+            with session.begin():
+                existing = session.query(ChatFact).filter_by(user_id=user_id, fact=clean).first()
+                if existing:
+                    return {"id": existing.id, "fact": clean, "source": existing.source}
+                row = ChatFact(user_id=user_id, fact=clean, source=source[:40], created_at=time.time())
+                session.add(row)
+                session.flush()
+                return {"id": row.id, "fact": clean, "source": row.source}
+
+    def list_chat_facts(self, user_id: str, limit: int = 12) -> list[str]:
+        with self.Session() as session:
+            rows = (
+                session.query(ChatFact.fact)
+                .filter_by(user_id=user_id)
+                .order_by(ChatFact.id.desc())
+                .limit(max(1, min(limit, 30)))
+                .all()
+            )
+            return [row[0] for row in rows]
+
+    def record_event(self, user_id: str, name: str, props: Optional[dict] = None):
+        allowed = {"lesson_start", "lesson_complete", "exam_mission_start", "exam_mission_submit",
+                   "placement_submit", "coach_request", "share_progress", "speaking_practice"}
+        if name not in allowed:
+            raise ValueError(f"Unsupported event: {name}")
+        safe = {k: v for k, v in (props or {}).items() if k in {"level", "exam", "skill", "variant", "source"}}
+        with self.Session() as session:
+            with session.begin():
+                session.add(LearningEvent(user_id=user_id, name=name, props=safe, created_at=time.time()))
+
+    def funnel_counts(self) -> dict[str, int]:
+        with self.Session() as session:
+            rows = session.query(LearningEvent.name, func.count(LearningEvent.id)).group_by(LearningEvent.name).all()
+            return {name: count for name, count in rows}
+
+    def assign_experiment(self, user_id: str, experiment: str, variants=("control", "variant")) -> str:
+        import hashlib
+        with self.Session() as session:
+            with session.begin():
+                row = session.query(ExperimentAssignment).filter_by(user_id=user_id, experiment=experiment).first()
+                if row:
+                    return row.variant
+                digest = hashlib.sha256(f"{user_id}:{experiment}".encode()).hexdigest()
+                variant = variants[int(digest[:8], 16) % len(variants)]
+                session.add(ExperimentAssignment(
+                    user_id=user_id, experiment=experiment, variant=variant, assigned_at=time.time(),
+                ))
+                return variant
+
+    # ------------------------------------------------------------------
     # Runtime settings and administrator audit trail
     # ------------------------------------------------------------------
 
@@ -652,12 +738,16 @@ class Storage:
         from observability import log_event
         log_event("admin.audit.recorded", action=action, actor_type="admin")
 
-    def list_admin_audit(self, limit: int = 100) -> list[dict]:
+    def list_admin_audit(self, limit: int = 100, offset: int = 0, action: Optional[str] = None) -> list[dict]:
         bounded_limit = max(1, min(int(limit), 200))
+        bounded_offset = max(0, int(offset))
         with self.Session() as session:
+            query = session.query(AdminAudit)
+            if action:
+                query = query.filter(AdminAudit.action == action[:80])
             rows = (
-                session.query(AdminAudit)
-                .order_by(AdminAudit.id.desc())
+                query.order_by(AdminAudit.id.desc())
+                .offset(bounded_offset)
                 .limit(bounded_limit)
                 .all()
             )

@@ -170,6 +170,7 @@ from mock_tests.data import (
 )
 from mock_tests.preparation import get_exam_preparation, get_exam_study_plan
 from courses.attributed_content import ATTRIBUTED_CATALOG
+from courses.assessment import public_items as placement_items, evaluate as evaluate_placement
 from mock_tests.formats import EXAM_FORMATS, public_format
 from mock_tests.original_items import get_items as get_practice_items, grade as grade_practice, SPEC_SOURCES
 from mock_tests.resources import public_resources as public_practice_resources
@@ -2009,8 +2010,13 @@ async def update_admin_courses(config: AdminCourseAccessUpdate, admin=Depends(re
 
 
 @app.get("/api/admin/audit", include_in_schema=False)
-async def admin_audit(limit: int = 50, admin=Depends(require_admin)):
-    return storage.list_admin_audit(limit)
+async def admin_audit(limit: int = 50, offset: int = 0, action: Optional[str] = None,
+                      admin=Depends(require_admin)):
+    """Filterable/paginateable audit export (JSON)."""
+    return {
+        "entries": storage.list_admin_audit(limit=limit, offset=offset, action=action),
+        "limit": max(1, min(limit, 200)), "offset": max(0, offset), "action": action,
+    }
 
 
 @app.get("/api/admin/observability", include_in_schema=False)
@@ -2312,6 +2318,48 @@ async def get_my_entitlements(user=Depends(require_auth)):
     }
 
 
+@app.post("/api/events")
+async def record_learning_event(data: dict, user=Depends(require_auth)):
+    """Record a coarse funnel event. Free-text answers are never accepted."""
+    name = str(data.get("name") or "")
+    props = data.get("props") if isinstance(data.get("props"), dict) else {}
+    try:
+        storage.record_event(user["id"], name, props)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"ok": True}
+
+
+@app.get("/api/experiments/{key}")
+async def get_experiment(key: str, user=Depends(require_auth)):
+    """Stable, deterministic A/B assignment for a named experiment."""
+    experiment = key.strip()[:60]
+    if not experiment:
+        raise HTTPException(status_code=400, detail="Experiment key required.")
+    return {"experiment": experiment, "variant": storage.assign_experiment(user["id"], experiment)}
+
+
+@app.get("/api/admin/metrics/funnel", include_in_schema=False)
+async def admin_funnel(admin=Depends(require_admin)):
+    return {"counts": storage.funnel_counts()}
+
+
+@app.get("/api/chat/facts")
+async def get_chat_facts(user=Depends(require_auth)):
+    return {"facts": storage.list_chat_facts(user["id"])}
+
+
+@app.post("/api/chat/facts")
+async def add_chat_fact(data: dict, user=Depends(require_auth)):
+    fact = str(data.get("fact") or "")
+    try:
+        saved = storage.add_chat_fact(user["id"], fact)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    log_event("chat.fact.added", logging.INFO, outcome="success", source="learner")
+    return saved
+
+
 @app.get("/api/referrals/me")
 async def my_referral(user=Depends(require_auth)):
     code = user.get("referral_code") or ""
@@ -2324,6 +2372,22 @@ async def my_referral(user=Depends(require_auth)):
 
 
 # --- Attributed mission-led curriculum (Phase D) ---
+
+@app.get("/api/assessment/placement")
+async def get_placement_check():
+    return {
+        "items": placement_items(),
+        "notice": "Informal practice estimate only — not a CEFR/NCLC test or exam score.",
+    }
+
+
+@app.post("/api/assessment/placement/submit")
+async def submit_placement_check(data: dict):
+    answers = data.get("answers") or {}
+    if not isinstance(answers, dict):
+        raise HTTPException(status_code=400, detail="Invalid answers payload.")
+    return evaluate_placement(answers)
+
 
 @app.get("/api/learn/courses")
 async def get_learn_courses():
@@ -2541,6 +2605,16 @@ def _trim_conversation(recent_messages, max_chars=24000, per_message_chars=6000)
     return list(reversed(kept))
 
 
+def _mid_turn_guidance(message: str) -> str:
+    """Cheap, local check for confusion or off-topic drift (no extra LLM call)."""
+    text = message.lower()
+    if any(marker in text for marker in ("don't understand", "do not understand", "compris pas", "comprends pas", "répète", "repeat", "again", "trop difficile", "too hard")):
+        return "\n\nSESSION CHECK: The learner may be confused. Slow down, repeat in simpler words, and offer one small step before continuing."
+    if any(marker in text for marker in ("write code", "python", "math problem", "solve this equation")):
+        return "\n\nSESSION CHECK: The message is off-topic. Politely redirect to French learning without scolding."
+    return ""
+
+
 def _prepare_chat(msg, user):
     """Reserve budget, validate input and build the provider message list."""
     check_daily_llm_budget(user)
@@ -2586,6 +2660,14 @@ def _prepare_chat(msg, user):
     adjustments = get_difficulty_adjustments(level, weak_analysis)
     system_prompt = build_system_prompt(level=level, mode=mode, lesson_context=lesson_ctx, scenario=scenario)
     system_prompt += build_adaptive_prompt_addition(level, weak_analysis, adjustments)
+
+    facts = storage.list_chat_facts(user["id"])
+    if facts:
+        system_prompt += (
+            "\n\nLEARNER FACTS (shared by the learner — use them gently, never present as verified):\n"
+            + "\n".join(f"- {fact}" for fact in facts)
+        )
+    system_prompt += _mid_turn_guidance(message)
 
     messages = [{"role": "system", "content": system_prompt}]
     conv = user.get('conversations', {}).get(msg.conv_id, {})

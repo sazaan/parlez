@@ -19,6 +19,17 @@
         return typeof escapeHtml === 'function' ? escapeHtml(value) : String(value ?? '');
     }
 
+    function recordEvent(name, props) {
+        try {
+            fetch('/api/events', {
+                method: 'POST', credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, props: props || {} }),
+                keepalive: true,
+            }).catch(() => {});
+        } catch (e) { /* analytics must never break learning */ }
+    }
+
     function showPath() {
         if (!sessionEl) return;
         sessionEl.hidden = true;
@@ -89,7 +100,7 @@
 
     function renderLearnPath(data, progress) {
         const done = new Set(progress?.lessons_completed || []);
-        let html = '<div class="path-intro"><h2>Your learning path</h2><p>Short, focused steps. Tap a lesson to begin — your progress saves automatically.</p></div>';
+        let html = '<div class="path-intro"><h2>Your learning path</h2><p>Short, focused steps. Tap a lesson to begin — your progress saves automatically.</p><p><button class="explain-button" data-action="learn-placement">Check your level (informal, 12 questions)</button></p></div>';
         const resume = readSession();
         if (resume && resume.lessonId) {
             html += `<div class="path-banner"><span>Continue where you left off: <strong>${h(resume.title || 'your lesson')}</strong></span><button data-action="learn-resume">Resume</button></div>`;
@@ -163,6 +174,7 @@
                 correct: 0, wrong: 0, mistakes: [],
             };
             saveSession();
+            recordEvent('lesson_start', { level });
             showSession();
             renderLearnStep();
         } catch (e) {
@@ -268,6 +280,59 @@
         observer.observe(observeTarget, { subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
     }
 
+    // ---------------- Informal placement check ----------------
+
+    let placement = null;
+
+    async function startPlacement() {
+        try {
+            const data = await apiFetch('/api/assessment/placement').then(r => r.json());
+            placement = { items: data.items, answers: {} };
+            renderPlacement();
+        } catch (e) {
+            showToast('Could not load the level check.');
+        }
+    }
+
+    function renderPlacement(result) {
+        if (!placement) return;
+        let html = '<p class="session-kicker">Assessment · informal practice</p><h2 class="session-title">Check your level</h2>' +
+            `<p class="session-text">${result ? '' : 'Twelve short items. This is not a CEFR/NCLC test, an exam score, or an assessment of listening, speaking or writing.'}</p>`;
+        if (result) {
+            html += `<div class="session-feedback good"><strong>Practice band: ${h(result.levelEstimate)}</strong><br>${h(result.notice)}</div>`;
+        }
+        placement.items.forEach((item, index) => {
+            html += `<div class="exam-item"><p class="session-text"><strong>${index + 1}. ${h(item.prompt)}</strong> <small>(${h(item.band)} practice)</small></p><div class="quiz-options">`;
+            item.options.forEach((option, idx) => {
+                const chosen = placement.answers[item.id] === idx;
+                html += `<button class="quiz-option ${chosen ? 'selected' : ''}" data-action="placement-select" data-id="${h(item.id)}" data-idx="${idx}" ${result ? 'disabled' : ''}>${String.fromCharCode(65 + idx)}. ${h(option)}</button>`;
+            });
+            html += '</div></div>';
+        });
+        showSession();
+        shell(html, result
+            ? '<button data-action="learn-quit">Back to path</button>'
+            : '<button data-action="placement-submit">See my practice band</button><button class="ghost" data-action="learn-quit">Cancel</button>');
+        if (result) {
+            const skills = Object.entries(result.bySkill).map(([k, v]) => `${k}: ${v.correct}/${v.total}`).join(' · ');
+            const body = sessionEl.querySelector('.session-text');
+            if (body) body.innerHTML = `<p>Coverage — ${h(skills)}</p><p>Not assessed: ${h(result.unassessedSkills.join(', '))}.</p>`;
+        }
+    }
+
+    async function submitPlacement() {
+        try {
+            const result = await apiFetch('/api/assessment/placement/submit', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ answers: placement.answers }),
+            }).then(r => r.json());
+            recordEvent('placement_submit', { level: result.levelEstimate });
+            renderPlacement(result);
+        } catch (e) {
+            showToast('Could not score the level check.');
+        }
+    }
+
     // ---------------- Phase C: in-session tutor help ----------------
 
     async function askPip(message, kicker) {
@@ -282,6 +347,7 @@
             document.body.appendChild(panel);
         }
         panel.querySelector('.session-kicker').textContent = kicker || 'Ask Pip';
+        recordEvent('coach_request', { source: kicker?.includes('coach') ? 'coach_card' : 'explain' });
         const body = panel.querySelector('.explain-body');
         try {
             const r = await apiFetch('/api/chat', {
@@ -341,6 +407,7 @@
             const r = await apiFetch(`/api/exam/practice/${encodeURIComponent(exam)}/${encodeURIComponent(skill)}`);
             const data = await r.json();
             examMission = { exam, skill, items: data.items, answers: {}, seconds: 180 };
+            recordEvent('exam_mission_start', { exam, skill });
             renderExamMission();
             clearInterval(examMission.timer);
             examMission.timer = setInterval(() => {
@@ -402,6 +469,7 @@
             });
             const result = await r.json();
             examMission.result = result;
+            recordEvent('exam_mission_submit', { exam: examMission.exam, skill: examMission.skill });
             renderExamMission(result);
             if (typeof updateXP === 'function') {
                 const p = await apiFetch('/api/progress').then(x => x.json()).catch(() => null);
@@ -428,6 +496,7 @@
             setTimeout(() => mascot.classList.remove('mascot-celebrate'), 700);
         }
         clearSession();
+        recordEvent('lesson_complete', { level: session.level });
         fetch('/api/progress/complete-lesson', {
             method: 'POST', credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json' },
@@ -462,6 +531,15 @@
             btn.classList.toggle('flipped');
             const text = btn.querySelector('small');
             if (text) text.textContent = btn.classList.contains('flipped') ? 'Tap to hide' : text.dataset.original || text.textContent;
+        } else if (action === 'learn-placement') {
+            startPlacement();
+        } else if (action === 'placement-select') {
+            if (!placement) return;
+            placement.answers[btn.dataset.id] = parseInt(btn.dataset.idx, 10);
+            btn.parentElement.querySelectorAll('.quiz-option').forEach(o => o.classList.remove('selected'));
+            btn.classList.add('selected');
+        } else if (action === 'placement-submit') {
+            submitPlacement();
         } else if (action === 'learn-exam') {
             showExamBriefing(btn.dataset.type);
         } else if (action === 'exam-mission') {
@@ -481,6 +559,7 @@
             const mistakes = session?.mistakes?.length ? session.mistakes.join('; ') : 'none';
             askPip(`Give me three short, kind study tips for a French learner who just finished a lesson and missed these items: ${mistakes}. Also suggest one next step. Practice only, no exam score.`, 'Pip · your coach card');
         } else if (action === 'learn-share') {
+            recordEvent('share_progress', { source: 'results' });
             const text = `I practised ${session?.title || 'French'} on Parlez — ${session?.correct || 0} correct answers. Practice makes progress!`;
             if (navigator.clipboard) {
                 navigator.clipboard.writeText(text).then(() => showToast('Progress card copied to clipboard.'));

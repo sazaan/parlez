@@ -525,7 +525,7 @@ def test_admin_model_config_rejects_missing_keys_and_arbitrary_provider(signed_a
 
 def test_admin_audit_log_records_setting_changes(signed_admin):
     client, csrf = signed_admin
-    before = client.get("/api/admin/audit").json()
+    before = client.get("/api/admin/audit").json()["entries"]
     assert before[0]["action"] == "admin_login"
     response = client.put(
         "/api/admin/courses",
@@ -533,7 +533,7 @@ def test_admin_audit_log_records_setting_changes(signed_admin):
         json={"enabled_levels": ["A1"], "enabled_units": {"A1": ["a1-m1"]}},
     )
     assert response.status_code == 200
-    after = client.get("/api/admin/audit").json()
+    after = client.get("/api/admin/audit").json()["entries"]
     assert after[0]["action"] == "course_publication_updated"
 
 

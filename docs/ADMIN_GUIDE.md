@@ -40,5 +40,6 @@ MFA secrets are Fernet-encrypted with a key derived from `ADMIN_SESSION_SECRET`.
 
 - Single shared administrator; no roles or individual attribution beyond the audit actor field.
 - No in-panel password rotation (edit `.env` and restart).
-- Audit log is capped at 1000 rows and has no filter/export UI.
+- Audit log is capped at 1000 rows; `GET /api/admin/audit?limit=&offset=&action=` now supports filtering and JSON export (a UI is still pending).
+- MFA recovery: `python scripts/admin_recovery.py --status` shows stored MFA keys; `--confirm RESET-MFA` clears them, revokes admin sessions and writes an audit entry. Use only if MFA became undecryptable after a secret rotation, then re-enrol.
 - Origin check depends on proxy headers; launch behind the provided Caddy configuration.

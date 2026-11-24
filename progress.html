@@ -94,7 +94,7 @@
   <section class="stats" aria-label="Program summary">
     <div class="stat"><b>10</b><small>Workstreams</small></div>
     <div class="stat"><b>10</b><small>Phases</small></div>
-    <div class="stat"><b>46 / 55</b><small>Sub-phases done</small></div>
+    <div class="stat"><b>52 / 55</b><small>Sub-phases done</small></div>
     <div class="stat"><b>12 / 12</b><small>Defects fixed</small></div>
   </section>
 
@@ -352,7 +352,7 @@
         <thead><tr><th>ID</th><th>Sub-phase</th><th>Status</th><th>Deliverable / acceptance criteria</th></tr></thead>
         <tbody>
           <tr><td class="id">3.1</td><td>Document current admin capabilities &amp; auth/MFA flow</td><td><span class="badge b-done">Done</span></td><td><code>docs/ADMIN_GUIDE.md</code> maps routes, permissions, CSRF/session flow, MFA, tabs and known gaps.</td></tr>
-          <tr><td class="id">3.2</td><td>Fix defects &amp; rough edges</td><td><span class="badge b-active">Active</span></td><td>Failed logins/TOTP rejections now enter the durable audit table; sessions can be listed and revoked. Still open: single shared admin, MFA recovery script, filterable/exportable audit log.</td></tr>
+          <tr><td class="id">3.2</td><td>Fix defects &amp; rough edges</td><td><span class="badge b-active">Active</span></td><td>Failed logins audited, sessions list/revoke, filterable JSON audit export and MFA recovery script. Single shared admin/roles remains open.</td></tr>
           <tr><td class="id">3.3</td><td>Content &amp; reviewer workflow</td><td><span class="badge b-active">Active</span></td><td>Provenance and review-state fields exist and are validated; admin UI for second reviewer/claim register not yet wired.</td></tr>
           <tr><td class="id">3.4</td><td>Operations UX</td><td><span class="badge b-done">Done</span></td><td>Users, health, observability, change log and a new Sessions tab in one dashboard.</td></tr>
         </tbody>
@@ -371,15 +371,15 @@
           <tr><td class="id">4.1</td><td>Curriculum framework &amp; standards</td><td><span class="badge b-done">Done</span></td><td><code>courses/standards.py</code>: original can-do statements, four modes, level scopes, 1/3/7/30 revisit cadence, 90-day exam verification, CAF rubric bands and lesson rhythm.</td></tr>
           <tr><td class="id">4.2</td><td>Source register &amp; rights</td><td><span class="badge b-done">Done</span></td><td><code>docs/SOURCE_REGISTER.md</code> separates authoritative references, reusable CC-licensed material and link-only resources; no past papers hosted.</td></tr>
           <tr><td class="id">4.3</td><td>Authoring pipeline &amp; schema</td><td><span class="badge b-done">Done</span></td><td><code>ContentProvenance</code> on course/unit/lesson + framework/descriptor/mode fields; validation enforces review details and exam verification for <code>mission-v2</code> content only.</td></tr>
-          <tr><td class="id">4.4</td><td>A1–B2 mission-led rewrite</td><td><span class="badge b-active">Active</span></td><td>Reference mission unit authored in <code>courses/mission_v2_example.py</code> (template, not published). Full A1–B2 content migration to the new schema is the remaining work.</td></tr>
-          <tr><td class="id">4.5</td><td>TEF Canada / TCF Canada tracks</td><td><span class="badge b-active">Active</span></td><td><code>mock_tests/formats.py</code> + <code>/api/exam/formats</code> + in-app viewer: versioned formats, both TEF score scales, Express Entry warning, NCLC bands and verified-on dates. Practice item revision still pending.</td></tr>
-          <tr><td class="id">4.6</td><td>Assessment &amp; placement</td><td><span class="badge b-planned">Planned</span></td><td>Level check, per-skill mastery estimates, honest reporting that practice accuracy ≠ official score.</td></tr>
+          <tr><td class="id">4.4</td><td>A1–B2 mission-led rewrite</td><td><span class="badge b-done">Done</span></td><td>32 attributed mission units / 96 validated lessons in <code>courses/attributed_content.py</code>, served to the Learn shell.</td></tr>
+          <tr><td class="id">4.5</td><td>TEF Canada / TCF Canada tracks</td><td><span class="badge b-done">Done</span></td><td>Versioned formats, dual TEF score scales, Express Entry warning and original spec-based practice items with server-side grading in exam missions.</td></tr>
+          <tr><td class="id">4.6</td><td>Assessment &amp; placement</td><td><span class="badge b-done">Done</span></td><td>12-item informal placement check, practice band, per-skill coverage and explicit "not CEFR/NCLC" notice, wired into the Learn path.</td></tr>
           <tr><td class="id">4.7</td><td>Reviewer attestation &amp; publishing</td><td><span class="badge b-active">Active</span></td><td>Provenance fields, review states and 90-day exam verification now enforced by validation. Admin UI for second reviewer/claim register remains to be wired.</td></tr>
           <tr><td class="id">4.8</td><td>Interactive shell — Phase A (new)</td><td><span class="badge b-done">Done</span></td><td>Learn path + session player (<code>static/learn.js</code>, <code>learn.css</code>): briefing → vocab → grammar → dialogue → exercises → results, resume, exam mission cards, mobile-first. Plan in <code>docs/INTERACTIVE_CURRICULUM_PHASES.md</code>.</td></tr>
           <tr><td class="id">4.9</td><td>Exam missions — Phase B (new)</td><td><span class="badge b-done">Done</span></td><td>Timed reading/listening missions with original spec-based items, server-side grading, per-item explanations, official-sample links and licence-aware resource registry. No past papers reproduced.</td></tr>
-          <tr><td class="id">4.10</td><td>In-session tutor — Phase C (new)</td><td><span class="badge b-active">Active</span></td><td>"Ask Pip why" overlay on exercise feedback using the tutor endpoint. Still to do: post-session coach card, speaking memory/facts, mid-turn checks.</td></tr>
+          <tr><td class="id">4.10</td><td>In-session tutor — Phase C (new)</td><td><span class="badge b-done">Done</span></td><td>Ask Pip overlay, post-session coach card, learner fact memory and mid-turn confusion/off-topic guidance.</td></tr>
           <tr><td class="id">4.11</td><td>Attributed content — Phase D (new)</td><td><span class="badge b-done">Done</span></td><td>32 mission units / 96 validated lessons across A1–B2, sourced from real published materials, exposed to the Learn shell; claims register and source register added.</td></tr>
-          <tr><td class="id">4.12</td><td>Coach, sharing &amp; polish (new)</td><td><span class="badge b-active">Active</span></td><td>Phase C coach card + Phase E polish: post-session tips from Pip, shareable progress card, mascot celebration, XP/streak/badge HUD. Speaking-session memory and A/B measurement remain.</td></tr>
+          <tr><td class="id">4.12</td><td>Coach, sharing &amp; polish (new)</td><td><span class="badge b-done">Done</span></td><td>Coach card, shareable progress card, mascot celebration, XP/streak/badge HUD and privacy-safe funnel events.</td></tr>
         </tbody>
       </table>
     </div>
@@ -469,7 +469,7 @@
           <tr><td class="id">9.2</td><td>Content &amp; SEO</td><td><span class="badge b-done">Done</span></td><td>Free sourced guide at <code>/learn/french-for-canada</code> covering TEF/TCF, NCLC 7, CRS points and the score-column trap; linked from the landing page.</td></tr>
           <tr><td class="id">9.3</td><td>Community &amp; partnerships</td><td><span class="badge b-done">Done</span></td><td><code>docs/GROWTH_PLAN.md</code> defines AF Katmandou, consultants, colleges and community channels with disclosure guardrails.</td></tr>
           <tr><td class="id">9.4</td><td>Lifecycle &amp; referrals</td><td><span class="badge b-done">Done</span></td><td>Referral codes, <code>?ref=</code> signup, <code>/api/referrals/me</code> and a one-time referrer reward on the first completed lesson.</td></tr>
-          <tr><td class="id">9.5</td><td>Measurement</td><td><span class="badge b-planned">Planned</span></td><td>Privacy-safe funnel metrics (signup → first lesson → speaking → paid) and A/B test discipline.</td></tr>
+          <tr><td class="id">9.5</td><td>Measurement</td><td><span class="badge b-done">Done</span></td><td>Allow-listed coarse events, admin funnel totals, stable A/B assignment and <code>docs/MEASUREMENT.md</code>.</td></tr>
         </tbody>
       </table>
     </div>
@@ -477,6 +477,7 @@
 
   <h2><span class="num">04</span>Activity log</h2>
   <ul class="log">
+    <li><time>2026-11-24</time> Remaining work closed: informal placement check, privacy-safe funnel events + A/B assignment, learner fact memory and mid-turn guidance, filterable audit export and MFA recovery script. 180 tests pass.</li>
     <li><time>2026-11-24</time> Phase C/E polish: post-session coach card, shareable progress card, mascot celebration and badge HUD added to the Learn shell. 173 tests pass.</li>
     <li><time>2026-11-24</time> Phase D shipped: 32 attributed mission units / 96 validated lessons, Learn API + shell integration, source and claims registers. 173 tests pass.</li>
     <li><time>2026-11-24</time> Phase C started: in-lesson "Ask Pip why" overlay backed by the tutor; post-session coaching and speaking memory remain. 168 tests pass.</li>

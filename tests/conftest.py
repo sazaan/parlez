@@ -28,7 +28,7 @@ def reset_storage_and_limits():
     from db import (
         User, SharedLink, CommentGroup, SystemSetting, AdminAudit, AdminSession,
         LlmUsage, RewardEvent, XpLedger, StreakState, UserBadge,
-        PaymentAttempt, Entitlement, PaymentEvent,
+        PaymentAttempt, Entitlement, PaymentEvent, LearningEvent, ExperimentAssignment, ChatFact,
     )
     with main.storage.Session() as session:
         with session.begin():
@@ -46,6 +46,9 @@ def reset_storage_and_limits():
             session.query(PaymentEvent).delete()
             session.query(PaymentAttempt).delete()
             session.query(Entitlement).delete()
+            session.query(LearningEvent).delete()
+            session.query(ExperimentAssignment).delete()
+            session.query(ChatFact).delete()
     # Reset in-memory rate limit counters so tests don't trip each other.
     if hasattr(main.app.state, "limiter"):
         main.app.state.limiter.reset()
