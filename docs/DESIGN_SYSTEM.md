@@ -2,6 +2,10 @@
 
 Status: living document · updated 2026-11-23
 
+## Collapsible sidebar (2026-11-24)
+
+The sidebar can be collapsed on desktop with either the header hamburger or the new `«` button in the sidebar header (`»` expands). The state is saved in `localStorage` so it survives reloads. On tablets/phones the same control opens the sidebar as a slide-over with a backdrop; it closes on backdrop click, Escape, resize, or after choosing a destination. CSS uses `transform` for the mobile drawer and animated width/margin for desktop collapse.
+
 ## Navigation consolidation (2026-11-24)
 
 One sidebar component (`.sidebar-nav-link`) is used for every destination: Courses & Path, Practice, Speaking, AI Tutor (opens chat), Rewards, My Progress, Level check and the Mock Tests group placed directly below Level check. Redundant sections — the old separate Courses tool, Practice Scenarios, Quick Practice and Content Tools — were removed. Practice now opens a single hub containing both conversation scenarios and quick drills, using the same card component throughout. The mobile bottom nav mirrors the same destinations.

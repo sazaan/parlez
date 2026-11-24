@@ -406,6 +406,7 @@ const chatTitle = document.getElementById('chatTitle');
 const sidebar = document.getElementById('sidebar');
 const sidebarBackdrop = document.getElementById('sidebarBackdrop');
 const toggleSidebar = document.getElementById('toggleSidebar');
+const collapseSidebar = document.getElementById('collapseSidebar');
 const newChatBtn = document.getElementById('newChat');
 const chatList = document.getElementById('chatList');
 const coursesNav = document.getElementById('coursesNav');
@@ -2312,6 +2313,13 @@ function toggleSidebarState() {
         if (sidebarBackdrop) sidebarBackdrop.classList.toggle('open');
     } else {
         sidebar.classList.toggle('collapsed');
+        try {
+            localStorage.setItem('parlezSidebarCollapsed', sidebar.classList.contains('collapsed') ? '1' : '0');
+        } catch (e) { /* storage may be disabled */ }
+        if (collapseSidebar) {
+            collapseSidebar.textContent = sidebar.classList.contains('collapsed') ? '»' : '«';
+            collapseSidebar.setAttribute('aria-label', sidebar.classList.contains('collapsed') ? 'Expand navigation' : 'Collapse navigation');
+        }
     }
     syncSidebarToggleLabel();
 }
@@ -2319,8 +2327,15 @@ function toggleSidebarState() {
 // ============================================================
 // Event Listeners
 // ============================================================
+try {
+    if (localStorage.getItem('parlezSidebarCollapsed') === '1' && !isMobile()) {
+        sidebar.classList.add('collapsed');
+        if (collapseSidebar) collapseSidebar.textContent = '»';
+    }
+} catch (e) { /* storage may be disabled */ }
 syncSidebarToggleLabel();
 toggleSidebar.addEventListener('click', toggleSidebarState);
+if (collapseSidebar) collapseSidebar.addEventListener('click', toggleSidebarState);
 if (sidebarBackdrop) {
     sidebarBackdrop.addEventListener('click', closeMobileSidebar);
 }
@@ -2336,6 +2351,7 @@ window.addEventListener('resize', () => {
     if (!isMobile()) {
         closeMobileSidebar();
     } else {
+        sidebar.classList.remove('collapsed');
         syncSidebarToggleLabel();
     }
 });
