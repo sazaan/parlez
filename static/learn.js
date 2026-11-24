@@ -14,6 +14,7 @@
     const STORAGE_KEY = 'parlezLearnSession';
     let course = null;
     let session = null;
+    let levelMeta = {};
 
     function h(value) {
         return typeof escapeHtml === 'function' ? escapeHtml(value) : String(value ?? '');
@@ -70,13 +71,28 @@
 
     async function loadLearnLevels() {
         try {
-            const r = await apiFetch('/api/learn/courses');
-            const levels = (await r.json()).levels;
+            const [levelsRes, progressRes] = await Promise.all([
+                apiFetch('/api/learn/courses'), apiFetch('/api/progress'),
+            ]);
+            const levels = (await levelsRes.json()).levels;
+            const progress = await progressRes.json().catch(() => ({}));
+            const passed = passedSet(progress);
+            levelMeta = {};
+            for (const level of levels) {
+                const detail = await apiFetch(`/api/learn/courses/${encodeURIComponent(level.level)}`).then(r => r.json());
+                const units = detail.units || [];
+                levelMeta[level.level] = {
+                    lastLesson: units.at(-1)?.lessons?.at(-1)?.id || null,
+                    title: detail.title,
+                };
+            }
+            levelEl.innerHTML = levels.map((l, index) => {
+                const unlocked = index === 0 || passed.has(levelMeta[levels[index - 1].level]?.lastLesson);
+                return `<option value="${h(l.level)}" ${unlocked ? '' : 'disabled'}>${h(l.level)} · ${h(l.name || l.title || '')}${unlocked ? '' : ' 🔒'}</option>`;
+            }).join('');
             const preferred = currentLevel || 'A1';
-            levelEl.innerHTML = levels.map(l =>
-                `<option value="${h(l.level)}">${h(l.level)} · ${h(l.name || l.title || '')}</option>`
-            ).join('');
-            if ([...levelEl.options].some(o => o.value === preferred)) levelEl.value = preferred;
+            if ([...levelEl.options].some(o => o.value === preferred && !o.disabled)) levelEl.value = preferred;
+            else levelEl.value = levels[0].level;
         } catch (e) {
             levelEl.innerHTML = '<option value="A1">A1</option>';
         }
@@ -98,8 +114,17 @@
         }
     }
 
+    function passedSet(progress) {
+        const results = progress?.lesson_results || {};
+        const passed = new Set(
+            Object.entries(results).filter(([, value]) => value && value.passed).map(([key]) => key)
+        );
+        for (const id of progress?.lessons_completed || []) passed.add(id);
+        return passed;
+    }
+
     function renderLearnPath(data, progress) {
-        const done = new Set(progress?.lessons_completed || []);
+        const done = passedSet(progress);
         let html = '<div class="path-intro"><h2>Your learning path</h2><p>Short, focused steps. Tap a lesson to begin — your progress saves automatically.</p><p><button class="explain-button" data-action="learn-placement">Check your level (informal, 12 questions)</button></p></div>';
         const resume = readSession();
         if (resume && resume.lessonId) {
@@ -115,17 +140,20 @@
             html += `<section class="path-unit"><div class="path-unit-head"><h3>${h(unit.title)}</h3><small>${h(unit.titleFr || '')}</small></div>`;
             html += `<p class="session-text">${h(unit.description || '')}</p>`;
             html += '<div class="path-node-list">';
-            for (const lesson of unit.lessons || []) {
+            const lessons = unit.lessons || [];
+            for (let li = 0; li < lessons.length; li += 1) {
+                const lesson = lessons[li];
                 const complete = done.has(lesson.id);
-                const current = firstUndone && !complete;
+                const unlocked = li === 0 || done.has(lessons[li - 1].id);
+                const current = unlocked && firstUndone && !complete;
                 if (current) firstUndone = false;
-                const icon = lesson.skillTags?.includes('speaking') ? '🎙️' :
+                const icon = unlocked ? (lesson.skillTags?.includes('speaking') ? '🎙️' :
                     lesson.skillTags?.includes('listening') ? '🎧' :
-                    lesson.skillTags?.includes('exam') ? '🎯' : '📖';
-                html += `<button class="path-node ${complete ? 'done' : ''} ${current ? 'current' : ''}" data-action="learn-start" data-level="${h(data.level)}" data-id="${h(lesson.id)}">
+                    lesson.skillTags?.includes('exam') ? '🎯' : '📖') : '🔒';
+                html += `<button class="path-node ${complete ? 'done' : ''} ${current ? 'current' : ''} ${unlocked ? '' : 'locked'}" data-action="learn-start" data-level="${h(data.level)}" data-id="${h(lesson.id)}" ${unlocked ? '' : 'disabled aria-disabled="true"'}>
                     <span class="path-node-icon" aria-hidden="true">${icon}</span>
                     <span><strong>${h(lesson.title)}</strong><small>${h(lesson.titleFr || '')} · ${h(lesson.estimatedMinutes || 10)} min</small></span>
-                    <span class="path-node-status">${complete ? '✓ Done' : current ? 'Start' : 'Next'}</span>
+                    <span class="path-node-status">${complete ? '✓ Passed' : unlocked ? current ? 'Start' : 'Next' : 'Locked'}</span>
                 </button>`;
             }
             html += '</div></section>';
@@ -161,6 +189,7 @@
         if (lesson.dialogue?.length) steps.push({ kind: 'dialogue', lines: lesson.dialogue });
         for (const ex of lesson.exercises || []) steps.push({ kind: 'exercise', exercise: ex });
         if (lesson.transferTask) steps.push({ kind: 'transfer', text: lesson.transferTask, checks: lesson.selfCheck || [] });
+        steps.push({ kind: 'checkpoint' });
         steps.push({ kind: 'results' });
         return steps;
     }
@@ -240,6 +269,8 @@
                 <ul class="session-list">${(step.checks || []).map(c => `<li>${h(c)}</li>`).join('')}</ul>
                 <p class="session-text">This task is unscored — it is for practice, not certification.</p>`,
                 '<button data-action="learn-next">Finish →</button>');
+        } else if (step.kind === 'checkpoint') {
+            renderCheckpoint();
         } else if (step.kind === 'results') {
             renderLearnResults();
         }
@@ -579,6 +610,108 @@
         }
     }
 
+    // ---------------- Lesson checkpoint + unlock ----------------
+
+    let checkpoint = null;
+
+    async function renderCheckpoint() {
+        shell('<p class="session-kicker">Checkpoint · server graded</p><h2 class="session-title">Prove it</h2>'
+            + '<p class="session-text">A short comprehensive test of this lesson. Answer at least 70% correctly to unlock the next lesson.</p>'
+            + '<div id="checkpointMount"><p class="session-text">Loading checkpoint…</p></div>',
+            '<button data-action="cp-submit" id="cpSubmit">Submit answers</button>');
+        try {
+            const data = await apiFetch(`/api/learn/courses/${encodeURIComponent(session.level)}/lessons/${encodeURIComponent(session.lessonId)}/checkpoint`).then(r => r.json());
+            checkpoint = { questions: data.questions, answers: {}, passPercent: data.passPercent || 70, result: null };
+            renderCheckpointQuestions();
+        } catch (e) {
+            document.getElementById('checkpointMount').innerHTML = '<p class="session-text">Could not load the checkpoint.</p>';
+        }
+    }
+
+    function renderCheckpointQuestions(result) {
+        const mount = document.getElementById('checkpointMount');
+        if (!mount || !checkpoint) return;
+        let html = '';
+        if (result) {
+            html += `<div class="session-feedback ${result.passed ? 'good' : 'bad'}"><strong>${h(result.score)}/${h(result.total)} (${h(result.percent)}%)</strong> — ${result.passed ? 'Checkpoint passed! Unlocking the next step…' : 'Not quite — review and try again.'}</div>`;
+        }
+        checkpoint.questions.forEach((question, index) => {
+            html += `<div class="exam-item"><p class="session-text"><strong>${index + 1}. ${h(question.prompt)}</strong></p><div class="quiz-options">`;
+            question.options.forEach((option, idx) => {
+                const chosen = checkpoint.answers[question.id] === idx;
+                let cls = 'quiz-option' + (chosen ? ' selected' : '');
+                if (result) {
+                    const item = result.review.find(x => x.id === question.id);
+                    if (item && item.correct && idx === chosen) cls += ' correct';
+                    else if (item && !item.correct && idx === chosen) cls += ' incorrect';
+                }
+                html += `<button class="${cls}" data-action="cp-select" data-id="${h(question.id)}" data-idx="${idx}" ${result ? 'disabled' : ''}>${String.fromCharCode(65 + idx)}. ${h(option)}</button>`;
+            });
+            html += '</div></div>';
+        });
+        mount.innerHTML = html || '<p class="session-text">No checkpoint questions available for this lesson.</p>';
+        const submit = document.getElementById('cpSubmit');
+        if (submit) {
+            submit.hidden = Boolean(result);
+            if (result && !result.passed) {
+                submit.hidden = false;
+                submit.textContent = 'Try again';
+            }
+        }
+        if (result && result.passed) {
+            celebrate();
+            showUnlockOverlay();
+        }
+    }
+
+    async function submitCheckpoint() {
+        if (!checkpoint) return;
+        try {
+            const result = await apiFetch(`/api/learn/courses/${encodeURIComponent(session.level)}/lessons/${encodeURIComponent(session.lessonId)}/checkpoint/submit`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ answers: checkpoint.answers }),
+            }).then(r => r.json());
+            checkpoint.result = result;
+            renderCheckpointQuestions(result);
+        } catch (e) {
+            showToast('Could not grade the checkpoint. Please try again.');
+        }
+    }
+
+    function unlockTarget() {
+        if (!course) return null;
+        for (let u = 0; u < course.units.length; u += 1) {
+            const lessons = course.units[u].lessons || [];
+            const index = lessons.findIndex(l => l.id === session.lessonId);
+            if (index >= 0 && index < lessons.length - 1) {
+                return { type: 'lesson', name: lessons[index + 1].title };
+            }
+        }
+        const levels = levelEl ? [...levelEl.options].map(o => o.value) : [];
+        const current = levels.indexOf(session.level);
+        if (current >= 0 && current < levels.length - 1) {
+            return { type: 'level', name: levels[current + 1] };
+        }
+        return { type: 'course', name: 'the whole A1–B2 path' };
+    }
+
+    function showUnlockOverlay() {
+        const target = unlockTarget();
+        const overlay = document.createElement('div');
+        overlay.className = 'unlock-overlay';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.innerHTML = `<div class="unlock-card">
+            <div class="unlock-lock" aria-hidden="true">🔓</div>
+            <img src="/static/mascot.svg" alt="" class="unlock-mascot">
+            <p class="session-kicker">Checkpoint passed</p>
+            <h2 class="session-title">${target.type === 'level' ? 'New level unlocked!' : 'New lesson unlocked!'}</h2>
+            <p class="session-text">${target.type === 'level' ? 'Level ' : ''}<strong>${h(target.name)}</strong> is now available.</p>
+            <button class="btn-primary" data-action="unlock-continue">Continue →</button>
+        </div>`;
+        document.body.appendChild(overlay);
+    }
+
     function celebrate() {
         const colors = ['#a11b36', '#f2a93b', '#e8b64b', '#0f7a6c', '#2f8f5b', '#c33a4e'];
         for (let i = 0; i < 36; i += 1) {
@@ -659,8 +792,24 @@
             sendSpeakingToPip();
         } else if (action === 'speaking-save') {
             saveSpeakingAttempt();
+        } else if (action === 'cp-select') {
+            if (!checkpoint || checkpoint.result) return;
+            checkpoint.answers[btn.dataset.id] = parseInt(btn.dataset.idx, 10);
+            btn.parentElement.querySelectorAll('.quiz-option').forEach(o => o.classList.remove('selected'));
+            btn.classList.add('selected');
+        } else if (action === 'cp-submit') {
+            submitCheckpoint();
+        } else if (action === 'unlock-continue') {
+            document.querySelector('.unlock-overlay')?.remove();
+            showPath();
+            (async () => {
+                const fresh = await apiFetch('/api/progress').then(r => r.json()).catch(() => ({}));
+                await loadLearnLevels();
+                if (course) renderLearnPath(course, fresh);
+            })();
         } else if (action === 'learn-placement') {
-            startPlacement();
+            if (typeof showLearnView === 'function') showLearnView().then(() => startPlacement());
+            else startPlacement();
         } else if (action === 'placement-select') {
             if (!placement) return;
             placement.answers[btn.dataset.id] = parseInt(btn.dataset.idx, 10);

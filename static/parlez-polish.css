@@ -80,6 +80,21 @@ body::after {
   box-shadow: 0 8px 18px -10px rgba(118,16,31,.8);
 }
 .logo-text, .brand-name { font-family: var(--font-display); font-weight: 700; letter-spacing: -.02em; }
+.primary-nav .section-header { padding: 4px 10px 8px; color: var(--wine); }
+.sidebar-nav-link {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 10px; border-radius: 13px; font-weight: 700; font-size: .88rem;
+  color: var(--ink); transition: transform .18s ease, background .18s ease;
+}
+.sidebar-nav-link:hover { background: var(--paper-deep); transform: translateX(3px); }
+.sidebar-nav-link.active {
+  background: linear-gradient(120deg,#fff1d5,#fde3e8); color: var(--wine-deep);
+  box-shadow: inset 3px 0 0 var(--wine);
+}
+.sidebar-nav-label { display: inline-flex; align-items: center; gap: 9px; }
+.nav-emoji { font-size: 1.05rem; width: 22px; text-align: center; }
+.sidebar-nav-arrow { width: 14px; height: 14px; opacity: .45; }
+
 .btn-new-chat {
   border-radius: var(--radius-full);
   background: linear-gradient(135deg, var(--saffron), var(--saffron-deep));
@@ -272,6 +287,27 @@ body::after {
 @keyframes shake { 25%{transform:translateX(-5px)} 50%{transform:translateX(5px)} 75%{transform:translateX(-3px)} }
 @keyframes mic-pulse { 50%{ box-shadow: 0 0 0 8px rgba(195,58,78,.15); } }
 @keyframes confetti-fall { to { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
+
+.unlock-overlay {
+  position: fixed; inset: 0; z-index: 6000; display: grid; place-items: center; padding: 20px;
+  background: rgba(44,26,19,.62); backdrop-filter: blur(6px);
+  animation: rise-in .3s ease both;
+}
+.unlock-card {
+  width: min(100%, 420px); padding: 30px; text-align: center; border-radius: 30px;
+  background: linear-gradient(160deg,#fffdf8,#fff0d4 60%,#fde3e8);
+  border: 1px solid rgba(232,182,75,.7); box-shadow: var(--shadow-page); position: relative;
+}
+.unlock-lock { font-size: 3.4rem; animation: unlock-pop .9s cubic-bezier(.2,1.6,.4,1) both; }
+.unlock-mascot { width: 92px; height: 92px; margin: -6px auto 4px; animation: mascot-jump .9s .25s cubic-bezier(.2,1.5,.4,1) both; }
+.unlock-card .btn-primary { margin-top: 14px; min-height: 48px; padding: 0 22px; border-radius: 16px; font-weight: 800; }
+@keyframes unlock-pop {
+  0%{transform:scale(.4) rotate(-25deg); opacity:0}
+  60%{transform:scale(1.2) rotate(8deg); opacity:1}
+  100%{transform:scale(1) rotate(0)}
+}
+.path-node.locked { opacity: .48; cursor: not-allowed; }
+.path-node.locked .path-node-status { color: var(--muted); font-size: .7rem; }
 
 .confetti-piece {
   position: fixed; top: -20px; width: 9px; height: 14px; z-index: 5000;

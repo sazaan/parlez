@@ -1274,7 +1274,7 @@ function updateXP(xp) {
 // View Management
 // ============================================================
 function setBottomNav(key) {
-    document.querySelectorAll('.app-bottom-nav button').forEach(b => {
+    document.querySelectorAll('[data-nav]').forEach(b => {
         b.classList.toggle('active', b.dataset.nav === key);
     });
 }

@@ -171,6 +171,7 @@ from mock_tests.data import (
 from mock_tests.preparation import get_exam_preparation, get_exam_study_plan
 from courses.attributed_content import ATTRIBUTED_CATALOG
 from courses.assessment import public_items as placement_items, evaluate as evaluate_placement
+from courses.checkpoints import build_checkpoint, grade_checkpoint, PASS_PERCENT
 from mock_tests.formats import EXAM_FORMATS, public_format
 from mock_tests.original_items import get_items as get_practice_items, grade as grade_practice, SPEC_SOURCES
 from mock_tests.resources import public_resources as public_practice_resources
@@ -2487,6 +2488,53 @@ async def my_referral(user=Depends(require_auth)):
 
 
 # --- Attributed mission-led curriculum (Phase D) ---
+
+def _find_attributed_lesson(level: str, lesson_id: str):
+    course = ATTRIBUTED_CATALOG.get(level.upper())
+    if not course:
+        return None, None, None
+    for unit in course.units:
+        for lesson in unit.lessons:
+            if lesson.id == lesson_id:
+                return course, unit, lesson
+    return course, None, None
+
+
+@app.get("/api/learn/courses/{level}/lessons/{lesson_id}/checkpoint")
+async def get_lesson_checkpoint(level: str, lesson_id: str):
+    course, unit, lesson = _find_attributed_lesson(level, lesson_id)
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+    return {
+        "lessonId": lesson.id,
+        "questions": build_checkpoint(lesson, unit, course),
+        "passPercent": PASS_PERCENT,
+        "notice": "Practice checkpoint — not a CEFR/NCLC test, exam score, or certification.",
+    }
+
+
+@app.post("/api/learn/courses/{level}/lessons/{lesson_id}/checkpoint/submit")
+async def submit_lesson_checkpoint(level: str, lesson_id: str, data: dict, user=Depends(require_auth)):
+    course, unit, lesson = _find_attributed_lesson(level, lesson_id)
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+    answers = data.get("answers") if isinstance(data.get("answers"), dict) else {}
+    result = grade_checkpoint(lesson, unit, course, answers)
+    progress = user.setdefault("progress", {})
+    results = progress.setdefault("lesson_results", {})
+    previous = results.get(lesson.id, {})
+    results[lesson.id] = {
+        "passed": bool(previous.get("passed")) or result["passed"],
+        "score": max(int(previous.get("score") or 0), result["score"]),
+        "total": result["total"],
+        "percent": max(int(previous.get("percent") or 0), result["percent"]),
+    }
+    storage.save_user(user)
+    if result["passed"]:
+        award_reward(storage, user, "lesson_complete", metadata={"lesson_id": lesson.id, "checkpoint": True})
+        storage.save_user(user)
+    return result
+
 
 @app.get("/api/assessment/placement")
 async def get_placement_check():

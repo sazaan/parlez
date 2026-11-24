@@ -42,5 +42,42 @@ def test_lesson_endpoint_includes_attribution(client):
     assert "descriptorIds" in data
 
 
+def test_checkpoint_hides_answers_and_grades_on_server(auth_client):
+    lesson_id = "a1-greetings-l1"
+    r = auth_client.get(f"/api/learn/courses/A1/lessons/{lesson_id}/checkpoint")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["questions"]
+    assert all("answer" not in q and "answerIndex" not in q for q in data["questions"])
+    assert data["passPercent"] == 70
+
+    from courses.attributed_content import ATTRIBUTED_CATALOG
+    from courses.checkpoints import _answers
+    course = ATTRIBUTED_CATALOG["A1"]
+    unit = course.units[0]
+    lesson = unit.lessons[0]
+    answers = {key: index for key, (index, _) in _answers(course, unit, lesson).items()}
+    submitted = auth_client.post(
+        f"/api/learn/courses/A1/lessons/{lesson_id}/checkpoint/submit",
+        json={"answers": answers},
+    )
+    assert submitted.status_code == 200
+    result = submitted.json()
+    assert result["passed"] is True
+    assert result["percent"] == 100
+
+    progress = auth_client.get("/api/progress").json()
+    assert progress["lesson_results"][lesson_id]["passed"] is True
+
+
+def test_checkpoint_fails_below_threshold(auth_client):
+    r = auth_client.post(
+        "/api/learn/courses/A1/lessons/a1-greetings-l1/checkpoint/submit",
+        json={"answers": {}},
+    )
+    assert r.status_code == 200
+    assert r.json()["passed"] is False
+
+
 def test_unknown_lesson_returns_404(client):
     assert client.get("/api/learn/courses/A1/lessons/does-not-exist").status_code == 404

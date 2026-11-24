@@ -81,6 +81,12 @@ Delivered: `courses/attributed_content.py` builds **32 units × 3 lessons = 96 l
 - display a permanent "independent, unofficial practice — not an official score" disclosure;
 - never show a /699 or NCLC score for a practice set.
 
+## Lesson checkpoints & unlocks (2026-11-24)
+
+Every lesson now ends with a **server-graded checkpoint** (`courses/checkpoints.py`, `/api/learn/.../checkpoint` and `/submit`). Questions are built from the lesson's vocabulary, grammar and exercises; answers are never sent to the browser. Passing is 70%. Results are stored in `progress.lesson_results`, which drives sequential unlocking: the next lesson opens only after the previous one is passed, and the next CEFR level opens after the final lesson of the current level. Legacy `lessons_completed` entries count as passed so existing learners are not stranded. Passing plays a lock-opening/mascot/confetti unlock animation.
+
+The sidebar now has a real **Learn** group (Learning Path, Courses, Practice, Speaking, AI Tutor, Rewards, My Progress, Level check) matching features that actually exist; duplicate items were removed from Quick Practice.
+
 ## Late additions (2026-11-24)
 
 - **Speaking missions**: dedicated Learn-shell session with browser STT, typed fallback, listen-first prompt, tutor follow-up, self-rating and saved transcripts (`/api/speaking/attempts`). No audio is stored; no pronunciation score is claimed.
