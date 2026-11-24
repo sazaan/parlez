@@ -128,10 +128,14 @@ def test_esewa_sandbox_verify_decodes_callback_and_checks_status(sandbox_env):
 
 
 def test_checkout_and_result_pages(client):
-    assert client.get("/checkout").status_code == 200
-    r = client.get("/payment-result?attempt=pay_test")
+    r = client.get("/checkout")
     assert r.status_code == 200
-    assert "Payment" in r.text
+    # Plans are embedded so the page renders even if the API call is blocked.
+    assert "Parlez Plus (monthly)" in r.text
+    assert "__PLANS__" not in r.text
+    result = client.get("/payment-result?attempt=pay_test")
+    assert result.status_code == 200
+    assert "Payment" in result.text
 
 
 def test_paddle_sandbox_initiate(monkeypatch):

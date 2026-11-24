@@ -64,6 +64,9 @@ body::after {
   gap: 14px;
   padding: 14px;
 }
+.main-view.view-enter, .session-host.view-enter { animation: view-fade .3s ease both; }
+@keyframes view-fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
 .sidebar {
   background: rgba(255,253,248,.92);
   border: 1px solid var(--line);

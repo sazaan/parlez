@@ -15,6 +15,7 @@
     let course = null;
     let session = null;
     let levelMeta = {};
+    let levelDetailsCache = null;
 
     function h(value) {
         return typeof escapeHtml === 'function' ? escapeHtml(value) : String(value ?? '');
@@ -42,6 +43,7 @@
     function showSession() {
         if (!sessionEl) return;
         sessionEl.hidden = false;
+        if (typeof animateView === 'function') animateView(sessionEl);
         if (pathEl) pathEl.style.display = 'none';
     }
 
@@ -50,44 +52,58 @@
         document.getElementById('chatView').style.display = 'none';
         document.getElementById('toolView').style.display = 'none';
         viewEl.style.display = 'flex';
+        if (typeof animateView === 'function') animateView(viewEl);
         document.getElementById('chatTitle').textContent = 'Learn French — your path';
         document.getElementById('btnBackToChat').style.display = 'none';
         if (typeof setCoursesNavActive === 'function') setCoursesNavActive(false);
-        if (!levelEl.options.length) await loadLearnLevels();
-        try {
-            const rewards = await apiFetch('/api/rewards/summary').then(r => r.json());
-            const xpEl = document.getElementById('learnXp');
-            const streakEl = document.getElementById('learnStreak');
-            const badgeEl = document.getElementById('learnBadges');
-            if (xpEl) xpEl.textContent = rewards.total_xp;
-            if (streakEl) streakEl.textContent = rewards.streak;
-            if (badgeEl) badgeEl.textContent = (rewards.badges || []).length;
-        } catch (e) { /* non-essential HUD */ }
-        await loadLearnPath(levelEl.value || currentLevel || 'A1');
+        setBottomNav('learn');
+
+        // One round-trip, not four sequential ones.
+        const [rewards, progress] = await Promise.all([
+            apiFetch('/api/rewards/summary').then(r => r.json()).catch(() => ({})),
+            apiFetch('/api/progress').then(r => r.json()).catch(() => ({})),
+        ]);
+        const xpEl = document.getElementById('learnXp');
+        const streakEl = document.getElementById('learnStreak');
+        const badgeEl = document.getElementById('learnBadges');
+        const starEl = document.getElementById('learnStars');
+        if (xpEl) xpEl.textContent = rewards.total_xp || 0;
+        if (streakEl) streakEl.textContent = rewards.streak || 0;
+        if (badgeEl) badgeEl.textContent = (rewards.badges || []).length;
+        if (starEl) starEl.textContent = rewards.totalStars || 0;
+
+        if (!levelEl.options.length) await loadLearnLevels(progress);
+        await loadLearnPath(levelEl.value || currentLevel || 'A1', progress);
         const saved = readSession();
         if (saved && saved.lessonId) showResumeBanner(saved);
         else showPath();
     };
 
-    async function loadLearnLevels() {
+    async function loadLearnLevels(providedProgress) {
         try {
-            const [levelsRes, progressRes] = await Promise.all([
-                apiFetch('/api/learn/courses'), apiFetch('/api/progress'),
-            ]);
+            const levelsRes = await apiFetch('/api/learn/courses');
             const levels = (await levelsRes.json()).levels;
-            const progress = await progressRes.json().catch(() => ({}));
+            const progress = providedProgress || await apiFetch('/api/progress').then(r => r.json()).catch(() => ({}));
             const passed = passedSet(progress);
+            if (!levelDetailsCache) {
+                levelDetailsCache = {};
+                await Promise.all(levels.map(async (level) => {
+                    const detail = await apiFetch(`/api/learn/courses/${encodeURIComponent(level.level)}`).then(r => r.json());
+                    levelDetailsCache[level.level] = detail;
+                }));
+            }
             levelMeta = {};
             for (const level of levels) {
-                const detail = await apiFetch(`/api/learn/courses/${encodeURIComponent(level.level)}`).then(r => r.json());
+                const detail = levelDetailsCache[level.level] || { units: [], title: level.title };
                 const units = detail.units || [];
                 levelMeta[level.level] = {
-                    lastLesson: units.at(-1)?.lessons?.at(-1)?.id || null,
+                    lessonIds: units.flatMap(u => (u.lessons || []).map(l => l.id)),
                     title: detail.title,
                 };
             }
             levelEl.innerHTML = levels.map((l, index) => {
-                const unlocked = index === 0 || passed.has(levelMeta[levels[index - 1].level]?.lastLesson);
+                const previousIds = index === 0 ? [] : (levelMeta[levels[index - 1].level]?.lessonIds || []);
+                const unlocked = index === 0 || (previousIds.length > 0 && previousIds.every(id => passed.has(id)));
                 return `<option value="${h(l.level)}" ${unlocked ? '' : 'disabled'}>${h(l.level)} · ${h(l.name || l.title || '')}${unlocked ? '' : ' 🔒'}</option>`;
             }).join('');
             const preferred = currentLevel || 'A1';
@@ -98,16 +114,13 @@
         }
     }
 
-    async function loadLearnPath(level) {
+    async function loadLearnPath(level, providedProgress) {
         if (!pathEl) return;
         pathEl.innerHTML = '<p class="path-empty">Loading your path…</p>';
         try {
-            const [courseRes, progressRes] = await Promise.all([
-                apiFetch(`/api/learn/courses/${encodeURIComponent(level)}`),
-                apiFetch('/api/progress'),
-            ]);
+            const courseRes = await apiFetch(`/api/learn/courses/${encodeURIComponent(level)}`);
             course = await courseRes.json();
-            const progress = await progressRes.json();
+            const progress = providedProgress || await apiFetch('/api/progress').then(r => r.json()).catch(() => ({}));
             renderLearnPath(course, progress);
         } catch (e) {
             pathEl.innerHTML = '<p class="path-empty">Could not load the course path. Please try again.</p>';
@@ -136,6 +149,8 @@
             return;
         }
         let firstUndone = true;
+        const allLessons = (data.units || []).flatMap(u => u.lessons || []);
+        let globalIndex = -1;
         for (const unit of data.units) {
             html += `<section class="path-unit"><div class="path-unit-head"><h3>${h(unit.title)}</h3><small>${h(unit.titleFr || '')}</small></div>`;
             html += `<p class="session-text">${h(unit.description || '')}</p>`;
@@ -143,17 +158,19 @@
             const lessons = unit.lessons || [];
             for (let li = 0; li < lessons.length; li += 1) {
                 const lesson = lessons[li];
+                globalIndex += 1;
                 const complete = done.has(lesson.id);
-                const unlocked = li === 0 || done.has(lessons[li - 1].id);
+                const unlocked = globalIndex === 0 || done.has(allLessons[globalIndex - 1].id);
                 const current = unlocked && firstUndone && !complete;
+                const stars = Math.max(0, Math.min(3, progress?.lesson_results?.[lesson.id]?.stars || 0));
                 if (current) firstUndone = false;
                 const icon = unlocked ? (lesson.skillTags?.includes('speaking') ? '🎙️' :
                     lesson.skillTags?.includes('listening') ? '🎧' :
                     lesson.skillTags?.includes('exam') ? '🎯' : '📖') : '🔒';
                 html += `<button class="path-node ${complete ? 'done' : ''} ${current ? 'current' : ''} ${unlocked ? '' : 'locked'}" data-action="learn-start" data-level="${h(data.level)}" data-id="${h(lesson.id)}" ${unlocked ? '' : 'disabled aria-disabled="true"'}>
                     <span class="path-node-icon" aria-hidden="true">${icon}</span>
-                    <span><strong>${h(lesson.title)}</strong><small>${h(lesson.titleFr || '')} · ${h(lesson.estimatedMinutes || 10)} min</small></span>
-                    <span class="path-node-status">${complete ? '✓ Passed' : unlocked ? current ? 'Start' : 'Next' : 'Locked'}</span>
+                    <span><strong>${h(lesson.title)}</strong><small>Stage ${globalIndex + 1}/${allLessons.length} · ${h(lesson.estimatedMinutes || 10)} min${stars ? ` · ${'★'.repeat(stars)}` : ''}</small></span>
+                    <span class="path-node-status">${complete ? `${'★'.repeat(stars) || '✓'} Passed` : unlocked ? current ? 'Start' : 'Next' : 'Locked'}</span>
                 </button>`;
             }
             html += '</div></section>';
@@ -680,12 +697,18 @@
 
     function unlockTarget() {
         if (!course) return null;
-        for (let u = 0; u < course.units.length; u += 1) {
-            const lessons = course.units[u].lessons || [];
-            const index = lessons.findIndex(l => l.id === session.lessonId);
-            if (index >= 0 && index < lessons.length - 1) {
-                return { type: 'lesson', name: lessons[index + 1].title };
+        const units = course.units || [];
+        const flat = units.flatMap(u => u.lessons || []);
+        const index = flat.findIndex(l => l.id === session.lessonId);
+        if (index < 0) return { type: 'course', name: 'the whole A1–B2 path' };
+        if (index < flat.length - 1) {
+            const next = flat[index + 1];
+            const unitIndex = units.findIndex(u => (u.lessons || []).some(l => l.id === session.lessonId));
+            const nextUnitIndex = units.findIndex(u => (u.lessons || []).some(l => l.id === next.id));
+            if (nextUnitIndex !== unitIndex) {
+                return { type: 'chapter', name: units[nextUnitIndex].title, lessonName: next.title };
             }
+            return { type: 'lesson', name: next.title };
         }
         const levels = levelEl ? [...levelEl.options].map(o => o.value) : [];
         const current = levels.indexOf(session.level);
@@ -758,8 +781,8 @@
             <div class="unlock-lock" aria-hidden="true">🔓</div>
             <img src="/static/mascot.svg" alt="" class="unlock-mascot">
             <p class="session-kicker">Checkpoint passed</p>
-            <h2 class="session-title">${target.type === 'level' ? 'New level unlocked!' : 'New lesson unlocked!'}</h2>
-            <p class="session-text">${target.type === 'level' ? 'Level ' : ''}<strong>${h(target.name)}</strong> is now available.</p>
+            <h2 class="session-title">${target.type === 'chapter' ? 'New chapter unlocked!' : 'New lesson unlocked!'}</h2>
+            <p class="session-text"><strong>${h(target.name)}</strong>${target.lessonName ? ` — starting with “${h(target.lessonName)}”` : ''} is now available.</p>
             <button class="btn-primary" data-action="unlock-continue">Continue →</button>
         </div>`;
         document.body.appendChild(overlay);

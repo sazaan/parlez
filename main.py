@@ -2146,12 +2146,22 @@ async def legal_page():
 
 @app.get("/checkout", response_class=HTMLResponse)
 async def checkout_page():
-    return Response(content=_CHECKOUT_HTML, media_type="text/html", headers={"Cache-Control": "no-cache"})
+    # Embed the plan catalog so the page renders even if the API fetch is
+    # blocked or slow. The browser still uses the API for checkout creation.
+    payload = json.dumps({
+        "plans": [{"id": key, **value} for key, value in payments.PLANS.items()]
+    }).replace("<", "\\u003c")
+    html = _CHECKOUT_HTML.replace("__PLANS__", payload)
+    return Response(content=html, media_type="text/html", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/payment-result", response_class=HTMLResponse)
 async def payment_result_page():
-    return Response(content=_CHECKOUT_HTML, media_type="text/html", headers={"Cache-Control": "no-cache"})
+    payload = json.dumps({
+        "plans": [{"id": key, **value} for key, value in payments.PLANS.items()]
+    }).replace("<", "\\u003c")
+    html = _CHECKOUT_HTML.replace("__PLANS__", payload)
+    return Response(content=html, media_type="text/html", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/learn/french-for-canada", response_class=HTMLResponse)
@@ -2528,6 +2538,7 @@ async def submit_lesson_checkpoint(level: str, lesson_id: str, data: dict, user=
         "score": max(int(previous.get("score") or 0), result["score"]),
         "total": result["total"],
         "percent": max(int(previous.get("percent") or 0), result["percent"]),
+        "stars": max(int(previous.get("stars") or 0), result["stars"]),
     }
     storage.save_user(user)
     if result["passed"]:
@@ -3043,6 +3054,8 @@ async def get_streaks(user=Depends(require_auth)):
 async def get_reward_summary(user=Depends(require_auth)):
     """Authoritative reward state from the ledger, with badge definitions."""
     summary = storage.reward_summary(user["id"], reward_day())
+    lesson_results = user.get("progress", {}).get("lesson_results", {})
+    summary["totalStars"] = sum(int(item.get("stars") or 0) for item in lesson_results.values())
     summary["badgeDefinitions"] = [
         {"id": key, "description": value} for key, value in REWARD_BADGES.items()
     ]

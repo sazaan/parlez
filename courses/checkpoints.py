@@ -98,11 +98,14 @@ def grade_checkpoint(lesson: Lesson, unit: Unit, course: Course, answers: dict) 
         })
     total = len(key)
     percent = round((correct / total) * 100) if total else 0
+    passed = total > 0 and percent >= PASS_PERCENT
+    stars = 3 if percent >= 90 else 2 if percent >= 80 else 1 if passed else 0
     return {
         "score": correct,
         "total": total,
         "percent": percent,
-        "passed": total > 0 and percent >= PASS_PERCENT,
+        "passed": passed,
+        "stars": stars,
         "passPercent": PASS_PERCENT,
         "review": review,
         "notice": NOTICE,

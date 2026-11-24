@@ -65,6 +65,7 @@ def test_checkpoint_hides_answers_and_grades_on_server(auth_client):
     result = submitted.json()
     assert result["passed"] is True
     assert result["percent"] == 100
+    assert result["stars"] == 3
 
     progress = auth_client.get("/api/progress").json()
     assert progress["lesson_results"][lesson_id]["passed"] is True

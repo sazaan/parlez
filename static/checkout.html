@@ -27,6 +27,7 @@ a{color:var(--wine)}
 <div class="wrap">
 <header><h1>Parlez checkout</h1><p class="note">Sandbox payments only. Prices are placeholders until confirmed and disclosed.</p></header>
 <main>
+<script id="planData" type="application/json">__PLANS__</script>
 <div id="plansView"><p class="note">Loading plans…</p></div>
 <div id="resultView" hidden></div>
 <div class="card"><p class="note">Payments are processed by the selected provider. Parlez never sees your card or wallet PIN. By paying you accept the <a href="/legal">terms and refund policy</a>.</p></div>
@@ -65,8 +66,16 @@ a{color:var(--wine)}
     return;
   }
 
-  const plans = await api('/api/plans');
-  if (!plans.ok) { plansView.textContent = 'Could not load plans.'; return; }
+  let plans;
+  try {
+    plans = await api('/api/plans');
+  } catch (e) {
+    plans = { ok: true, data: JSON.parse(document.getElementById('planData').textContent || '{"plans":[]}') };
+  }
+  if (!plans.ok || !plans.data.plans?.length) {
+    plans = { ok: true, data: JSON.parse(document.getElementById('planData').textContent || '{"plans":[]}') };
+  }
+  if (!plans.data.plans?.length) { plansView.textContent = 'No plans are configured yet.'; return; }
   plansView.innerHTML = plans.data.plans.filter(p => p.price_npr > 0).map(p => `
     <section class="card">
       <div class="plan"><div><strong>${escapeHtml(p.name)}</strong><div class="note">${p.features.map(escapeHtml).join(' · ')}</div></div>

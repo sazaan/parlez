@@ -1273,6 +1273,14 @@ function updateXP(xp) {
 // ============================================================
 // View Management
 // ============================================================
+function animateView(element) {
+    if (!element) return;
+    element.classList.remove('view-enter');
+    void element.offsetWidth;
+    element.classList.add('view-enter');
+    setTimeout(() => element.classList.remove('view-enter'), 320);
+}
+
 function setBottomNav(key) {
     document.querySelectorAll('[data-nav]').forEach(b => {
         b.classList.toggle('active', b.dataset.nav === key);
@@ -1312,6 +1320,7 @@ function showToolView(title, html, options = {}) {
     getToolContent().innerHTML = `<div class="tool-header"><h2>${title}</h2></div>` + html;
     document.getElementById('chatTitle').textContent = title;
     document.getElementById('btnBackToChat').style.display = 'flex';
+    animateView(document.getElementById('toolView'));
     // Reset scroll so the user sees the top of the new view
     getToolContent().scrollTop = 0;
 }
@@ -1326,6 +1335,7 @@ function showChatView() {
     // Bug fix: the Learn view used to stay visible, pushing chat halfway down.
     document.getElementById('learnView').style.display = 'none';
     setBottomNav('tutor');
+    animateView(document.getElementById('chatView'));
     activeMainSection = 'chat';
     setCoursesNavActive(false);
     setToolViewBackTarget('chat');
