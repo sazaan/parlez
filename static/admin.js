@@ -210,8 +210,9 @@
         });
     }
 
-    function renderAudit(entries) {
+    function renderAudit(payload) {
         const list = document.getElementById('auditList');
+        const entries = Array.isArray(payload) ? payload : (payload?.entries || []);
         if (!entries.length) {
             list.innerHTML = '<p class="empty-state">No administrative changes have been recorded yet.</p>';
             return;
@@ -276,12 +277,28 @@
             : '<tr><td colspan="6" class="users-empty">No trace spans have been captured yet.</td></tr>';
     }
 
+    async function renderFunnel() {
+        const host = document.getElementById('funnelRows');
+        if (!host) return;
+        try {
+            const data = await adminRequest('/api/admin/metrics/funnel');
+            const counts = data.counts || {};
+            const entries = Object.entries(counts);
+            host.innerHTML = entries.length
+                ? entries.map(([name, count]) => `<span class="badge accent" style="margin:2px 4px 2px 0">${escapeHTML(name.replaceAll('_', ' '))}: ${count}</span>`).join('')
+                : '<p class="empty-state">No funnel events yet.</p>';
+        } catch (e) {
+            host.textContent = 'Could not load funnel counts.';
+        }
+    }
+
     async function loadObservability() {
         const button = document.getElementById('refreshObservabilityButton');
         const message = document.getElementById('observabilityMessage');
         button.disabled = true;
         try {
             renderObservability(await adminRequest('/api/admin/observability'));
+            renderFunnel();
             setMessage(message, '');
         } catch (error) {
             setMessage(message, error.message || 'Could not load observability data.');

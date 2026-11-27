@@ -657,6 +657,8 @@
             <div class="vocab-grid">
                 <button class="vocab-flip" data-action="exam-mission" data-exam="${h(exam)}" data-skill="reading"><strong>Reading</strong><small>Timed comprehension set →</small></button>
                 <button class="vocab-flip" data-action="exam-mission" data-exam="${h(exam)}" data-skill="listening"><strong>Listening</strong><small>Audio script + questions →</small></button>
+                <button class="vocab-flip" data-action="exam-task" data-exam="${h(exam)}" data-skill="writing"><strong>Writing</strong><small>Original task + rubric →</small></button>
+                <button class="vocab-flip" data-action="exam-task" data-exam="${h(exam)}" data-skill="speaking"><strong>Speaking</strong><small>Role-play + self-review →</small></button>
             </div>
             <p class="session-text">Official samples for reference: <a href="https://www.lefrancaisdesaffaires.fr/candidat/test-evaluation-francais/tef-canada/preparation/" target="_blank" rel="noopener">TEF (CCI)</a> · <a href="https://www.france-education-international.fr/en/test/exemples-epreuves-tcf" target="_blank" rel="noopener">TCF (FEI)</a></p>`,
             '<button class="ghost" data-action="learn-quit">Back to path</button>');
@@ -685,6 +687,107 @@
             showToast('Could not load this exam mission.');
         } finally {
             if (typeof hideSectionLoader === 'function') setTimeout(hideSectionLoader, 180);
+        }
+    }
+
+    // ---- Writing & speaking task missions ----
+    let taskMission = null;
+
+    async function startExamTask(exam, skill) {
+        if (typeof showSectionLoader === 'function') showSectionLoader('Pip is fetching your task…');
+        try {
+            const data = await apiFetch(`/api/exam/tasks/${encodeURIComponent(exam)}/${encodeURIComponent(skill)}`).then(r => r.json());
+            const task = data.tasks[0];
+            if (!task) { showToast('No tasks available for this skill yet.'); return; }
+            taskMission = { exam, skill, task, rating: 0, seconds: task.minutes * 60 };
+            renderExamTask();
+            clearInterval(taskMission.timer);
+            taskMission.timer = setInterval(() => {
+                taskMission.seconds -= 1;
+                const el = document.getElementById('taskTimer');
+                if (el) el.textContent = `${Math.floor(Math.max(0, taskMission.seconds) / 60)}:${String(Math.max(0, taskMission.seconds) % 60).padStart(2, '0')}`;
+                if (taskMission.seconds <= 0) clearInterval(taskMission.timer);
+            }, 1000);
+        } catch (e) {
+            showToast('Could not load this task.');
+        } finally {
+            if (typeof hideSectionLoader === 'function') setTimeout(hideSectionLoader, 180);
+        }
+    }
+
+    function renderExamTask(check) {
+        if (!taskMission) return;
+        const task = taskMission.task;
+        if (taskMission.timer) clearInterval(taskMission.timer);
+        let html = `<p class="session-kicker">${h(task.exam)} · ${h(task.skill)} · unofficial practice</p>
+            <h2 class="session-title">${h(task.title)} <span id="taskTimer" class="session-combo">${task.minutes}:00</span></h2>
+            <p class="session-text"><strong>${h(task.instructions)}</strong></p>
+            <p class="session-text">${h(task.passage)}</p>
+            ${task.word_min ? `<p class="session-text">Target: ${task.word_min}${task.word_max ? `–${task.word_max}` : '+'} words.</p>` : ''}
+            <label class="speaking-label" for="taskResponse">Your ${h(task.skill)} answer (type what you said or wrote)</label>
+            <textarea id="taskResponse" class="speaking-textarea" rows="7" placeholder="Écrivez votre réponse en français…">${h(taskMission.response || '')}</textarea>
+            <p class="session-text" id="taskWordCount">${check ? `${check.wordCount} words · ${check.withinRange ? 'within range' : 'outside target range'}` : 'Words: 0'}</p>
+            <p class="session-text">Self-review: ${(check?.rubric || ['Task fulfilment', 'Clarity', 'Language', 'Register', 'Development']).map((r, i) => `<label class="rubric-item"><input type="checkbox" data-rubric="${i}"> ${h(r)}</label>`).join('')}</p>
+            <div id="taskFeedback" class="speaking-reply" aria-live="polite" hidden></div>`;
+        showSession();
+        shell(html, '<button data-action="exam-task-check">Check length</button><button data-action="exam-task-feedback">Ask Pip for feedback ✨</button><button data-action="exam-task-save">Save attempt</button><button class="ghost" data-action="learn-quit">Back</button>');
+        const field = document.getElementById('taskResponse');
+        if (field) field.addEventListener('input', () => {
+            const count = document.getElementById('taskWordCount');
+            if (count) count.textContent = `Words: ${field.value.trim().split(/\s+/).filter(Boolean).length}`;
+        });
+    }
+
+    async function checkExamTask() {
+        if (!taskMission) return;
+        const field = document.getElementById('taskResponse');
+        taskMission.response = field ? field.value : '';
+        try {
+            const result = await postJson('/api/exam/tasks/check', {
+                task_id: taskMission.task.id, response: taskMission.response,
+            });
+            renderExamTask(result);
+        } catch (e) {
+            showToast(`Could not check the task: ${e.message || 'unknown error'}`);
+        }
+    }
+
+    async function saveExamTask() {
+        if (!taskMission) return;
+        const field = document.getElementById('taskResponse');
+        taskMission.response = field ? field.value : '';
+        if (!taskMission.response.trim()) { showToast('Write or type an answer first.'); return; }
+        const rubric = [...document.querySelectorAll('[data-rubric]')].filter(x => x.checked).length;
+        try {
+            await postJson('/api/exam/tasks/attempt', {
+                exam: taskMission.exam, skill: taskMission.skill, task_id: taskMission.task.id,
+                response: taskMission.response, self_rating: rubric,
+            });
+            showToast('Practice attempt saved.');
+        } catch (e) {
+            showToast(`Could not save: ${e.message || 'unknown error'}`);
+        }
+    }
+
+    async function examTaskFeedback() {
+        if (!taskMission) return;
+        const field = document.getElementById('taskResponse');
+        taskMission.response = field ? field.value : '';
+        const panel = document.getElementById('taskFeedback');
+        if (!panel) return;
+        panel.hidden = false;
+        panel.textContent = 'Pip is reading your answer…';
+        try {
+            const message = `Give kind, short feedback on this ${taskMission.exam} ${taskMission.skill} practice answer. Task: ${taskMission.task.instructions}. Answer: ${taskMission.response.slice(0, 1500)}. Mention two strengths and two concrete improvements. This is unofficial practice, not an examiner score.`;
+            const r = await apiFetch('/api/chat', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message, mode: 'writing_correction', level: currentLevel || 'A1' }),
+            });
+            const data = await r.json();
+            if (!r.ok) throw new Error(data.detail || 'failed');
+            panel.innerHTML = parseMarkdown(data.response);
+        } catch (e) {
+            panel.textContent = 'Pip could not reply right now.';
         }
     }
 
@@ -1013,6 +1116,14 @@
             showExamBriefing(btn.dataset.type);
         } else if (action === 'exam-mission') {
             startExamMission(btn.dataset.exam, btn.dataset.skill);
+        } else if (action === 'exam-task') {
+            startExamTask(btn.dataset.exam, btn.dataset.skill);
+        } else if (action === 'exam-task-check') {
+            checkExamTask();
+        } else if (action === 'exam-task-save') {
+            saveExamTask();
+        } else if (action === 'exam-task-feedback') {
+            examTaskFeedback();
         } else if (action === 'exam-select') {
             if (!examMission) return;
             examMission.answers[btn.dataset.id] = parseInt(btn.dataset.idx, 10);

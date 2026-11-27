@@ -41,5 +41,7 @@ MFA secrets are Fernet-encrypted with a key derived from `ADMIN_SESSION_SECRET`.
 - Named admin accounts with roles now exist (`owner`, `editor`, `viewer`) under the **Accounts** tab or `/api/admin/accounts`. The env-configured account is seeded as owner; individual actions are attributed in the audit log. Role enforcement is present for account management; finer per-endpoint editor/viewer restrictions are a follow-up.
 - No in-panel password rotation (edit `.env` and restart).
 - Audit log is capped at 1000 rows; `GET /api/admin/audit?limit=&offset=&action=` now supports filtering and JSON export (a UI is still pending).
+- Change log: `GET /api/admin/audit` returns `{entries, limit, offset, action}`; the console renders `entries`, so publication-disable and review actions appear there with details. Filter with `?action=course_publication_updated`.
+- Model choice: allowlisted providers only. With `OPENAI_API_KEY` set, GPT‑6 Luna becomes the default; `GEMINI_API_KEY` gives a Gemini 3.8 Flash fallback; NVIDIA remains a dev/free-tier option. Keys never appear in admin responses. MFA is enrolled in the Security tab — legacy `ADMIN_TOTP_SECRET` is intentionally ignored.
 - MFA recovery: `python scripts/admin_recovery.py --status` shows stored MFA keys; `--confirm RESET-MFA` clears them, revokes admin sessions and writes an audit entry. Use only if MFA became undecryptable after a secret rotation, then re-enrol.
 - Origin check depends on proxy headers; launch behind the provided Caddy configuration.

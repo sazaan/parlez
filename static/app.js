@@ -345,6 +345,26 @@ function setupDelegatedHandlers() {
             case 'show-adaptive-analysis':
                 if (typeof window.showAdaptiveAnalysis === 'function') window.showAdaptiveAnalysis();
                 break;
+            case 'copy-referral':
+                if (navigator.clipboard && btn.dataset.link) {
+                    navigator.clipboard.writeText(`${window.location.origin}${btn.dataset.link}`)
+                        .then(() => showToast('Invite link copied.'));
+                }
+                break;
+            case 'enable-reminder':
+                if (!('Notification' in window)) {
+                    showToast('This browser does not support notifications.');
+                } else {
+                    Notification.requestPermission().then(permission => {
+                        if (permission === 'granted') {
+                            localStorage.setItem('parlezReminder', '1');
+                            showToast('Daily streak reminder enabled.');
+                        } else {
+                            showToast('Notifications were not allowed.');
+                        }
+                    });
+                }
+                break;
             case 'resume-last-tool':
                 if (typeof window.resumeLastTool === 'function') window.resumeLastTool();
                 break;
@@ -2477,6 +2497,24 @@ messageInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shif
 // Init
 // ============================================================
 updateSendButton();
+async function maybeShowStreakReminder() {
+    try {
+        if (!('Notification' in window) || Notification.permission !== 'granted') return;
+        if (localStorage.getItem('parlezReminder') !== '1') return;
+        const today = new Date().toISOString().slice(0, 10);
+        if (localStorage.getItem('parlezReminderShown') === today) return;
+        const streaks = await apiFetch('/api/streaks').then(r => r.json());
+        const last = streaks?.last_active;
+        if (last && last < today) {
+            new Notification('Parlez — keep your streak lit 🔥', {
+                body: 'A five-minute lesson today keeps your French streak alive.',
+                icon: '/static/mascot.svg', tag: 'parlez-streak',
+            });
+            localStorage.setItem('parlezReminderShown', today);
+        }
+    } catch (e) { /* notifications are decorative */ }
+}
+
 async function initApp() {
     await loadAvailableCourseLevels();
     await loadUser();
@@ -2492,6 +2530,7 @@ async function initApp() {
         if (avatar && currentUser?.name) avatar.textContent = currentUser.name.slice(0, 1).toUpperCase();
     }).catch(() => {});
     updateResumeButton();
+    maybeShowStreakReminder();
     initVoice();
     messageInput.focus();
     if (window.speechSynthesis) {
@@ -2502,6 +2541,11 @@ async function initApp() {
 
 // Check auth on page load
 checkAuth();
+
+// PWA: cache the shell so a learner can reopen lessons offline.
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    navigator.serviceWorker.register('/static/sw.js').catch(() => {});
+}
 
 // ============================================================
 // Practice Functions
@@ -3529,8 +3573,12 @@ window.showRewards = async function() {
     showSectionLoader('Pip is counting your stars…');
     try {
         showToolView('🏅 Rewards &amp; streaks', spinnerHTML('Loading your rewards...', false));
-        const r = await apiFetch('/api/rewards/summary');
+        const [r, referralResponse] = await Promise.all([
+            apiFetch('/api/rewards/summary'),
+            apiFetch('/api/referrals/me').catch(() => null),
+        ]);
         const data = await r.json();
+        const referral = referralResponse ? await referralResponse.json().catch(() => ({})) : {};
         const earned = new Set(data.badges || []);
         let html = '<div class="rewards-view">';
         html += '<div class="reward-stats">';
@@ -3552,6 +3600,10 @@ window.showRewards = async function() {
         }
         if (!(data.ledger || []).length) html += '<li>No activity yet — send your first message!</li>';
         html += '</ul></div>';
+        if (referral.code) {
+            html += `<section class="reward-ref"><h3>Refer a friend</h3><p class="session-text">${escapeHtml(referral.referredCount || 0)} learners joined with your link. A friend completing their first lesson earns you a bonus.</p>
+                <div class="reward-ref-row"><code>${escapeHtml(referral.code)}</code><button class="button button-quiet" data-action="copy-referral" data-link="${escapeHtml(referral.link || '')}">Copy invite link</button></div></section>`;
+        }
         getToolContent().innerHTML = html;
     } catch (e) {
         getToolContent().innerHTML = '<div class="tool-header"><h2>🏅 Rewards</h2></div><p>Could not load rewards. Please try again.</p>';

@@ -1,0 +1,13 @@
+{
+  "name": "Parlez — Learn French",
+  "short_name": "Parlez",
+  "description": "Structured French practice with an AI tutor, TEF/TCF prep and a game-like learning path.",
+  "start_url": "/app",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FFF6E8",
+  "theme_color": "#7C2D3F",
+  "icons": [
+    { "src": "/static/mascot.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

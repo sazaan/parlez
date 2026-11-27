@@ -42,6 +42,30 @@ def test_grade_with_wrong_answers_still_honest(client):
     assert data["results"][0]["correctIndex"] == 0
 
 
+def test_writing_and_speaking_tasks_are_available(client):
+    for exam, skill in (("TEF", "writing"), ("TEF", "speaking"), ("TCF", "writing"), ("TCF", "speaking")):
+        r = client.get(f"/api/exam/tasks/{exam}/{skill}")
+        assert r.status_code == 200
+        assert r.json()["tasks"]
+
+
+def test_task_word_count_check(client):
+    task_id = "TCF-EE-1"
+    short = client.post("/api/exam/tasks/check", json={"task_id": task_id, "response": "Bonjour."}).json()
+    assert short["withinRange"] is False
+    good = client.post("/api/exam/tasks/check", json={"task_id": task_id, "response": " ".join(["mot"] * 90)}).json()
+    assert good["withinRange"] is True
+
+
+def test_task_attempt_saved(auth_client):
+    r = auth_client.post("/api/exam/tasks/attempt", json={
+        "exam": "TEF", "skill": "writing", "task_id": "TEF-EE-A-1",
+        "response": " ".join(["mot"] * 100), "self_rating": 4,
+    })
+    assert r.status_code == 200
+    assert r.json()["wordCount"] == 100
+
+
 def test_resources_registry_is_licence_aware(client):
     r = client.get("/api/practice/resources")
     assert r.status_code == 200

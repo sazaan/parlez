@@ -17,6 +17,48 @@ def test_model_config_accepts_an_env_override(monkeypatch):
     assert main.resolve_nvidia_model() == "nvidia/custom-chat-model"
 
 
+def test_provider_allowlist_and_payload_params(monkeypatch):
+    assert "openai" in main.AI_PROVIDER_SPECS
+    assert main.AI_PROVIDER_SPECS["openai"]["default_model"] == "gpt-6-luna"
+    assert main.PROVIDER_ORDER[0] == "openai"
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
+    config = main._default_ai_config()
+    assert config == {"provider": "openai", "model": "gpt-6-luna"}
+
+    class FakeResponse:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {"choices": [{"message": {"content": "Bonjour"}}]}
+
+    class FakeAsyncClient:
+        payload = None
+
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        async def post(self, url, headers, json):
+            FakeAsyncClient.payload = json
+            return FakeResponse()
+
+    monkeypatch.setattr(main.httpx, "AsyncClient", FakeAsyncClient)
+    asyncio.run(main.call_ai_provider(
+        [{"role": "user", "content": "Bonjour"}], "openai", "gpt-6-luna"
+    ))
+    payload = FakeAsyncClient.payload
+    assert payload["reasoning_effort"] == "low"
+    assert "temperature" not in payload
+    assert "top_p" not in payload
+
+
 def test_configured_model_is_sent_to_nvidia(monkeypatch):
     class FakeResponse:
         status_code = 200
@@ -43,7 +85,7 @@ def test_configured_model_is_sent_to_nvidia(monkeypatch):
             return FakeResponse()
 
     monkeypatch.setattr(main, "NVIDIA_API_KEY", "test-key")
-    monkeypatch.setattr(main, "MODEL", "nvidia/test-model")
+    monkeypatch.setitem(main.AI_PROVIDER_SPECS["nvidia"], "default_model", "nvidia/test-model")
     monkeypatch.setattr(main.httpx, "AsyncClient", FakeAsyncClient)
 
     result = asyncio.run(main.call_nvidia([{"role": "user", "content": "Bonjour"}]))

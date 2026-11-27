@@ -212,6 +212,7 @@ def test_streaming_provider_yields_text_deltas(monkeypatch):
 
 def test_provider_failover_when_active_provider_fails(monkeypatch):
     monkeypatch.setattr(main, "NVIDIA_API_KEY", "test-key")
+    monkeypatch.setattr(main, "DEFAULT_AI_PROVIDER", "nvidia")
     monkeypatch.setenv("GEMINI_API_KEY", "fallback-key")
     main._provider_circuit.clear()
     calls = []

@@ -10,6 +10,7 @@ Review state is "practice": these are practice pathways, not CEFR/NCLC
 certification. See ContentProvenance and docs/SOURCEREGISTER.md.
 """
 
+from .quality import enrich_course
 from .standards import FRAMEWORK
 from .types import (
     ContentProvenance, Course, DialogueLine, Exercise, GrammarExample,
@@ -704,7 +705,7 @@ def build_attributed_catalog():
             )
             for spec in specs
         ]
-        catalog[level] = Course(
+        course = Course(
             level=level, title=f"Parlez {level} — attributed mission path",
             book="Parlez original content", description=f"Mission-led {level} practice built from attributed sources.",
             cefrDescription=f"{level} can-do inspired outcomes; practice, not certification.",
@@ -714,6 +715,8 @@ def build_attributed_catalog():
             framework=FRAMEWORK, descriptor_ids=sorted({d for spec in specs for d in spec["descriptors"]}),
             provenance=PROVENANCE,
         )
+        enrich_course(course)
+        catalog[level] = course
     return catalog
 
 

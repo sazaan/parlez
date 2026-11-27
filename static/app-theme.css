@@ -299,6 +299,10 @@ button { -webkit-tap-highlight-color: transparent; }
 .reward-badge small { display: block; color: var(--muted-foreground); }
 .reward-ledger { list-style: none; padding: 0; margin: 0; }
 .reward-ledger li { display: flex; justify-content: space-between; padding: 0.45rem 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+.reward-ref { margin-top: 1.2rem; padding: 1rem; border-radius: 16px; background: var(--paper-deep); border: 1px solid var(--border); }
+.reward-ref h3 { margin: 0 0 0.4rem; font-family: var(--font-display); }
+.reward-ref-row { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; margin-top: 0.7rem; }
+.reward-ref-row code { font-weight: 800; color: var(--wine); }
 
 .speaking-card { display: grid; gap: 0.8rem; max-width: 720px; }
 .speaking-prompts { display: grid; gap: 0.4rem; }

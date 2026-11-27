@@ -504,6 +504,7 @@ def test_model_change_requires_a_successful_test(signed_admin, monkeypatch):
 def test_admin_can_rollback_to_last_known_ai_model(signed_admin, monkeypatch):
     client, csrf = signed_admin
     monkeypatch.setattr(main, "NVIDIA_API_KEY", "test-nvidia-key")
+    monkeypatch.setattr(main, "DEFAULT_AI_PROVIDER", "nvidia")
     monkeypatch.setenv("GEMINI_API_KEY", "test-secret-gemini-key")
 
     async def fake_call(messages, provider, model, max_tokens=2048, operation="chat"):

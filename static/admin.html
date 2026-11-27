@@ -240,6 +240,11 @@
                         <button class="button button-secondary" id="refreshObservabilityButton" type="button">Refresh telemetry</button>
                     </div>
                     <p class="inline-message" id="observabilityMessage" role="status" aria-live="polite"></p>
+                    <div class="panel-card" style="margin:10px 0">
+                        <h4>Learning funnel &amp; experiments</h4>
+                        <div id="funnelRows" class="users-empty">Loading funnel counts…</div>
+                        <p class="field-help">Coarse, privacy-safe events only — no learner text or answers are stored. Use stable experiment keys in <code>/api/experiments/{key}</code>.</p>
+                    </div>
                     <div class="alert-list" id="observabilityAlerts" aria-live="polite"><p class="empty-state">Loading active alerts…</p></div>
                     <div class="observability-metrics" id="observabilityMetricCards">
                         <article class="metric-card"><span>Core API requests · 24h</span><strong id="obsCoreRequests">—</strong></article>

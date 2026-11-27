@@ -61,6 +61,11 @@ def test_signup_page_and_legacy_redirect(client):
     assert legacy.headers["location"] == "/signup"
 
 
+def test_pwa_assets(client):
+    for url in ("/static/manifest.webmanifest", "/static/sw.js"):
+        assert client.get(url).status_code == 200
+
+
 def test_app_shell_route(client):
     r = client.get("/app")
     assert r.status_code == 200

@@ -175,6 +175,7 @@ from courses.checkpoints import build_checkpoint, grade_checkpoint, PASS_PERCENT
 from mock_tests.formats import EXAM_FORMATS, public_format
 from mock_tests.original_items import get_items as get_practice_items, grade as grade_practice, SPEC_SOURCES
 from mock_tests.resources import public_resources as public_practice_resources
+from mock_tests.tasks import public_tasks as public_exam_tasks, check_response as check_exam_response
 import payments
 
 def build_limiter(redis_url: str | None = None) -> Limiter:
@@ -513,7 +514,7 @@ class XP:
 NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY")
 INVOKE_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
 DEFAULT_NVIDIA_MODEL = "nvidia/nemotron-3.5-lightning-30b-a3b"
-DEFAULT_AI_PROVIDER = os.getenv("AI_PROVIDER", "nvidia").strip().lower() or "nvidia"
+DEFAULT_AI_PROVIDER = os.getenv("AI_PROVIDER", "").strip().lower()
 
 
 def resolve_nvidia_model(configured_model: str | None = None) -> str:
@@ -529,31 +530,51 @@ MODEL = resolve_nvidia_model()
 # accepts provider/model IDs, never arbitrary URLs (which would create an SSRF
 # surface). API keys remain server-side in environment/secret configuration.
 AI_PROVIDER_SPECS = {
-    "nvidia": {
-        "label": "NVIDIA NIM",
-        "base_url": INVOKE_URL,
-        "key_env": "NVIDIA_API_KEY",
-        "default_model": MODEL,
+    # Allowlisted providers only: the admin UI chooses a key, never a URL/model.
+    # Research 2026-11-27: Luna is the best price/latency/quality fit for the
+    # short French tutor tasks; Gemini 3.8 Flash is the fallback.
+    "openai": {
+        "label": "OpenAI GPT‑6 Luna",
+        "base_url": "https://api.openai.com/v1/chat/completions",
+        "key_env": "OPENAI_API_KEY",
+        "default_model": os.getenv("OPENAI_MODEL", "gpt-6-luna").strip() or "gpt-6-luna",
+        "extra": {"reasoning_effort": os.getenv("OPENAI_REASONING_EFFORT", "low").strip() or "low"},
+        "classic_sampling": False,
     },
     "gemini": {
-        "label": "Google Gemini API",
+        "label": "Google Gemini 3.8 Flash",
         "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
         "key_env": "GEMINI_API_KEY",
         "default_model": os.getenv("GEMINI_MODEL", "gemini-3.8-flash").strip() or "gemini-3.8-flash",
+        "extra": {"reasoning_effort": os.getenv("GEMINI_REASONING_EFFORT", "low").strip() or "low"},
+        "classic_sampling": False,
+    },
+    "nvidia": {
+        "label": "NVIDIA NIM (dev/free tier)",
+        "base_url": INVOKE_URL,
+        "key_env": "NVIDIA_API_KEY",
+        "default_model": MODEL,
+        # Thinking shares the max_tokens budget; disable it for short answers.
+        "extra": {"chat_template_kwargs": {"enable_thinking": False}},
+        "classic_sampling": True,
     },
     "openrouter": {
         "label": "OpenRouter",
         "base_url": "https://openrouter.ai/api/v1/chat/completions",
         "key_env": "OPENROUTER_API_KEY",
-        "default_model": os.getenv("OPENROUTER_MODEL", "openrouter/free").strip() or "openrouter/free",
+        "default_model": os.getenv("OPENROUTER_MODEL", "openai/gpt-6-luna").strip() or "openai/gpt-6-luna",
+        "classic_sampling": True,
     },
     "opencode_zen": {
         "label": "OpenCode Zen",
         "base_url": "https://opencode.ai/zen/v1/chat/completions",
         "key_env": "OPENCODE_ZEN_API_KEY",
-        "default_model": os.getenv("OPENCODE_ZEN_MODEL", "big-pickle").strip() or "big-pickle",
+        "default_model": os.getenv("OPENCODE_ZEN_MODEL", "gemini-3.8-flash").strip() or "gemini-3.8-flash",
+        "classic_sampling": False,
     },
 }
+
+PROVIDER_ORDER = ("openai", "gemini", "nvidia", "openrouter", "opencode_zen")
 
 
 def _provider_key(provider: str) -> str | None:
@@ -570,9 +591,10 @@ def _provider_key(provider: str) -> str | None:
 
 
 def _default_ai_config() -> dict:
-    provider = DEFAULT_AI_PROVIDER if DEFAULT_AI_PROVIDER in AI_PROVIDER_SPECS else "nvidia"
-    model = MODEL if provider == "nvidia" else AI_PROVIDER_SPECS[provider]["default_model"]
-    return {"provider": provider, "model": model}
+    provider = DEFAULT_AI_PROVIDER.strip().lower() if DEFAULT_AI_PROVIDER else ""
+    if provider not in AI_PROVIDER_SPECS or not _provider_key(provider):
+        provider = next((p for p in PROVIDER_ORDER if _provider_key(p)), "nvidia")
+    return {"provider": provider, "model": AI_PROVIDER_SPECS[provider]["default_model"]}
 
 
 def get_active_ai_config() -> dict:
@@ -1199,10 +1221,15 @@ async def call_ai_provider(
         "model": model,
         "messages": messages,
         "max_tokens": effective_max_tokens,
-        "temperature": 0.6,
-        "top_p": 0.95,
         "stream": False,
     }
+    # Modern reasoning models (Luna, Gemini 3.8) reject non-default sampling
+    # values; steer with reasoning_effort instead. Legacy/open models accept
+    # temperature/top_p and Nemotron needs thinking disabled explicitly.
+    if spec.get("classic_sampling", False):
+        payload["temperature"] = 0.6
+        payload["top_p"] = 0.95
+    payload.update(spec.get("extra", {}))
     deadline = started + 90.0  # hard overall cap, independent of per-attempt timeouts
     attempts = 0
     last_http_status = None
@@ -1391,7 +1418,7 @@ def _record_provider_success(provider: str) -> None:
 
 def _provider_candidates(active_provider: str):
     """Active provider first, then other configured providers as fallbacks."""
-    ordered = [active_provider] + [p for p in AI_PROVIDER_SPECS if p != active_provider]
+    ordered = [active_provider] + [p for p in PROVIDER_ORDER if p != active_provider]
     return [p for p in ordered if _provider_key(p) and not _circuit_is_open(p)]
 
 
@@ -1433,10 +1460,12 @@ async def call_ai_provider_stream(messages, provider, model, max_tokens, operati
         "model": model,
         "messages": messages,
         "max_tokens": max(max_tokens, CHAT_MAX_TOKENS) if operation == "chat" else max_tokens,
-        "temperature": 0.6,
-        "top_p": 0.95,
         "stream": True,
     }
+    if spec.get("classic_sampling", False):
+        payload["temperature"] = 0.6
+        payload["top_p"] = 0.95
+    payload.update(spec.get("extra", {}))
     emitted = False
     async with httpx.AsyncClient(timeout=30.0) as client:
         async with client.stream(
@@ -3299,6 +3328,44 @@ async def get_exam_practice(exam: str, skill: str):
         "specSources": SPEC_SOURCES,
         "notice": "Original practice items written from published task descriptions. Not real or past exam questions.",
     }
+
+
+@app.get("/api/exam/tasks/{exam}/{skill}")
+async def get_exam_tasks(exam: str, skill: str):
+    exam = exam.upper()
+    if exam not in {"TEF", "TCF"} or skill.lower() not in {"writing", "speaking"}:
+        raise HTTPException(status_code=400, detail="Unknown task type")
+    return {
+        "tasks": public_exam_tasks(exam, skill),
+        "notice": "Original unofficial practice. Not an official score, CEFR/NCLC level, or exam certificate.",
+    }
+
+
+@app.post("/api/exam/tasks/check")
+async def check_exam_task(data: dict):
+    task_id = str(data.get("task_id") or "")
+    text = str(data.get("response") or "")
+    result = check_exam_response(task_id, text)
+    if not result.get("found"):
+        raise HTTPException(status_code=404, detail="Unknown task")
+    return result
+
+
+@app.post("/api/exam/tasks/attempt")
+async def save_exam_task_attempt(data: dict, user=Depends(require_auth)):
+    exam = str(data.get("exam") or "").upper()
+    skill = str(data.get("skill") or "").lower()
+    task_id = str(data.get("task_id") or "")
+    response = str(data.get("response") or "")
+    if exam not in {"TEF", "TCF"} or skill not in {"writing", "speaking"} or not task_id or not response.strip():
+        raise HTTPException(status_code=400, detail="Invalid task attempt")
+    check = check_exam_response(task_id, response)
+    saved = storage.add_exam_task_attempt(
+        user["id"], exam, skill, task_id, response,
+        int(data.get("self_rating") or 0), check.get("wordCount", 0),
+    )
+    storage.record_event(user["id"], "exam_task_attempt", {"exam": exam, "skill": skill})
+    return {"ok": True, **saved, **check}
 
 
 @app.get("/api/practice/resources")

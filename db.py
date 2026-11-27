@@ -195,6 +195,19 @@ class LearningEvent(Base):
     created_at = Column(Float, nullable=False)
 
 
+class ExamTaskAttempt(Base):
+    __tablename__ = "exam_task_attempts"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String, nullable=False, index=True)
+    exam = Column(String, nullable=False)
+    skill = Column(String, nullable=False)
+    task_id = Column(String, nullable=False)
+    response = Column(Text, nullable=False)
+    self_rating = Column(Integer, nullable=False, default=0)
+    word_count = Column(Integer, nullable=False, default=0)
+    created_at = Column(Float, nullable=False)
+
+
 class SpeakingAttempt(Base):
     """A saved speaking practice turn. No audio is stored by default."""
     __tablename__ = "speaking_attempts"
@@ -628,6 +641,35 @@ class Storage:
     # Privacy-safe learning events and A/B assignment
     # ------------------------------------------------------------------
 
+    def add_exam_task_attempt(self, user_id: str, exam: str, skill: str, task_id: str,
+                              response: str, self_rating: int, word_count: int) -> dict:
+        with self.Session() as session:
+            with session.begin():
+                row = ExamTaskAttempt(
+                    user_id=user_id, exam=exam, skill=skill, task_id=task_id,
+                    response=" ".join(str(response).split())[:6000],
+                    self_rating=max(0, min(5, int(self_rating or 0))),
+                    word_count=max(0, int(word_count or 0)), created_at=time.time(),
+                )
+                session.add(row)
+                session.flush()
+                return {"id": row.id, "created_at": row.created_at}
+
+    def list_exam_task_attempts(self, user_id: str, limit: int = 10) -> list[dict]:
+        with self.Session() as session:
+            rows = (
+                session.query(ExamTaskAttempt)
+                .filter_by(user_id=user_id)
+                .order_by(ExamTaskAttempt.id.desc())
+                .limit(max(1, min(limit, 50)))
+                .all()
+            )
+            return [
+                {"exam": r.exam, "skill": r.skill, "taskId": r.task_id,
+                 "wordCount": r.word_count, "selfRating": r.self_rating, "createdAt": r.created_at}
+                for r in rows
+            ]
+
     def add_speaking_attempt(self, user_id: str, scenario: str, transcript: str, self_rating: int) -> dict:
         with self.Session() as session:
             with session.begin():
@@ -682,7 +724,8 @@ class Storage:
 
     def record_event(self, user_id: str, name: str, props: Optional[dict] = None):
         allowed = {"lesson_start", "lesson_complete", "exam_mission_start", "exam_mission_submit",
-                   "placement_submit", "coach_request", "share_progress", "speaking_practice"}
+                   "exam_task_attempt", "placement_submit", "coach_request", "share_progress",
+                   "speaking_practice"}
         if name not in allowed:
             raise ValueError(f"Unsupported event: {name}")
         safe = {k: v for k, v in (props or {}).items() if k in {"level", "exam", "skill", "variant", "source"}}
